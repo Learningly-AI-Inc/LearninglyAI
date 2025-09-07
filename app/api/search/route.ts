@@ -3,19 +3,14 @@ import { createClient } from '@/lib/supabase-server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import OpenAI from 'openai'
 
-// Map new model names to database-allowed model names
+// Simplified model mapping - just use the basic model name
 const mapModelToDatabaseModel = (model: string): string => {
-  const modelMapping: Record<string, string> = {
-    'gemini-2.5-flash': 'gemini-pro',
-    'gemini-2.5-flash-lite': 'gemini-pro',
-    'gemini-2.5-pro': 'gemini-pro',
-    'gpt-5-mini': 'gpt-3.5-turbo',
-    'gpt-5': 'gpt-4',
-    'gpt-5-nano': 'gpt-3.5-turbo',
-    'gpt-5-thinking-pro': 'gpt-4'
+  if (model.startsWith('gemini')) {
+    return 'gemini'
+  } else if (model.startsWith('gpt')) {
+    return 'openai'
   }
-  
-  return modelMapping[model] || 'gpt-3.5-turbo' // Default fallback
+  return 'gemini' // Default fallback
 }
 
 // Initialize AI clients
@@ -210,13 +205,19 @@ export async function POST(request: NextRequest) {
 
       if (!currentConversationId) {
         console.log('🔍 [SEARCH API] Creating new conversation...')
-        // Create new conversation in both systems for compatibility
+        const mappedModel = mapModelToDatabaseModel(model)
+        console.log('🔍 [SEARCH API] Model mapping:', {
+          original: model,
+          mapped: mappedModel
+        })
+        
+        // Create new conversation
         const { data: newConversation, error: convError } = await supabase
           .from('search_conversations')
           .insert({
             user_id: userId,
             title: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
-            model_used: model
+            model_used: mappedModel
           })
           .select()
           .single()
@@ -232,7 +233,7 @@ export async function POST(request: NextRequest) {
         console.log('🔍 [SEARCH API] Using existing conversation:', currentConversationId)
       }
 
-      // Save user message to both systems
+      // Save user message
       console.log('🔍 [SEARCH API] Saving user message...')
       const { error: userMsgError } = await supabase
         .from('search_messages')
@@ -240,7 +241,7 @@ export async function POST(request: NextRequest) {
           conversation_id: currentConversationId,
           role: 'user',
           content: message,
-          model_used: model
+          model_used: mapModelToDatabaseModel(model)
         })
 
       if (userMsgError) {
@@ -258,7 +259,7 @@ export async function POST(request: NextRequest) {
           role: 'assistant',
           content: aiResponse,
           sources: sources,
-          model_used: model
+          model_used: mapModelToDatabaseModel(model)
         })
 
       if (aiMsgError) {
@@ -267,93 +268,7 @@ export async function POST(request: NextRequest) {
         console.log('🔍 [SEARCH API] AI response saved successfully')
       }
 
-      // Also save to new Supabase chat system if conversationId exists
-      if (currentConversationId) {
-        try {
-          console.log('🔍 [SEARCH API] Saving to new Supabase chat system...')
-          
-          // Check if conversation exists in new system
-          const { data: existingConv } = await supabase
-            .from('chat_conversations')
-            .select('id')
-            .eq('id', currentConversationId)
-            .single()
-
-          if (!existingConv) {
-            // Create conversation in new system
-            const mappedModelName = mapModelToDatabaseModel(model)
-            console.log('🔍 [SEARCH API] Creating conversation with mapped model:', {
-              conversation_id: currentConversationId,
-              user_id: userId,
-              original_model: model,
-              mapped_model: mappedModelName,
-              title: message.substring(0, 50) + (message.length > 50 ? '...' : '')
-            })
-            
-            const { error: newConvError } = await supabase
-              .from('chat_conversations')
-              .insert({
-                id: currentConversationId, // Use same ID for consistency
-                user_id: userId,
-                title: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
-                model_name: mappedModelName
-              })
-
-            if (newConvError) {
-              console.error('🔍 [SEARCH API] Error creating conversation in new system:', {
-                error: newConvError,
-                conversation_id: currentConversationId,
-                user_id: userId,
-                mapped_model: mappedModelName
-              })
-            } else {
-              console.log('🔍 [SEARCH API] Conversation created successfully with mapped model')
-            }
-          }
-
-          // Save messages to new system
-          const { error: newUserMsgError } = await supabase
-            .from('chat_messages')
-            .insert({
-              conversation_id: currentConversationId,
-              role: 'user',
-              content: message,
-              content_type: 'text',
-              metadata: { 
-                original_model: model, 
-                mapped_model: mapModelToDatabaseModel(model),
-                sources: [] 
-              }
-            })
-
-          if (newUserMsgError) {
-            console.error('🔍 [SEARCH API] Error saving user message to new system:', newUserMsgError)
-          }
-
-          const { error: newAiMsgError } = await supabase
-            .from('chat_messages')
-            .insert({
-              conversation_id: currentConversationId,
-              role: 'assistant',
-              content: aiResponse,
-              content_type: 'text',
-              metadata: { 
-                original_model: model, 
-                mapped_model: mapModelToDatabaseModel(model),
-                sources: sources 
-              }
-            })
-
-          if (newAiMsgError) {
-            console.error('🔍 [SEARCH API] Error saving AI message to new system:', newAiMsgError)
-          }
-
-          console.log('🔍 [SEARCH API] Messages saved to new Supabase chat system')
-        } catch (error) {
-          console.error('🔍 [SEARCH API] Error saving to new chat system:', error)
-          // Don't fail the request if new system fails
-        }
-      }
+      // Removed chat system integration since we're only using search tables now
 
       // Log AI model call
       console.log('🔍 [SEARCH API] Logging AI model call...')
@@ -492,6 +407,95 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     const responseTime = Date.now() - startTime
     console.error('🔍 [SEARCH API] GET error:', {
+      error: error.message,
+      stack: error.stack,
+      responseTime: `${responseTime}ms`
+    })
+    return NextResponse.json(
+      { error: 'Internal server error', details: error.message },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const startTime = Date.now()
+  console.log('🔍 [SEARCH API] DELETE request started')
+
+  try {
+    const { searchParams } = new URL(request.url)
+    const conversationId = searchParams.get('conversationId')
+
+    console.log('🔍 [SEARCH API] DELETE request details:', {
+      conversationId: conversationId?.substring(0, 8) + '...'
+    })
+
+    if (!conversationId) {
+      console.error('🔍 [SEARCH API] Missing conversationId parameter')
+      return NextResponse.json(
+        { error: 'conversationId is required' },
+        { status: 400 }
+      )
+    }
+
+    const supabase = await createClient()
+    
+    // Get the authenticated user from the session
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      console.error('🔍 [SEARCH API] Authentication error:', authError)
+      return NextResponse.json(
+        { error: 'User not authenticated' },
+        { status: 401 }
+      )
+    }
+
+    console.log('🔍 [SEARCH API] Deleting conversation and its messages...')
+    
+    // First delete all messages for this conversation
+    const { error: messagesError } = await supabase
+      .from('search_messages')
+      .delete()
+      .eq('conversation_id', conversationId)
+
+    if (messagesError) {
+      console.error('🔍 [SEARCH API] Error deleting messages:', messagesError)
+      return NextResponse.json(
+        { error: 'Failed to delete conversation messages' },
+        { status: 500 }
+      )
+    }
+
+    // Then delete the conversation
+    const { error: conversationError } = await supabase
+      .from('search_conversations')
+      .delete()
+      .eq('id', conversationId)
+      .eq('user_id', user.id) // Ensure user can only delete their own conversations
+
+    if (conversationError) {
+      console.error('🔍 [SEARCH API] Error deleting conversation:', conversationError)
+      return NextResponse.json(
+        { error: 'Failed to delete conversation' },
+        { status: 500 }
+      )
+    }
+
+    const responseTime = Date.now() - startTime
+    console.log('🔍 [SEARCH API] Conversation deleted successfully:', {
+      conversationId,
+      responseTime: `${responseTime}ms`
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Conversation deleted successfully'
+    })
+
+  } catch (error: any) {
+    const responseTime = Date.now() - startTime
+    console.error('🔍 [SEARCH API] DELETE error:', {
       error: error.message,
       stack: error.stack,
       responseTime: `${responseTime}ms`

@@ -9,8 +9,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useAuthContext } from "@/components/auth/auth-provider"
 import { Markdown } from "@/components/ui/markdown"
 import { toast } from "sonner"
-import { useChat } from "@/hooks/use-chat"
-import { ChatMessage } from "@/types/chat"
+// Removed useChat hook dependency to fix chat_preferences table error
 
 interface Message {
   id: string
@@ -44,17 +43,7 @@ function QuickTip({ icon, title, desc }: { icon: React.ReactNode; title: string;
 const SearchPage = () => {
   const { user, loading } = useAuthContext()
   
-  // Use the Supabase chat hook for conversation management
-  const {
-    conversations: supabaseConversations,
-    messages: supabaseMessages,
-    error: chatError,
-    createConversation,
-    selectConversation,
-    sendMessage: supabaseSendMessage,
-    deleteConversation,
-    clearError
-  } = useChat()
+  // Removed useChat hook dependency - using direct API calls instead
 
   // Local state for UI
   const [messages, setMessages] = React.useState<Message[]>([
@@ -95,22 +84,11 @@ const SearchPage = () => {
     if (user?.id && !loading) {
       loadConversations()
     }
-  }, [user?.id, supabaseConversations, loading])
+  }, [user?.id, loading])
 
-  // Handle chat errors
-  React.useEffect(() => {
-    if (chatError) {
-      toast.error(chatError)
-      clearError()
-    }
-  }, [chatError, clearError])
+  // Removed chat error handling since we're not using the chat hook
 
-  // Only setup Supabase chat when user is authenticated and not loading
-  React.useEffect(() => {
-    if (user?.id && !loading && supabaseConversations.length > 0) {
-      console.log('💬 [SEARCH PAGE] User authenticated, Supabase conversations loaded:', supabaseConversations.length)
-    }
-  }, [user?.id, loading, supabaseConversations])
+  // Removed Supabase chat setup since we're using direct API calls
 
   // Debug: Monitor state changes
   React.useEffect(() => {
@@ -121,11 +99,9 @@ const SearchPage = () => {
       isTyping,
       isLoading,
       selectedModel,
-      currentMessageLength: currentMessage.length,
-      supabaseConversationsCount: supabaseConversations.length,
-      supabaseMessagesCount: supabaseMessages.length
+      currentMessageLength: currentMessage.length
     })
-  }, [conversations, messages, selectedConversationId, isTyping, isLoading, selectedModel, currentMessage, supabaseConversations, supabaseMessages])
+  }, [conversations, messages, selectedConversationId, isTyping, isLoading, selectedModel, currentMessage])
 
   const loadConversations = async () => {
     if (!user?.id || loading) {
@@ -136,22 +112,27 @@ const SearchPage = () => {
     console.log('💬 [SEARCH PAGE] loadConversations: Starting for user:', user.id)
     
     try {
-      // Convert Supabase conversations to local format for compatibility
-      const localConversations: Conversation[] = supabaseConversations.map(conv => ({
-        id: conv.id,
-        title: conv.title,
-        model_used: conv.model_name as any, // Map model names
-        created_at: conv.created_at,
-        updated_at: conv.updated_at
-      }))
+      // Fetch conversations directly from search API
+      const response = await fetch(`/api/search?userId=${user.id}`)
       
-      console.log('💬 [SEARCH PAGE] loadConversations: Converting Supabase conversations:', {
-        supabaseCount: supabaseConversations.length,
-        localCount: localConversations.length
-      })
-      
-      setConversations(localConversations)
-      console.log('💬 [SEARCH PAGE] loadConversations: Conversations updated in state')
+      if (!response.ok) {
+        throw new Error(`Failed to load conversations: ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log('💬 [SEARCH PAGE] loadConversations: API response:', data)
+
+      if (data.conversations) {
+        console.log('💬 [SEARCH PAGE] loadConversations: Converting search conversations:', {
+          apiCount: data.conversations.length
+        })
+        
+        setConversations(data.conversations)
+        console.log('💬 [SEARCH PAGE] loadConversations: Conversations updated in state')
+      } else {
+        setConversations([])
+        console.log('💬 [SEARCH PAGE] loadConversations: No conversations found')
+      }
     } catch (error: any) {
       // Improved error handling with fallbacks
       const errorMessage = error?.message || error?.toString() || 'Unknown error occurred'
@@ -163,6 +144,8 @@ const SearchPage = () => {
         errorType: error?.constructor?.name || 'Unknown',
         errorKeys: error ? Object.keys(error) : []
       })
+      
+      setConversations([])
     }
   }
 
@@ -178,33 +161,37 @@ const SearchPage = () => {
       console.log('💬 [SEARCH PAGE] loadConversationMessages: Setting loading state...')
       setIsLoading(true)
 
-      // Convert Supabase messages to local format for compatibility
-      const formattedMessages: Message[] = supabaseMessages.map((msg: ChatMessage) => ({
-        id: msg.id,
-        type: msg.role as 'user' | 'assistant',
-        content: msg.content,
-        timestamp: new Date(msg.created_at),
-        sources: msg.metadata?.sources || []
-      }))
+      // Fetch messages directly from search API instead of using chat hook
+      const response = await fetch(`/api/search?userId=${user.id}&conversationId=${conversationId}`)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load messages: ${response.status}`)
+      }
 
-      console.log('💬 [SEARCH PAGE] loadConversationMessages: Converting Supabase messages:', {
-        supabaseCount: supabaseMessages.length,
-        localCount: formattedMessages.length
-      })
+      const data = await response.json()
+      console.log('💬 [SEARCH PAGE] loadConversationMessages: API response:', data)
 
-      if (formattedMessages.length > 0) {
+      if (data.messages && data.messages.length > 0) {
+        // Convert search messages to local format
+        const formattedMessages: Message[] = data.messages.map((msg: any) => ({
+          id: msg.id,
+          type: msg.role as 'user' | 'assistant',
+          content: msg.content,
+          timestamp: new Date(msg.created_at),
+          sources: msg.sources || []
+        }))
+
+        console.log('💬 [SEARCH PAGE] loadConversationMessages: Converting search messages:', {
+          apiCount: data.messages.length,
+          localCount: formattedMessages.length
+        })
+
         setMessages(formattedMessages)
         console.log('💬 [SEARCH PAGE] loadConversationMessages: Messages loaded successfully')
       } else {
-        // If no messages found, show welcome message
-        console.log('💬 [SEARCH PAGE] loadConversationMessages: No messages found, showing welcome message')
-        const welcomeMessage: Message = {
-          id: '1',
-          type: 'assistant' as const,
-          content: 'Hello! I\'m your AI research assistant. I can help you search through your uploaded documents and answer questions about them. What would you like to know?',
-          timestamp: new Date(),
-        }
-        setMessages([welcomeMessage])
+        // If no messages found in existing conversation, just show empty state
+        console.log('💬 [SEARCH PAGE] loadConversationMessages: No messages found in this conversation')
+        setMessages([])
       }
     } catch (error: any) {
       // Improved error handling with fallbacks
@@ -218,14 +205,8 @@ const SearchPage = () => {
         errorKeys: error ? Object.keys(error) : []
       })
       
-      // Show welcome message on error
-      const welcomeMessage: Message = {
-        id: '1',
-        type: 'assistant' as const,
-        content: 'Hello! I\'m your AI research assistant. I can help you search through your uploaded documents and answer questions about them. What would you like to know?',
-        timestamp: new Date(),
-      }
-      setMessages([welcomeMessage])
+      // Show empty state on error when loading existing conversation
+      setMessages([])
     } finally {
       console.log('💬 [SEARCH PAGE] loadConversationMessages: Clearing loading state')
       setIsLoading(false)
@@ -276,36 +257,7 @@ const SearchPage = () => {
     console.log('💬 [SEARCH PAGE] Added user message and typing indicator')
 
     try {
-      // First, save to Supabase if we have a conversation
-      if (selectedConversationId) {
-        console.log('💬 [SEARCH PAGE] Saving user message to Supabase conversation:', selectedConversationId)
-        try {
-          await supabaseSendMessage(message.trim())
-          console.log('💬 [SEARCH PAGE] User message saved to Supabase successfully')
-        } catch (supabaseError: any) {
-          console.warn('💬 [SEARCH PAGE] Failed to save user message to Supabase:', {
-            error: supabaseError?.message || 'Unknown Supabase error',
-            conversationId: selectedConversationId
-          })
-          // Continue with the flow even if Supabase fails
-        }
-      } else {
-        // Create new conversation in Supabase
-        console.log('💬 [SEARCH PAGE] Creating new Supabase conversation')
-        try {
-          const newConversation = await createConversation({
-            title: message.trim().substring(0, 50) + (message.length > 50 ? '...' : ''),
-            model_name: mapModelToDatabaseModel(selectedModel)
-          })
-          setSelectedConversationId(newConversation.id)
-          console.log('💬 [SEARCH PAGE] New Supabase conversation created:', newConversation.id)
-        } catch (supabaseError: any) {
-          console.warn('💬 [SEARCH PAGE] Failed to create Supabase conversation:', {
-            error: supabaseError?.message || 'Unknown Supabase error'
-          })
-          // Continue with the flow even if Supabase fails
-        }
-      }
+      // Note: Conversation creation and message saving now handled by the search API
 
       console.log('💬 [SEARCH PAGE] Making API request with model:', selectedModel)
       let response: Response
@@ -552,11 +504,9 @@ const SearchPage = () => {
 
     if (conversationId) {
       console.log('💬 [SEARCH PAGE] Loading existing conversation messages:', conversationId)
-      // Use Supabase selectConversation to load messages
-      selectConversation(conversationId).then(() => {
-        loadConversationMessages(conversationId)
-      }).catch(error => {
-        console.error('💬 [SEARCH PAGE] Error selecting conversation:', error)
+      // Load messages directly from search API
+      loadConversationMessages(conversationId).catch(error => {
+        console.error('💬 [SEARCH PAGE] Error loading conversation messages:', error)
         toast.error('Failed to load conversation')
       })
     } else {
@@ -579,9 +529,21 @@ const SearchPage = () => {
     })
 
     try {
-      console.log('💬 [SEARCH PAGE] Deleting conversation from Supabase...')
-      await deleteConversation(conversationId)
+      console.log('💬 [SEARCH PAGE] Deleting conversation via API...')
+      
+      // Call the DELETE API to remove conversation from database
+      const response = await fetch(`/api/search?conversationId=${conversationId}`, {
+        method: 'DELETE'
+      })
 
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to delete conversation: ${response.status}`)
+      }
+
+      console.log('💬 [SEARCH PAGE] Conversation deleted successfully from database')
+      toast.success('Conversation deleted successfully')
+      
       console.log('💬 [SEARCH PAGE] Removing conversation from local state...')
       // Remove from local state
       setConversations(prev => {
@@ -634,11 +596,9 @@ const SearchPage = () => {
       hasUser: !!user,
       userId: user?.id,
       userEmail: user?.email,
-      isLoading: loading,
-      supabaseConversationsCount: supabaseConversations.length,
-      supabaseMessagesCount: supabaseMessages.length
+      isLoading: loading
     })
-  }, [user, loading, supabaseConversations, supabaseMessages])
+  }, [user, loading])
 
   // Format date utility for conversation sidebar
   const formatDate = (dateString: string) => {
@@ -876,8 +836,8 @@ const SearchPage = () => {
               )}
             </div>
 
-            {/* Assistant welcome card - only show on initial conversation */}
-            {messages.length <= 1 && (
+            {/* Assistant welcome card - only show when no conversation is selected and only the welcome message exists */}
+            {!selectedConversationId && messages.length <= 1 && (
               <div className="mt-3 bg-white/90 backdrop-blur border rounded-2xl p-4 shadow-sm">
                 <div className="flex items-start gap-3">
                   <div className="h-8 w-8 rounded-xl bg-slate-900 text-white grid place-content-center text-sm font-bold">AI</div>
@@ -902,7 +862,8 @@ const SearchPage = () => {
             {/* Messages */}
             <div className="mt-3 space-y-4">
               <AnimatePresence>
-                {messages.slice(1).map((message) => (
+                {/* Show all messages when a conversation is selected, or skip welcome message when in new conversation */}
+                {(selectedConversationId ? messages : messages.slice(1)).map((message) => (
                   <motion.div
                     key={message.id}
                     initial={{ opacity: 0, y: 10 }}
