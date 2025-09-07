@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AnimatedContent, Bounce, ClickSpark, FadeContent } from "@/components/react-bits";
-import { Brain, FileText, Smile, Send, ArrowRight } from "lucide-react";
+import { Brain, FileText, Smile, Send, ArrowRight, Upload, GraduationCap } from "lucide-react";
 
 // Types
 interface StudyMode {
@@ -84,6 +84,34 @@ function ExamPrepSelection() {
                 Select how you'd like to study and provide context about your topic
               </p>
             </div>
+          </FadeContent>
+
+          {/* Full-length Exam Prep Section */}
+          <FadeContent>
+            <Card className="mb-8 border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
+              <CardContent className="p-6">
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-amber-500 rounded-full flex items-center justify-center">
+                      <GraduationCap className="w-8 h-8 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1 text-center sm:text-left">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-2">Full-Length Exam Prep</h2>
+                    <p className="text-slate-600 mb-4">
+                      Upload your study materials (PDFs) and get a comprehensive exam tailored to your content
+                    </p>
+                    <Button 
+                      onClick={() => router.push('/exam-prep/full-exam')}
+                      className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Start Full Exam Prep
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </FadeContent>
 
           {/* Study Mode Cards */}

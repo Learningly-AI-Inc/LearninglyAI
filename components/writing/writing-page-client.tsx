@@ -615,7 +615,7 @@ const WritingPageClient = () => {
             Writing Assistant
           </h1>
           <p className="text-gray-600 mt-1">
-            Write, edit, and improve your text with AI assistance.
+            Write, edit, and improve your text with smart assistance.
           </p>
         </div>
       }

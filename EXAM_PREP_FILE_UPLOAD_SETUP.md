@@ -340,3 +340,4 @@ Once setup is complete:
 - Storage API Reference: https://supabase.com/docs/reference/javascript/storage
 - RLS Guide: https://supabase.com/docs/guides/auth/row-level-security
 
+

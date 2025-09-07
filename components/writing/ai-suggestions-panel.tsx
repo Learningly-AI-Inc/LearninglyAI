@@ -48,7 +48,6 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
             <div className="p-2 bg-white/20 rounded-lg mr-3">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="text-lg font-semibold">AI Suggestions</span>
           </div>
           <div className="flex gap-2">
             <Button
@@ -86,7 +85,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
       <CardContent className="p-0 h-full">
         <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col">
           <div className="px-4 pt-4">
-            <TabsList className="grid grid-cols-3 mb-4 bg-white/50 backdrop-blur-sm border border-gray-200">
+            <TabsList className="grid grid-cols-2 mb-4 bg-white/50 backdrop-blur-sm border border-gray-200">
               <TabsTrigger 
                 value="paraphrase"
                 className="data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:shadow-md"
@@ -98,12 +97,6 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                 className="data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:shadow-md"
               >
                 Grammar
-              </TabsTrigger>
-              <TabsTrigger 
-                value="original"
-                className="data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:shadow-md"
-              >
-                Original
               </TabsTrigger>
             </TabsList>
           </div>
@@ -124,7 +117,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
               ) : suggestedText ? (
                 <div className="space-y-4">
                   <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">AI Suggestion</h4>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Suggestion</h4>
                     <div 
                       className="prose prose-sm max-w-none text-gray-700"
                       dangerouslySetInnerHTML={{ __html: suggestedText }}
@@ -155,7 +148,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                     <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                       <Sparkles className="h-8 w-8 text-gray-600" />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Ready for AI Magic</h3>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Ready to Help</h3>
                     <p className="text-gray-600 mb-4">Select text and click "Paraphrase" to see suggestions</p>
                     <div className="bg-white rounded-lg p-3 border border-gray-200">
                       <p className="text-sm text-gray-600">
@@ -240,23 +233,6 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
               )}
             </TabsContent>
             
-            <TabsContent value="original" className="h-full m-0">
-              <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 h-full">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Selected Text</h4>
-                {selectedText ? (
-                  <div className="prose prose-sm max-w-none text-gray-700">
-                    <p className="whitespace-pre-wrap">{selectedText}</p>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-gray-500 text-center">
-                      No text selected. <br />
-                      Select some text to see it here.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
           </div>
         </Tabs>
       </CardContent>

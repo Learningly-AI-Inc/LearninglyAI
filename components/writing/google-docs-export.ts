@@ -11,7 +11,7 @@ export const openInGoogleDocs = (htmlContent: string) => {
   const encodedText = encodeURIComponent(plainText);
   
   // Create a Google Docs URL with the content
-  const googleDocsUrl = `https://docs.google.com/document/create?title=Learningly%20AI%20Document&body=${encodedText}`;
+  const googleDocsUrl = `https://docs.google.com/document/create?title=Learningly%20Document&body=${encodedText}`;
   
   // Open in a new tab
   window.open(googleDocsUrl, '_blank');

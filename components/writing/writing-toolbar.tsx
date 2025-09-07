@@ -24,7 +24,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import AIStatusIndicator from "./ai-status-indicator";
 
 interface WritingToolbarProps {
   onParaphrase: () => void;
@@ -80,7 +79,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Rewrite selected text with AI assistance</p>
+              <p>Rewrite selected text with smart assistance</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -240,15 +239,14 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
         </TooltipProvider>
       </div>
 
-      {/* AI Status Indicator */}
-      <div className="flex items-center gap-2">
-        <AIStatusIndicator isProcessing={isProcessing} model="Gemini 2.5 Flash" />
-        {lastProcessedFeature && (
+      {/* Last Processed Feature Indicator */}
+      {lastProcessedFeature && (
+        <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
             {lastProcessedFeature}
           </span>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
