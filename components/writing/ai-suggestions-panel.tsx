@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Sparkles, CheckCircle, X, RefreshCw, Eraser } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import MarkdownRenderer from "@/components/ui/markdown-renderer";
 
 interface AISuggestionsPanelProps {
   selectedText: string;
@@ -144,9 +145,9 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                 <div className="space-y-4">
                   <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
                     <h4 className="text-sm font-semibold text-gray-700 mb-2">Suggestion</h4>
-                    <div 
-                      className="prose prose-sm max-w-none text-gray-700"
-                      dangerouslySetInnerHTML={{ __html: suggestedText }}
+                    <MarkdownRenderer 
+                      content={suggestedText}
+                      className="prose prose-sm max-w-none"
                     />
                   </div>
                   <div className="flex gap-2">

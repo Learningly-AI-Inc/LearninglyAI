@@ -64,6 +64,7 @@ async function paraphraseText(text: string, tone: string = 'formal'): Promise<st
 3. **Natural and Clear**: Ensure that the paraphrased text sounds natural, coherent, and fluid. It should be easy to read and understand.
 4. **Optional Tone Adjustment**: If the user specifies, you may adjust the tone of the text (e.g., formal, casual, academic, etc.) but without altering the meaning.
 5. **Preserve Key Concepts**: Retain important terminology, facts, and concepts from the original text, especially if it's technical or factual content.
+6. **Use Markdown Formatting**: When appropriate, use markdown formatting to enhance readability (e.g., **bold** for emphasis, *italics* for stress, lists, etc.).
 
 Paraphrase the following text using a ${tone} tone:
 

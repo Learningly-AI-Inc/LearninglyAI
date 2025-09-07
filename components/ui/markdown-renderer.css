@@ -1,0 +1,60 @@
+/* Markdown Renderer Styles */
+.markdown-content {
+  /* Ensure proper list rendering */
+  ul, ol {
+    display: block;
+    list-style-position: outside;
+    margin-left: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  ul {
+    list-style-type: disc;
+  }
+  
+  ol {
+    list-style-type: decimal;
+  }
+  
+  li {
+    display: list-item;
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+  }
+  
+  /* Nested lists */
+  ul ul {
+    list-style-type: circle;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  ul ul ul {
+    list-style-type: square;
+  }
+  
+  ol ol {
+    list-style-type: lower-alpha;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  ol ol ol {
+    list-style-type: lower-roman;
+  }
+  
+  /* Mixed nested lists */
+  ul ol, ol ul {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Ensure proper spacing */
+  p + ul, p + ol {
+    margin-top: 0.5rem;
+  }
+  
+  ul + p, ol + p {
+    margin-top: 0.5rem;
+  }
+}
