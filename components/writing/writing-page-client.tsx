@@ -45,29 +45,19 @@ const WritingPageClient = () => {
   
   // Function to handle paraphrasing
   const handleParaphrase = async () => {
-    // Try to get current selection if selectedText is empty
-    let textToParaphrase = selectedText;
-    if (!textToParaphrase.trim()) {
-      if (typeof window !== 'undefined') {
-        const selection = window.getSelection();
-        if (selection && selection.toString().trim()) {
-          textToParaphrase = selection.toString().trim();
-          setSelectedText(textToParaphrase);
-        }
-      }
-      
-      if (!textToParaphrase.trim() && lastSelectedText.trim()) {
-        // Fall back to last known selection
-        textToParaphrase = lastSelectedText;
-        setSelectedText(textToParaphrase);
-      }
+    // Use the entire editor content for paraphrasing
+    let textToParaphrase = editorContent;
+    
+    // Strip HTML tags to get plain text for paraphrasing
+    if (textToParaphrase) {
+      textToParaphrase = textToParaphrase.replace(/<[^>]*>?/gm, '').trim();
     }
     
-    if (!textToParaphrase.trim()) {
+    if (!textToParaphrase) {
       setSuggestedText("");
       setGrammarIssues([]);
-      setLastProcessedFeature("Selection Required");
-      showWarning("Please select text before clicking 'Paraphrase'");
+      setLastProcessedFeature("Content Required");
+      showWarning("Please add some content to the editor before clicking 'Paraphrase'");
       return;
     }
 
@@ -76,7 +66,7 @@ const WritingPageClient = () => {
     setIsProcessing(true);
     
     try {
-      console.log('Paraphrasing with tone:', tone); // Debug log
+      console.log('Paraphrasing entire content with tone:', tone); // Debug log
       // Call our API for paraphrasing
       const response = await fetch('/api/writing/paraphrase', {
         method: 'POST',
@@ -96,7 +86,7 @@ const WritingPageClient = () => {
       setSuggestedText(data.result);
       setLastProcessedFeature("Paraphrase");
       setIsProcessing(false);
-      showInfo(`Paraphrase generated successfully in ${tone} tone!`);
+      showInfo(`Entire content paraphrased successfully in ${tone} tone!`);
     } catch (error) {
       console.error("Error during paraphrasing:", error);
       setIsProcessing(false);
@@ -659,6 +649,7 @@ const WritingPageClient = () => {
           onReject={handleRejectSuggestion}
           onAcceptAll={handleAcceptAll}
           onClear={handleClearSuggestions}
+          onTryAgain={handleParaphrase}
           isProcessing={isProcessing}
           suggestedText={suggestedText}
           grammarIssues={grammarIssues}

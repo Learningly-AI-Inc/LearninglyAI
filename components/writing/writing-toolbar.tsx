@@ -10,6 +10,7 @@ import {
   Book,
   Wand2,
   ArrowUpDown,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,7 +68,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
               >
                 {isProcessing ? (
                   <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Processing...
                   </>
                 ) : (
@@ -79,7 +80,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Rewrite selected text with smart assistance</p>
+              <p>Rewrite entire content with smart assistance</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

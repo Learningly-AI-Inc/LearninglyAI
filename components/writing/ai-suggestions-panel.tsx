@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Sparkles, CheckCircle, X, RefreshCw, Eraser } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface AISuggestionsPanelProps {
   selectedText: string;
@@ -12,6 +13,7 @@ interface AISuggestionsPanelProps {
   onReject: (issueId?: string) => void;
   onAcceptAll: () => void;
   onClear: () => void;
+  onTryAgain?: () => void;
   isProcessing: boolean;
   suggestedText: string;
   grammarIssues: GrammarIssue[];
@@ -33,6 +35,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
   onReject,
   onAcceptAll,
   onClear,
+  onTryAgain,
   isProcessing,
   suggestedText,
   grammarIssues = [],
@@ -104,14 +107,37 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
           <div className="flex-1 px-4 pb-4 overflow-auto">
             <TabsContent value="paraphrase" className="h-full m-0">
               {isProcessing ? (
-                <div className="flex items-center justify-center h-[calc(100vh-320px)] border-2 border-dashed border-gray-300 rounded-lg bg-white/50 backdrop-blur-sm">
-                  <div className="text-center">
-                    <div className="relative">
-                      <RefreshCw className="h-12 w-12 mx-auto mb-4 animate-spin text-gray-600" />
-                      <div className="absolute inset-0 rounded-full border-4 border-gray-200 border-t-gray-600 animate-spin"></div>
+                <div className="space-y-4 p-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Skeleton className="h-4 w-4 rounded-full" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-5/6" />
+                    <Skeleton className="h-4 w-4/5" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-5/6" />
+                    <Skeleton className="h-4 w-2/3" />
+                  </div>
+                  
+                  <div className="space-y-2 mt-6">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-4/5" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                  
+                  <div className="flex gap-2 mt-6">
+                    <Skeleton className="h-8 w-20" />
+                    <Skeleton className="h-8 w-16" />
+                  </div>
+                  
+                  <div className="flex items-center justify-center mt-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      <span>Generating paraphrase...</span>
                     </div>
-                    <p className="text-gray-700 font-medium">Generating suggestions...</p>
-                    <p className="text-gray-500 text-sm mt-1">This may take a few seconds</p>
                   </div>
                 </div>
               ) : suggestedText ? (
@@ -126,19 +152,11 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                   <div className="flex gap-2">
                     <Button
                       size="sm"
-                      variant="outline"
-                      onClick={() => onReject()}
-                      className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
-                    >
-                      <X className="h-4 w-4 mr-2" /> Reject
-                    </Button>
-                    <Button
-                      size="sm"
                       variant="default"
-                      onClick={() => onAccept(suggestedText)}
+                      onClick={() => onTryAgain?.()}
                       className="flex-1 bg-gray-900 hover:bg-black text-white"
                     >
-                      <CheckCircle className="h-4 w-4 mr-2" /> Accept
+                      <RefreshCw className="h-4 w-4 mr-2" /> Try Again
                     </Button>
                   </div>
                 </div>

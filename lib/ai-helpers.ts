@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getOpenAIClient } from './openai';
 
 // Initialize the Google Generative AI client with the API key
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '');
@@ -34,7 +35,7 @@ export interface GrammarIssue {
 // Function to log AI API calls to the database
 export async function logAIModelCall(
   userId: string, 
-  modelName: 'gemini' | 'openai', 
+  modelName: 'gemini' | 'openai' | 'gpt-5', 
   requestPayload: any, 
   responsePayload: any
 ) {
@@ -53,21 +54,41 @@ export async function logAIModelCall(
   }
 }
 
-// Function for paraphrasing text with a specific tone
+// Function for paraphrasing text with a specific tone using GPT-5
 async function paraphraseText(text: string, tone: string = 'formal'): Promise<string> {
   try {
-    const prompt = `Paraphrase the following text using a ${tone} tone. Maintain the original meaning but use different wording.
-    
-    Original text:
-    "${text}"
-    
-    Paraphrased text (${tone} tone):`;
+    const prompt = `You are a highly skilled assistant trained to paraphrase text. Please follow the instructions carefully:
 
-    const result = await geminiModel.generateContent(prompt);
-    const response = await result.response;
-    return response.text().trim();
+1. **Maintain the Original Meaning**: Ensure that the paraphrased version retains the same meaning, context, and intent as the original text.
+2. **Keep Length Similar**: The length of the paraphrased text should remain approximately the same as the original. Do not significantly shorten or lengthen the content.
+3. **Natural and Clear**: Ensure that the paraphrased text sounds natural, coherent, and fluid. It should be easy to read and understand.
+4. **Optional Tone Adjustment**: If the user specifies, you may adjust the tone of the text (e.g., formal, casual, academic, etc.) but without altering the meaning.
+5. **Preserve Key Concepts**: Retain important terminology, facts, and concepts from the original text, especially if it's technical or factual content.
+
+Paraphrase the following text using a ${tone} tone:
+
+"${text}"`;
+
+    const openai = getOpenAIClient();
+    const completion = await openai.chat.completions.create({
+      model: "gpt-5",
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      max_completion_tokens: 2000
+    });
+
+    const result = completion.choices[0]?.message?.content;
+    if (!result) {
+      throw new Error('No response from GPT-5');
+    }
+    
+    return result.trim();
   } catch (error) {
-    console.error('Error paraphrasing text:', error);
+    console.error('Error paraphrasing text with GPT-5:', error);
     throw new Error('Failed to paraphrase text');
   }
 }
@@ -199,9 +220,10 @@ export async function processWithAI(request: AIRequest): Promise<AIResponse> {
     
     // Log the AI model call if a userId is provided
     if (userId) {
+      const modelName = action === 'paraphrase' ? 'gpt-5' : 'gemini';
       await logAIModelCall(
         userId,
-        'gemini',
+        modelName,
         request,
         { result, grammarIssues: action === 'grammar' ? grammarIssues : undefined }
       );
