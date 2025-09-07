@@ -1,10 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Sparkles, CheckCircle, X, RefreshCw, Eraser } from "lucide-react";
+import { Sparkles, CheckCircle, X, RefreshCw, Eraser, Copy } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import MarkdownRenderer from "@/components/ui/markdown-renderer";
 
@@ -43,6 +43,28 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
   activeTab,
   onTabChange
 }) => {
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  const handleCopyText = async () => {
+    try {
+      // Strip HTML tags to get plain text for copying
+      const plainText = suggestedText.replace(/<[^>]*>?/gm, '');
+      await navigator.clipboard.writeText(plainText);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000); // Reset after 2 seconds
+    } catch (error) {
+      console.error('Failed to copy text:', error);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = suggestedText.replace(/<[^>]*>?/gm, '');
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    }
+  };
   
   return (
     <Card className="shadow-xl rounded-xl h-full border-0 bg-gradient-to-br from-gray-50 to-white overflow-hidden">
@@ -63,26 +85,6 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
             >
               <Eraser className="h-4 w-4 mr-1" /> Clear
             </Button>
-            {!isProcessing && suggestedText && (
-              <>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onReject()}
-                  className="text-red-200 hover:text-white hover:bg-red-500/20 border-0"
-                >
-                  <X className="h-4 w-4 mr-1" /> Reject
-                </Button>
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={() => onAccept(suggestedText)}
-                  className="bg-white text-gray-900 hover:bg-gray-100 border-0 shadow-md"
-                >
-                  <CheckCircle className="h-4 w-4 mr-1" /> Accept
-                </Button>
-              </>
-            )}
           </div>
         </CardTitle>
       </CardHeader>
@@ -151,6 +153,15 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                     />
                   </div>
                   <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleCopyText}
+                      className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                    >
+                      <Copy className="h-4 w-4 mr-2" /> 
+                      {copySuccess ? "Copied!" : "Copy"}
+                    </Button>
                     <Button
                       size="sm"
                       variant="default"
