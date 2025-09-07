@@ -13,7 +13,6 @@ interface ComingSoonProps {
   description: string
   icon: React.ComponentType<{ className?: string }>
   features?: string[]
-  estimatedLaunch?: string
   backUrl?: string
 }
 
@@ -22,7 +21,6 @@ export function ComingSoon({
   description,
   icon: Icon,
   features = [],
-  estimatedLaunch,
   backUrl = '/dashboard'
 }: ComingSoonProps) {
   return (
@@ -83,12 +81,6 @@ export function ComingSoon({
               </div>
             )}
 
-            {estimatedLaunch && (
-              <div className="text-center p-4 bg-primary/5 rounded-lg border border-primary/20">
-                <p className="text-sm text-slate-600 mb-1">Estimated Launch</p>
-                <p className="font-semibold text-primary">{estimatedLaunch}</p>
-              </div>
-            )}
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button asChild variant="outline" className="border-slate-300">

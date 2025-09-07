@@ -20,7 +20,6 @@ export default function MathVisualizationPage() {
       description="Transform complex mathematical concepts into beautiful, interactive visualizations that make learning intuitive and engaging."
       icon={Play}
       features={features}
-      estimatedLaunch="Q2 2024"
       backUrl="/dashboard"
     />
   )

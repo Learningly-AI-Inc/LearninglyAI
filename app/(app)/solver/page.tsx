@@ -20,7 +20,6 @@ export default function SolverPage() {
       description="Get instant, detailed solutions to complex math and science problems with AI-powered step-by-step explanations."
       icon={BrainCircuit}
       features={features}
-      estimatedLaunch="Q2 2024"
       backUrl="/dashboard"
     />
   )

@@ -64,6 +64,7 @@ const SearchPage = () => {
   const [conversationSidebarCollapsed, setConversationSidebarCollapsed] = React.useState(false)
   const [showModelMenu, setShowModelMenu] = React.useState(false)
   const [abortController, setAbortController] = React.useState<AbortController | null>(null)
+  const [deletingConversationId, setDeletingConversationId] = React.useState<string | null>(null)
   const scrollAreaRef = React.useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -516,8 +517,8 @@ const SearchPage = () => {
   }
 
   const handleDeleteConversation = async (conversationId: string) => {
-    if (loading || !user?.id) {
-      console.log('💬 [SEARCH PAGE] handleDeleteConversation blocked - loading or no user:', { loading, userId: user?.id })
+    if (loading || !user?.id || deletingConversationId) {
+      console.log('💬 [SEARCH PAGE] handleDeleteConversation blocked - loading, no user, or already deleting:', { loading, userId: user?.id, deletingConversationId })
       return
     }
 
@@ -527,6 +528,9 @@ const SearchPage = () => {
       selectedConversationId,
       isSelectedConversation: selectedConversationId === conversationId
     })
+
+    // Set loading state to prevent double-clicking
+    setDeletingConversationId(conversationId)
 
     try {
       console.log('💬 [SEARCH PAGE] Deleting conversation via API...')
@@ -571,6 +575,9 @@ const SearchPage = () => {
         stack: error.stack
       })
       toast.error('Failed to delete conversation')
+    } finally {
+      // Clear loading state
+      setDeletingConversationId(null)
     }
   }
 
@@ -689,9 +696,14 @@ const SearchPage = () => {
                                 e.stopPropagation()
                                 handleDeleteConversation(conversation.id)
                               }}
-                              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-200 transition"
+                              disabled={deletingConversationId === conversation.id}
+                              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <Trash2 className="h-3 w-3 text-slate-400" />
+                              {deletingConversationId === conversation.id ? (
+                                <div className="h-3 w-3 border border-slate-400 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3 w-3 text-slate-400" />
+                              )}
                             </button>
                           </>
                         )}
@@ -780,9 +792,14 @@ const SearchPage = () => {
                                 e.stopPropagation();
                                 handleDeleteConversation(conversation.id);
                               }}
-                              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-200 transition"
+                              disabled={deletingConversationId === conversation.id}
+                              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <Trash2 className="h-3 w-3 text-slate-400" />
+                              {deletingConversationId === conversation.id ? (
+                                <div className="h-3 w-3 border border-slate-400 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3 w-3 text-slate-400" />
+                              )}
                             </button>
                           </div>
                         </motion.div>
