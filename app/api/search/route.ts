@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
         const geminiModelName = modelMap[model] || 'gemini-2.5-flash'
         const geminiModel = genAI.getGenerativeModel({ model: geminiModelName })
         
-        const prompt = `${context}User Question: ${message}\n\nPlease provide a comprehensive and helpful response. If you reference specific documents, please mention them. Respond in Markdown format using headings, bullet points, code blocks, and math notation (inline $...$ and block $$...$) when appropriate.`
+        const prompt = `${context}User Question: ${message}\n\nYou are a friendly, helpful chatbot assistant. Answer questions naturally and conversationally, like you're talking to a friend. Be casual, helpful, and engaging. Don't be overly formal or academic. If you reference any documents, mention them naturally in your response. Keep your answers clear and easy to understand.`
         
         const result = await geminiModel.generateContent(prompt)
         const response = await result.response
@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
           messages: [
             {
               role: "system",
-              content: `${context}You are a helpful AI assistant that can answer questions based on the user's uploaded documents. Provide comprehensive and accurate responses. Respond in Markdown format using headings, bullet points, code blocks, and math notation (inline $...$ and block $$...$) when appropriate. Do not wrap the entire response in triple backticks.`
+              content: `${context}You are a friendly, casual chatbot assistant. Chat naturally like you're talking to a friend. Be helpful and engaging but don't be formal or academic. Answer questions in a conversational way. If you reference any documents, mention them naturally. Keep responses clear and easy to understand.`
             },
             {
               role: "user",

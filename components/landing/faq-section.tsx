@@ -13,7 +13,7 @@ import { Plus, Minus } from 'lucide-react';
 const faqs = [
     {
         question: "What is Learningly, and how is it different from other AI tools?",
-        answer: "Learningly is an all-in-one learning assistant built specifically for students. Unlike other general-purpose AI tools, Learningly offers an integrated suite that covers reading, writing, exam prep, an individual search bar, and STEM support. It's your academic co-pilot—not just a chatbot."
+        answer: "Learningly is an all-in-one learning assistant built specifically for students. Unlike other general-purpose AI tools, Learningly offers an integrated suite that covers reading, writing, exam prep, an individual search bar, and STEM support. Ask Anything, I am here to answer!—not just a chatbot."
       },
       {
         question: "Does Learningly support exam preparation?",

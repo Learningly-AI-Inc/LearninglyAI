@@ -61,7 +61,7 @@ export const PricingSection: React.FC = () => {
               We Created Plans That Suit Every Student
             </h2>
             <p className="text-xl text-gray-600 leading-relaxed">
-              Learningly AI is your all-in-one academic co-pilot—built to help you read, write, and study like never before.
+              Learningly AI - Ask Anything, I am here to answer!—built to help you read, write, and study like never before.
             </p>
           </motion.div>
         </div>

@@ -830,7 +830,7 @@ const SearchPage = () => {
             {/* Bottom fade indicator */}
             <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none"></div>
             <div className="flex items-center gap-3">
-              <h1 className="text-lg font-semibold">AI Co‑Pilot</h1>
+              <h1 className="text-lg font-semibold">Ask Anything, I am here to answer!</h1>
               {loading && (
                 <div className="text-sm text-slate-500">Loading...</div>
               )}
@@ -842,7 +842,7 @@ const SearchPage = () => {
                 <div className="flex items-start gap-3">
                   <div className="h-8 w-8 rounded-xl bg-slate-900 text-white grid place-content-center text-sm font-bold">AI</div>
                   <div className="space-y-2">
-                    <p className="text-slate-800 text-sm">Hello! I'm your AI co‑pilot. I'm here to help you learn and understand new concepts. To get started, you can:</p>
+                    <p className="text-slate-800 text-sm">Hello! Ask Anything, I am here to answer! I'm here to help you learn and understand new concepts. To get started, you can:</p>
                     <ul className="list-disc pl-4 text-slate-700 space-y-0.5 text-sm">
                       <li>Ask me questions about topics you're studying.</li>
                       <li>Provide content (articles or notes) and ask me to explain parts of it.</li>
