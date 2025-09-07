@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Menu, LogOut, Settings, BrainCircuit, User, Bolt, ChevronRight } from "lucide-react"
+import { Menu, LogOut, Settings, BrainCircuit, User, Bolt, ChevronRight, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthContext } from "@/components/auth/auth-provider"
 import { useRouter } from "next/navigation"
@@ -12,6 +12,7 @@ interface NavigationItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   active?: boolean;
+  comingSoon?: boolean;
 }
 
 interface AppSidebarProps {
@@ -33,22 +34,33 @@ function SidebarSection({ title, children, collapsed }: { title: string; childre
   );
 }
 
-function SidebarItem({ icon, label, active, collapsed, href, onClick }: {
+function SidebarItem({ icon, label, active, collapsed, href, onClick, comingSoon }: {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
   collapsed: boolean;
   href?: string;
   onClick?: () => void;
+  comingSoon?: boolean;
 }) {
   const content = (
     <button
       title={label}
       onClick={onClick}
-      className={`w-full ${collapsed ? "justify-center" : "justify-start"} flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition hover:bg-slate-100 ${active ? "bg-slate-100 font-medium" : "text-slate-700"}`}
+      className={`w-full ${collapsed ? "justify-center" : "justify-start"} flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition hover:bg-slate-100 ${active ? "bg-slate-100 font-medium" : "text-slate-700"} ${comingSoon ? "opacity-75" : ""}`}
     >
       {icon}
-      {!collapsed && <span className="truncate">{label}</span>}
+      {!collapsed && (
+        <div className="flex items-center gap-2 flex-1">
+          <span className="truncate">{label}</span>
+          {comingSoon && (
+            <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
+              <Clock className="w-3 h-3" />
+              <span>Soon</span>
+            </div>
+          )}
+        </div>
+      )}
     </button>
   );
 
@@ -116,6 +128,7 @@ export default function AppSidebar({
               label={item.label}
               active={item.active}
               href={item.href}
+              comingSoon={item.comingSoon}
             />
           ))}
         </SidebarSection>

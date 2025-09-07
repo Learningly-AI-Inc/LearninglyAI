@@ -93,32 +93,6 @@ const ReadingPage = () => {
 
         {/* Main Content */}
         <main className="w-full max-w-[85vw] mx-auto px-6 py-12">
-          {/* Hero Section */}
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl mb-8 shadow-xl">
-              <Brain className="h-10 w-10 text-white" />
-            </div>
-            <h2 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-6">
-              Start Learning
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed mb-12">
-              Transform any content into an interactive learning experience with AI-powered insights and personalized study materials.
-            </p>
-            
-            {/* Quick Search */}
-            <div className="max-w-2xl mx-auto mb-16">
-              <div className="relative">
-                <Input 
-                  placeholder="Ask me anything or describe what you&apos;d like to learn..." 
-                  className="h-14 text-lg pl-6 pr-32 border-2 border-gray-200 focus:border-blue-500 rounded-2xl shadow-sm bg-white/80 backdrop-blur-sm transition-all duration-200"
-                />
-                <Button className="absolute right-2 top-2 h-10 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl transition-all duration-200 shadow-lg">
-                  <Search className="h-4 w-4 mr-2" />
-                  Search
-                </Button>
-              </div>
-            </div>
-          </div>
           {/* Upload Options */}
           <div className="mb-20">
             <div className="text-center mb-12">

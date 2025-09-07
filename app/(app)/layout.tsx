@@ -39,10 +39,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { icon: Home, label: "Dashboard", href: "/dashboard", active: pathname === '/dashboard' },
     { icon: BookOpen, label: "Reading", href: "/reading", active: pathname === '/reading' },
     { icon: PencilRuler, label: "Writing", href: "/writing", active: pathname === '/writing' },
-    { icon: Lightbulb, label: "Solver", href: "/solver", active: pathname === '/solver' },
+    { icon: Lightbulb, label: "Solver", href: "/solver", active: pathname === '/solver', comingSoon: true },
     { icon: ScanSearch, label: "Search", href: "/search", active: pathname === '/search' },
     { icon: GraduationCap, label: "Exam Prep", href: "/exam-prep", active: pathname === '/exam-prep' },
-    { icon: Calculator, label: "Math Visualization", href: "/math-viz", active: pathname === '/math-viz' },
+    { icon: Calculator, label: "Math Visualization", href: "/math-viz", active: pathname === '/math-viz', comingSoon: true },
   ]
 
   const workspaceItems = [
