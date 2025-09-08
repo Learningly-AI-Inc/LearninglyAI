@@ -9,15 +9,19 @@ import {
   Sparkles,
   BookOpen,
   Menu,
-  Focus
+  Focus,
+  Upload,
+  ArrowLeft
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
-import { PDFDocument } from "./pdf-viewer-wrapper"
+import { useRouter } from "next/navigation"
+import { EnhancedPDFViewer } from "./pdf-viewer-wrapper"
 import { RightDrawer } from "./right-drawer"
 import { useDocument } from "./document-context"
 import { HighlightQuestionModal } from "./highlight-question-modal"
 import { PageHighlightOverlay } from "./page-highlight-overlay"
+import { TextSelectionModal } from "./text-selection-modal"
 import { useHighlightQuestion } from "@/hooks/use-highlight-question"
 import { useHighlights, useHighlightActions } from "@/components/reading/highlight-context"
 
@@ -27,13 +31,21 @@ interface DocumentViewerProps {
 }
 
 export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentTitle = "Document" }: DocumentViewerProps) {
+  console.log('🎬 DocumentViewer rendered with:', { documentUrl, documentTitle })
+  
   const { document, setDocument } = useDocument()
+  const router = useRouter()
   const [pdfError, setPdfError] = React.useState(false)
   const [pdfLoading, setPdfLoading] = React.useState(true)
   const [zoomLevel, setZoomLevel] = React.useState(100)
   const [isFocusMode, setIsFocusMode] = React.useState(false)
   const [currentPage, setCurrentPage] = React.useState(1)
   const [pageDimensions, setPageDimensions] = React.useState({ width: 0, height: 0 })
+  
+  // Text selection state
+  const [selectedText, setSelectedText] = React.useState('')
+  const [textSelectionPageNumber, setTextSelectionPageNumber] = React.useState(1)
+  const [showTextSelectionModal, setShowTextSelectionModal] = React.useState(false)
   
   // Highlight context
   const { highlights } = useHighlights()
@@ -52,10 +64,19 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
   const hasProcessedRef = React.useRef(false)
   
   React.useEffect(() => {
+    console.log('🔄 useEffect triggered with:', { 
+      document: document?.title, 
+      documentUrl, 
+      documentTitle, 
+      hasProcessed: hasProcessedRef.current,
+      pdfLoading 
+    })
+    
     // Reset the processed flag when documentUrl changes
     hasProcessedRef.current = false
     
     if (!document && documentUrl && documentTitle && !hasProcessedRef.current) {
+      console.log('✅ Conditions met - starting document processing')
       hasProcessedRef.current = true
       
       // Create a basic document structure for the UI
@@ -73,12 +94,31 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
           uploadedAt: new Date().toISOString(),
         }
       }
+      console.log('📄 Created basic document:', basicDocument)
       setDocument(basicDocument)
       
       // Process the PDF to extract text
+      console.log('🚀 Starting PDF text processing...')
       processPDFText(documentUrl, documentTitle)
+    } else {
+      console.log('❌ Conditions not met:', {
+        hasDocument: !!document,
+        hasUrl: !!documentUrl,
+        hasTitle: !!documentTitle,
+        hasProcessed: hasProcessedRef.current
+      })
     }
-  }, [documentUrl, documentTitle, document, setDocument])
+
+    // Add a timeout to prevent infinite PDF loading
+    const loadingTimeout = setTimeout(() => {
+      if (pdfLoading) {
+        console.log('⚠️ PDF loading timeout - forcing load completion')
+        setPdfLoading(false)
+      }
+    }, 15000) // 15 second timeout
+
+    return () => clearTimeout(loadingTimeout)
+  }, [documentUrl, documentTitle, document, setDocument, pdfLoading])
 
   // Cleanup effect to reset processed flag on unmount
   React.useEffect(() => {
@@ -87,27 +127,84 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
     }
   }, [])
 
+  // Function to get signed URL for private bucket access
+  const getSignedUrl = React.useCallback(async (url: string) => {
+    console.log('🔐 Getting signed URL for:', url)
+    
+    try {
+      const response = await fetch('/api/reading/get-signed-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ fileUrl: url }),
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ Signed URL obtained:', data.signedUrl)
+        return data.signedUrl
+      } else {
+        console.error('❌ Failed to get signed URL:', response.statusText)
+        return url // Fallback to original URL
+      }
+    } catch (error) {
+      console.error('💥 Error getting signed URL:', error)
+      return url // Fallback to original URL
+    }
+  }, [])
+
   // Function to process PDF and extract text
   const processPDFText = React.useCallback(async (url: string, title: string) => {
+    console.log('🎯 processPDFText called with:', { url, title })
+    console.log('📊 Current state before processing:', { 
+      pdfLoading, 
+      pdfError, 
+      documentExists: !!document,
+      documentTitle: document?.title 
+    })
+    
     try {
-      console.log('🔄 Processing PDF text extraction for:', url)
+      console.log('📤 Creating FormData...')
       
       // Create a FormData with the PDF URL
       const formData = new FormData()
       formData.append('fileUrl', url)
       formData.append('title', title)
+      console.log('✅ FormData created successfully')
+      
+      console.log('🌐 Making API request to /api/reading/process-pdf...')
+      const startTime = Date.now()
       
       const response = await fetch('/api/reading/process-pdf', {
         method: 'POST',
         body: formData,
       })
       
+      const endTime = Date.now()
+      console.log(`📡 API response received in ${endTime - startTime}ms:`, {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+      
       if (response.ok) {
+        console.log('📥 Parsing response JSON...')
         const data = await response.json()
-        console.log('✅ PDF text extracted:', data.textLength, 'characters')
+        console.log('✅ API Response data:', {
+          success: data.success,
+          textLength: data.text?.length || 0,
+          metadataPages: data.metadata?.pages,
+          metadataTextLength: data.metadata?.textLength,
+          processingNotes: data.metadata?.processingNotes,
+          fullResponse: data
+        })
+        
+        console.log('📝 Updating document with extracted text...')
         
         // Update the document with extracted text
         if (document) {
+          console.log('🔄 Updating existing document...')
           const updatedDocument = {
             ...document,
             text: data.text,
@@ -118,8 +215,10 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
               processingNotes: data.metadata.processingNotes
             }
           }
+          console.log('📄 Updated document:', updatedDocument)
           setDocument(updatedDocument)
         } else {
+          console.log('🆕 Creating new document...')
           // If document is null, create a new one
           const newDocument = {
             id: 'doc-' + Date.now(),
@@ -136,30 +235,64 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
               processingNotes: data.metadata.processingNotes
             }
           }
+          console.log('📄 New document created:', newDocument)
           setDocument(newDocument)
         }
+        
+        // Clear loading state after successful processing
+        console.log('🏁 Clearing PDF loading state...')
+        setPdfLoading(false)
+        console.log('✅ PDF processing completed - loading state cleared')
+        console.log('📊 Final state after processing:', { 
+          pdfLoading: false, 
+          pdfError, 
+          documentExists: true 
+        })
+        
+        // Force a re-render to ensure UI updates
+        setTimeout(() => {
+          console.log('🔄 Forcing UI update after processing...')
+          setPdfLoading(false)
+        }, 100)
       } else {
-        console.error('❌ Failed to process PDF:', response.statusText)
+        console.error('❌ API request failed:', {
+          status: response.status,
+          statusText: response.statusText
+        })
+        const errorText = await response.text()
+        console.error('❌ Error response body:', errorText)
+        setPdfLoading(false) // Clear loading state on error too
       }
     } catch (error) {
-      console.error('❌ Error processing PDF:', error)
+      console.error('💥 Exception in processPDFText:', error)
+      console.error('🔍 Error details:', {
+        name: error?.name,
+        message: error?.message,
+        stack: error?.stack
+      })
+      setPdfLoading(false) // Clear loading state on error
     }
-  }, [document, setDocument])
+  }, [document, setDocument, pdfLoading, pdfError])
 
   const handleDocumentLoadSuccess = () => {
+    console.log('🎉 handleDocumentLoadSuccess called')
+    console.log('📊 State before PDF load success:', { pdfLoading, pdfError })
     setPdfLoading(false)
     setPdfError(false)
-    console.log(`✅ PDF loaded successfully using native browser viewer`)
-    
+    console.log('✅ PDF loaded successfully using browser native viewer')
+    console.log('📊 State after PDF load success:', { pdfLoading: false, pdfError: false })
+
     // Set initial page dimensions (approximate for native viewer)
     // These will be updated when we can measure the actual PDF content
     setPageDimensions({ width: 612, height: 792 }) // Standard US Letter size in points
   }
 
   const handleDocumentLoadError = (error: Error) => {
-    console.error("Error loading PDF:", error)
+    console.error("💥 handleDocumentLoadError called:", error)
+    console.log('📊 State before PDF load error:', { pdfLoading, pdfError })
     setPdfError(true)
     setPdfLoading(false)
+    console.log('📊 State after PDF load error:', { pdfLoading: false, pdfError: true })
     toast({
       title: "Error loading document",
       description: "There was a problem loading your document. Please try again.",
@@ -182,6 +315,16 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Handle text selection from PDF
+  const handleTextSelectionChange = (text: string, pageNumber: number, selection: Selection | null) => {
+    if (text.trim().length > 10) { // Only show modal for meaningful text selections
+      setSelectedText(text)
+      setTextSelectionPageNumber(pageNumber)
+      setShowTextSelectionModal(true)
+      console.log('📝 Text selected:', { text: text.substring(0, 100) + '...', pageNumber })
+    }
+  }
+
   // Handle question request from highlight overlay
   const handleQuestionRequest = (highlight: any) => {
     openQuestionModal(highlight);
@@ -189,6 +332,57 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
   
   // Get highlights for current page
   const currentPageHighlights = highlights.filter(h => h.pageNumber === currentPage);
+
+  // Component to handle signed URL for PDF viewing
+  const PDFViewerWithSignedUrl = React.useCallback(({ fileUrl, onTextSelectionChange, onLoadSuccess, onLoadError, className }: {
+    fileUrl: string;
+    onTextSelectionChange?: (text: string, pageNumber: number, selection: Selection | null) => void;
+    onLoadSuccess?: () => void;
+    onLoadError?: (error: Error) => void;
+    className?: string;
+  }) => {
+    const [signedUrl, setSignedUrl] = React.useState<string | null>(null);
+    const [isLoadingUrl, setIsLoadingUrl] = React.useState(true);
+
+    React.useEffect(() => {
+      const fetchSignedUrl = async () => {
+        console.log('🔐 Fetching signed URL for PDF viewer...');
+        try {
+          const url = await getSignedUrl(fileUrl);
+          setSignedUrl(url);
+          setIsLoadingUrl(false);
+          console.log('✅ Signed URL ready for PDF viewer');
+        } catch (error) {
+          console.error('❌ Failed to get signed URL for PDF viewer:', error);
+          setSignedUrl(fileUrl); // Fallback to original URL
+          setIsLoadingUrl(false);
+        }
+      };
+
+      fetchSignedUrl();
+    }, [fileUrl, getSignedUrl]);
+
+    if (isLoadingUrl) {
+      return (
+        <div className="h-full w-full flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">Getting document access...</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <EnhancedPDFViewer
+        file={signedUrl || fileUrl}
+        onTextSelectionChange={onTextSelectionChange}
+        onLoadSuccess={onLoadSuccess}
+        onLoadError={onLoadError}
+        className={className}
+      />
+    );
+  }, [getSignedUrl]);
   
      return (
      <div className="grid min-h-screen grid-cols-[1fr_360px] xl:grid-cols-[1fr_360px]">
@@ -206,6 +400,16 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
                  <span className="truncate max-w-[200px]">{document.title}</span>
                </div>
              )}
+             <Button 
+               variant="outline" 
+               size="sm"
+               onClick={() => router.push('/reading')}
+               className="text-gray-600 hover:text-gray-900 flex items-center gap-2 px-3 py-1.5 h-8"
+               title="Load another document"
+             >
+               <Upload className="h-3 w-3" />
+               <span className="text-xs">Load Another</span>
+             </Button>
            </div>
            
            <div className="flex items-center gap-3">
@@ -250,73 +454,46 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
                <div className="h-full w-full bg-white overflow-hidden">
                  {documentUrl ? (
                    <div className="w-full h-full overflow-hidden">
-                    {pdfLoading && (
-                      <div className="h-full w-full flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                          <p className="text-gray-500">Loading document...</p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {pdfError && (
-                      <div className="h-full w-full flex items-center justify-center">
-                        <div className="text-center text-red-500">
-                          <AlertCircle className="h-10 w-10 mx-auto mb-4" />
-                          <p>Failed to load document. Please try again.</p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {!pdfError && (
-                      <div className="w-full h-full overflow-auto">
-                        <div 
-                          className="w-full h-full relative"
-                          style={{ 
-                            transform: `scale(${zoomLevel / 100})`,
-                            transformOrigin: 'top left',
-                            minHeight: `${100 / (zoomLevel / 100)}%`,
-                            width: `${100 / (zoomLevel / 100)}%`
-                          }}
-                        >
-                          <PDFDocument
-                            file={documentUrl}
+                    {(() => {
+                      console.log('🖼️ Render decision:', { pdfLoading, pdfError, documentUrl })
+                      if (pdfLoading) {
+                        console.log('⏳ Showing loading state')
+                        return (
+                          <div className="h-full w-full flex items-center justify-center">
+                            <div className="text-center">
+                              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                              <p className="text-gray-500">Loading document...</p>
+                              <p className="text-xs text-gray-400 mt-2">Debug: pdfLoading={pdfLoading.toString()}</p>
+                            </div>
+                          </div>
+                        )
+                      }
+                      if (pdfError) {
+                        console.log('❌ Showing error state')
+                        return (
+                          <div className="h-full w-full flex items-center justify-center">
+                            <div className="text-center text-red-500">
+                              <AlertCircle className="h-10 w-10 mx-auto mb-4" />
+                              <p>Failed to load document. Please try again.</p>
+                            </div>
+                          </div>
+                        )
+                      }
+                      console.log('📄 Showing PDF viewer')
+                      return (
+                        <div className="w-full h-full">
+                          <PDFViewerWithSignedUrl
+                            fileUrl={documentUrl}
+                            onTextSelectionChange={handleTextSelectionChange}
                             onLoadSuccess={handleDocumentLoadSuccess}
                             onLoadError={handleDocumentLoadError}
-                            loading={
-                              <div className="w-full h-full flex items-center justify-center bg-white">
-                                <div className="text-center">
-                                  <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                                  <p className="text-gray-500">Loading PDF document...</p>
-                                  <p className="text-sm text-gray-400 mt-2">This should only take a moment</p>
-                                </div>
-                              </div>
-                            }
-                            error={
-                              <div className="w-full h-full flex items-center justify-center bg-white">
-                                <div className="text-center text-red-500">
-                                  <AlertCircle className="w-12 h-12 mx-auto mb-4" />
-                                  <p className="font-medium">Failed to load PDF document</p>
-                                  <p className="text-sm text-gray-500 mt-1">Please check the file path and try again</p>
-                                </div>
-                              </div>
-                            }
-                          />
-                          
-                          {/* Page Highlight Overlay */}
-                          <PageHighlightOverlay
-                            pageNumber={currentPage}
-                            pageWidth={pageDimensions.width}
-                            pageHeight={pageDimensions.height}
-                            highlights={currentPageHighlights}
-                            onRemoveHighlight={removeHighlight}
-                            onQuestionRequest={handleQuestionRequest}
+                            className="h-full"
                           />
                         </div>
-                      </div>
-                    )}
-                  </div>
-                                 ) : (
+                      )
+                    })()}
+                   </div>
+                 ) : (
                    <div className="h-full w-full flex items-center justify-center text-gray-500">
                     <div className="text-center">
                       <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
@@ -349,6 +526,15 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
         highlightedText={selectedHighlight?.selectedText || ''}
         onSubmitQuestion={submitQuestion}
         highlightId={selectedHighlight?.id || ''}
+      />
+
+      {/* Text Selection Modal */}
+      <TextSelectionModal
+        isOpen={showTextSelectionModal}
+        onClose={() => setShowTextSelectionModal(false)}
+        selectedText={selectedText}
+        pageNumber={textSelectionPageNumber}
+        documentTitle={documentTitle}
       />
              
     </div>

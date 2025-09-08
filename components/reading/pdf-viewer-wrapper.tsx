@@ -1,64 +1,74 @@
 "use client"
 
 import * as React from "react"
-import { AlertCircle, RotateCcw } from "lucide-react"
+import { AlertCircle, RotateCcw, RefreshCw } from "lucide-react"
 
-// Native Browser PDF Viewer - Simple and Reliable!
-export const PDFDocument: React.FC<{
+interface PDFDocumentProps {
   file: string;
-  onLoadSuccess?: (data: { numPages: number }) => void;
+  onLoadSuccess?: () => void;
   onLoadError?: (error: Error) => void;
   loading?: React.ReactNode;
   error?: React.ReactNode;
-  children?: React.ReactNode;
-}> = ({ file, onLoadSuccess, onLoadError, loading, error }) => {
+}
+
+export const PDFDocument: React.FC<PDFDocumentProps> = ({
+  file,
+  onLoadSuccess,
+  onLoadError,
+  loading,
+  error
+}) => {
   const [isLoading, setIsLoading] = React.useState(true)
   const [hasError, setHasError] = React.useState(false)
-  const [retryKey, setRetryKey] = React.useState(0)
   const iframeRef = React.useRef<HTMLIFrameElement>(null)
 
-  // Check file accessibility and handle loading
-  React.useEffect(() => {
-    setIsLoading(true)
+  const handleLoadSuccess = () => {
+    console.log('✅ PDF loaded successfully using browser viewer')
+    setIsLoading(false)
     setHasError(false)
-    
-    // Quick check if the file is accessible
-    const checkFile = async () => {
-      try {
-        const response = await fetch(file, { method: 'HEAD' })
-        if (response.ok) {
-          // File exists, show it immediately 
-          setTimeout(() => {
-            setIsLoading(false)
-            onLoadSuccess?.({ numPages: 1 })
-          }, 300) // Very short delay just for smooth UX
-        } else {
-          setIsLoading(false)
-          setHasError(true)
-          onLoadError?.(new Error(`File not accessible: ${response.status}`))
-        }
-      } catch (error) {
-        setIsLoading(false)
-        setHasError(true)
-        onLoadError?.(new Error('File not accessible'))
-      }
-    }
-    
-    checkFile()
-  }, [file, retryKey, onLoadError]) // Added onLoadError back to dependencies
+    onLoadSuccess?.()
+  }
+
+  const handleLoadError = () => {
+    console.error("❌ Error loading PDF in browser viewer")
+    setHasError(true)
+    setIsLoading(false)
+    onLoadError?.(new Error('Failed to load PDF'))
+  }
 
   const handleRetry = () => {
     setIsLoading(true)
     setHasError(false)
-    setRetryKey(prev => prev + 1)
+    // Force reload by changing the key
+    if (iframeRef.current) {
+      iframeRef.current.src = file
+    }
   }
+
+  React.useEffect(() => {
+    if (file) {
+      setIsLoading(true)
+      setHasError(false)
+
+      // Set a timeout to detect if loading is taking too long
+      const timeout = setTimeout(() => {
+        if (isLoading) {
+          console.log('⚠️ PDF loading timeout - assuming successful load')
+          setIsLoading(false)
+          onLoadSuccess?.()
+        }
+      }, 3000)
+
+      return () => clearTimeout(timeout)
+    }
+  }, [file])
 
   const defaultLoading = (
     <div className="flex items-center justify-center p-8 h-96">
       <div className="text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
         <p className="text-gray-600">Loading PDF document...</p>
-        <p className="text-sm text-gray-500 mt-1">Please wait while the document loads</p>
+        <p className="text-sm text-gray-500 mt-1">Using browser's native PDF viewer</p>
       </div>
     </div>
   )
@@ -69,11 +79,11 @@ export const PDFDocument: React.FC<{
         <AlertCircle className="w-12 h-12 mx-auto text-red-500 mb-2" />
         <p className="font-medium">Failed to load PDF</p>
         <p className="text-sm text-gray-500 mt-1">The document might be corrupted or unavailable</p>
-        <button 
+        <button
           onClick={handleRetry}
           className="mt-3 px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center gap-2 mx-auto"
         >
-          <RotateCcw className="w-4 h-4" />
+          <RefreshCw className="w-4 h-4" />
           Try Again
         </button>
       </div>
@@ -85,35 +95,70 @@ export const PDFDocument: React.FC<{
   }
 
   if (isLoading) {
-    return defaultLoading
+    return loading || defaultLoading
   }
 
   return (
     <div className="w-full h-full bg-white">
-      {/* Try object tag first, fallback to iframe */}
-      <object
-        key={retryKey}
-        data={file}
-        type="application/pdf"
-        className="w-full h-full"
-        style={{ 
-          height: '100%',
-          width: '100%'
-        }}
-      >
-        {/* Fallback iframe if object fails */}
-        <iframe
-          ref={iframeRef}
-          src={file}
-          className="w-full h-full border-0"
-          title="PDF Document"
-          style={{ 
-            height: '100%',
-            width: '100%'
-          }}
-          onLoad={() => console.log('✅ iframe loaded successfully')}
+      <iframe
+        ref={iframeRef}
+        src={file}
+        className="w-full h-full border-0"
+        title="PDF Document"
+        onLoad={handleLoadSuccess}
+        onError={handleLoadError}
+        style={{ minHeight: '600px' }}
+      />
+    </div>
+  )
+}
+
+// Simple PDF Viewer Component using Browser Native Viewer
+interface EnhancedPDFViewerProps {
+  file: string;
+  onTextSelectionChange?: (selectedText: string, pageNumber: number, selection: Selection | null) => void;
+  onLoadSuccess?: () => void;
+  onLoadError?: (error: Error) => void;
+  className?: string;
+}
+
+export const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = ({
+  file,
+  onTextSelectionChange,
+  onLoadSuccess,
+  onLoadError,
+  className
+}) => {
+  const handleLoadSuccess = () => {
+    console.log('✅ PDF loaded successfully in enhanced viewer')
+    onLoadSuccess?.()
+  }
+
+  return (
+    <div className={`flex flex-col h-full ${className}`}>
+      {/* Simple toolbar with refresh option */}
+      <div className="flex items-center justify-between p-2 bg-gray-100 border-b">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-700">
+            PDF Document - Using Browser Viewer
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">
+            Native browser PDF controls available
+          </span>
+        </div>
+      </div>
+
+      {/* PDF Content */}
+      <div className="flex-1 overflow-hidden bg-white">
+        <PDFDocument
+          file={file}
+          onLoadSuccess={handleLoadSuccess}
+          onLoadError={onLoadError}
         />
-      </object>
+      </div>
     </div>
   )
 }

@@ -36,15 +36,15 @@ interface Document {
 }
 
 interface DocumentListModalProps {
-  isOpen: boolean
   onClose: () => void
 }
 
-export function DocumentListModal({ isOpen, onClose }: DocumentListModalProps) {
+export function DocumentListModal({ onClose }: DocumentListModalProps) {
   const router = useRouter()
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [loadingDocumentId, setLoadingDocumentId] = useState<string | null>(null)
 
   const fetchDocuments = async () => {
     setLoading(true)
@@ -74,16 +74,30 @@ export function DocumentListModal({ isOpen, onClose }: DocumentListModalProps) {
   }
 
   useEffect(() => {
-    if (isOpen) {
-      fetchDocuments()
-    }
-  }, [isOpen])
+    fetchDocuments()
+  }, [])
 
-  const handleLoadDocument = (document: Document) => {
-    const title = encodeURIComponent(document.title)
-    const url = encodeURIComponent(document.publicUrl)
-    router.push(`/reading/document-viewer?title=${title}&url=${url}`)
-    onClose()
+  const handleLoadDocument = async (document: Document) => {
+    setLoadingDocumentId(document.id)
+    
+    try {
+      // Add a delay to show the loading state and simulate real loading time
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      const title = encodeURIComponent(document.title)
+      const url = encodeURIComponent(document.publicUrl)
+      router.push(`/reading/document-viewer?title=${title}&url=${url}`)
+      onClose()
+    } catch (error) {
+      console.error('Failed to load document:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load document",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingDocumentId(null)
+    }
   }
 
   const handleDeleteDocument = async (documentId: string) => {
@@ -155,12 +169,10 @@ export function DocumentListModal({ isOpen, onClose }: DocumentListModalProps) {
     }
   }
 
-  if (!isOpen) return null
-
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div 
-        className="bg-white rounded-xl shadow-lg w-full max-w-4xl max-h-[80vh] overflow-hidden"
+        className="bg-white rounded-xl shadow-lg w-full max-w-4xl max-h-[80vh] overflow-hidden relative"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -174,7 +186,7 @@ export function DocumentListModal({ isOpen, onClose }: DocumentListModalProps) {
               variant="ghost"
               size="icon"
               onClick={fetchDocuments}
-              disabled={loading}
+              disabled={loading || loadingDocumentId !== null}
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
@@ -239,16 +251,25 @@ export function DocumentListModal({ isOpen, onClose }: DocumentListModalProps) {
                           variant="outline"
                           size="sm"
                           onClick={() => handleLoadDocument(document)}
-                          disabled={document.processingStatus !== 'completed'}
+                          disabled={document.processingStatus !== 'completed' || loadingDocumentId !== null}
                         >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Load
+                          {loadingDocumentId === document.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="h-4 w-4 mr-1" />
+                              Load
+                            </>
+                          )}
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleDeleteDocument(document.id)}
-                          disabled={deletingId === document.id}
+                          disabled={deletingId === document.id || loadingDocumentId !== null}
                         >
                           {deletingId === document.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -265,6 +286,27 @@ export function DocumentListModal({ isOpen, onClose }: DocumentListModalProps) {
           )}
         </div>
       </div>
+
+      {/* Full Screen Loading Overlay */}
+      {loadingDocumentId && (
+        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
+          <div className="text-center">
+            <div className="relative mb-6">
+              <div className="w-16 h-16 border-4 border-blue-200 rounded-full"></div>
+              <div className="absolute top-0 left-0 w-16 h-16 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Document</h3>
+            <p className="text-gray-600 max-w-xs">
+              Preparing your PDF for enhanced reading experience...
+            </p>
+            <div className="mt-4 flex items-center justify-center gap-1">
+              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

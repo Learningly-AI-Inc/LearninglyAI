@@ -48,14 +48,14 @@ const ReadingPage = () => {
       title: "Import from Web",
       description: "YouTube videos, articles, and websites", 
       gradient: "from-green-500 to-emerald-600",
-      action: () => router.push("/reading/document-viewer?title=Web+Content&url=/sample-website.pdf")
+      action: () => router.push(`/reading/document-viewer?title=${encodeURIComponent("Web Content")}&url=${encodeURIComponent("/sample-website.pdf")}`)
     },
     {
       icon: Headphones,
       title: "Record Audio",
       description: "Live lectures, meetings, and conversations",
       gradient: "from-purple-500 to-violet-600",
-      action: () => router.push("/reading/document-viewer?title=Recorded+Content&url=/sample-recording.pdf")
+      action: () => router.push(`/reading/document-viewer?title=${encodeURIComponent("Recorded Content")}&url=${encodeURIComponent("/sample-recording.pdf")}`)
     }
   ]
 

@@ -232,10 +232,18 @@ export async function POST(req: NextRequest) {
 
     console.log('✅ File uploaded to Supabase storage:', uploadData.path);
 
-    // Get public URL
+    // Get signed URL for private bucket (expires in 1 hour)
     const { data: urlData } = supabase.storage
       .from('reading-documents')
-      .getPublicUrl(storagePath);
+      .createSignedUrl(storagePath, 3600); // 1 hour expiry
+
+    if (!urlData?.signedUrl) {
+      console.error('❌ Failed to generate signed URL');
+      return NextResponse.json(
+        { error: 'Failed to generate secure file URL' },
+        { status: 500 }
+      );
+    }
 
     // Store document metadata in database
     const { data: documentRecord, error: dbError } = await supabase
@@ -253,7 +261,7 @@ export async function POST(req: NextRequest) {
         text_length: extractedText.length,
         processing_status: 'completed',
         processing_notes: processingNotes,
-        public_url: urlData.publicUrl,
+        public_url: urlData.signedUrl,
         metadata: {
           uploadedAt: new Date().toISOString(),
           processingNotes
@@ -281,7 +289,7 @@ export async function POST(req: NextRequest) {
       textLength: extractedText.length,
       uploadedAt: new Date().toISOString(),
       processingNotes,
-      fileUrl: urlData.publicUrl,
+      fileUrl: urlData.signedUrl,
       documentId: documentRecord?.id
     };
 
@@ -293,13 +301,13 @@ export async function POST(req: NextRequest) {
       storagePath
     });
 
-    // Return success response with file URL
+    // Return success response with signed URL
     return NextResponse.json({
       success: true,
       documentId: documentRecord?.id,
       text: extractedText,
       metadata,
-      fileUrl: urlData.publicUrl,
+      fileUrl: urlData.signedUrl,
       title: metadata.title,
       message: 'Document processed and uploaded successfully'
     });
