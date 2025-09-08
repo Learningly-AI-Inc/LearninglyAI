@@ -42,7 +42,57 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
   const [isFocusMode, setIsFocusMode] = React.useState(false)
   const [currentPage, setCurrentPage] = React.useState(1)
   const [pageDimensions, setPageDimensions] = React.useState({ width: 0, height: 0 })
-  
+  const [chatWidth, setChatWidth] = React.useState(360)
+  const [isResizing, setIsResizing] = React.useState(false)
+
+  // Handle resize functionality
+  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    console.log('🖱️ Resize handle clicked')
+    
+    // Check if we're in browser environment
+    if (typeof window === 'undefined' || !window.document) {
+      console.warn('Not in browser environment')
+      return
+    }
+    
+    setIsResizing(true)
+    
+    // Add event listeners immediately
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      moveEvent.preventDefault()
+      const newWidth = window.innerWidth - moveEvent.clientX
+      const minWidth = 280
+      const maxWidth = Math.min(800, window.innerWidth * 0.6)
+      
+      if (newWidth >= minWidth && newWidth <= maxWidth) {
+        setChatWidth(newWidth)
+      }
+    }
+    
+    const handleMouseUp = () => {
+      console.log('🖱️ Mouse up - stopping resize')
+      setIsResizing(false)
+      
+      if (window.document) {
+        window.document.removeEventListener('mousemove', handleMouseMove)
+        window.document.removeEventListener('mouseup', handleMouseUp)
+        if (window.document.body) {
+          window.document.body.style.cursor = ''
+          window.document.body.style.userSelect = ''
+        }
+      }
+    }
+    
+    window.document.addEventListener('mousemove', handleMouseMove)
+    window.document.addEventListener('mouseup', handleMouseUp)
+    if (window.document.body) {
+      window.document.body.style.cursor = 'col-resize'
+      window.document.body.style.userSelect = 'none'
+    }
+  }, [setChatWidth, setIsResizing])
+
   // Text selection state
   const [selectedText, setSelectedText] = React.useState('')
   const [textSelectionPageNumber, setTextSelectionPageNumber] = React.useState(1)
@@ -516,9 +566,9 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
   }, [getSignedUrl]);
   
      return (
-     <div className="grid min-h-screen grid-cols-[1fr_360px] xl:grid-cols-[1fr_360px]">
+     <div className="flex min-h-screen">
       {/* Main Content */}
-      <main className="relative flex flex-col h-screen">
+      <main className="relative flex flex-col h-screen flex-1">
                           {/* Header */}
          <div className="flex items-center justify-between gap-2 border-b px-4 py-3 bg-white shadow-sm">
            <div className="flex items-center gap-3">
@@ -544,6 +594,37 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
            </div>
            
            <div className="flex items-center gap-3">
+             {/* Chat Width Presets */}
+             <div className="flex items-center gap-2">
+               <span className="text-xs text-gray-500">Chat:</span>
+               <div className="flex gap-1">
+                 <button
+                   onClick={() => setChatWidth(320)}
+                   className={`px-2 py-1 text-xs rounded transition-colors ${
+                     chatWidth <= 320 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                   }`}
+                 >
+                   Narrow
+                 </button>
+                 <button
+                   onClick={() => setChatWidth(450)}
+                   className={`px-2 py-1 text-xs rounded transition-colors ${
+                     chatWidth > 320 && chatWidth <= 450 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                   }`}
+                 >
+                   Normal
+                 </button>
+                 <button
+                   onClick={() => setChatWidth(600)}
+                   className={`px-2 py-1 text-xs rounded transition-colors ${
+                     chatWidth > 450 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                   }`}
+                 >
+                   Wide
+                 </button>
+               </div>
+             </div>
+             
              {/* Zoom Controls */}
              <div className="flex items-center gap-1 bg-gray-100 rounded-lg px-2 py-1">
                <button
@@ -640,8 +721,46 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
         
       </main>
 
-             {/* Right Drawer - Desktop */}
-       <aside className="hidden xl:flex flex-col border-l bg-white w-[360px]">
+             {/* Resize Handle - User Friendly */}
+       <div 
+         className={`hidden xl:flex flex-col items-center justify-center w-6 transition-all duration-200 flex-shrink-0 relative z-10 group ${
+           isResizing 
+             ? 'bg-blue-100 border-l-2 border-r-2 border-blue-400' 
+             : 'bg-gray-50 border-l border-r border-gray-200 hover:bg-blue-50 hover:border-blue-300'
+         }`}
+         onMouseDown={handleMouseDown}
+         title="Drag to resize chat panel"
+         style={{ minHeight: '100vh' }}
+       >
+         {/* Visual grip indicator */}
+         <div className="flex flex-col space-y-1">
+           <div className={`w-1 h-4 rounded-full transition-colors ${
+             isResizing ? 'bg-blue-400' : 'bg-gray-300 group-hover:bg-blue-400'
+           }`} />
+           <div className={`w-1 h-4 rounded-full transition-colors ${
+             isResizing ? 'bg-blue-400' : 'bg-gray-300 group-hover:bg-blue-400'
+           }`} />
+           <div className={`w-1 h-4 rounded-full transition-colors ${
+             isResizing ? 'bg-blue-400' : 'bg-gray-300 group-hover:bg-blue-400'
+           }`} />
+         </div>
+         
+         {/* Help text on hover */}
+         <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+           <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap -mt-8">
+             Drag to resize
+           </div>
+         </div>
+         
+         {/* Cursor indicator */}
+         <div className="absolute inset-0 cursor-col-resize" />
+       </div>
+       
+       {/* Right Drawer - Desktop */}
+       <aside 
+         className="hidden xl:flex flex-col border-l bg-white"
+         style={{ width: `${chatWidth}px` }}
+       >
          <RightDrawer 
            isOpen={true}
            onClose={() => {}}

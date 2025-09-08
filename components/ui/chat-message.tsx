@@ -11,14 +11,14 @@ interface ChatMessageProps {
 export const ChatMessage: React.FC<ChatMessageProps> = ({ content, role }) => {
   if (role === "user") {
     return (
-      <div className="max-w-[85%] rounded-2xl px-4 py-3 shadow-sm bg-gradient-to-r from-blue-600 to-blue-700 text-white ml-auto">
+      <div className="max-w-[90%] rounded-2xl px-4 py-3 shadow-sm bg-gradient-to-r from-blue-600 to-blue-700 text-white ml-auto">
         <p className="text-sm font-medium leading-relaxed">{content}</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-[85%] rounded-2xl px-4 py-3 shadow-sm bg-white border border-gray-200 text-gray-900">
+    <div className="max-w-[95%] rounded-2xl px-4 py-3 shadow-sm bg-white border border-gray-200 text-gray-900">
       <div className="flex items-start space-x-3">
         <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
           <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">

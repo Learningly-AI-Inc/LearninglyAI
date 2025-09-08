@@ -102,7 +102,7 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
         </div>
         
                  {/* Content */}
-         <div className="h-[calc(100vh-180px)] overflow-hidden">
+         <div className="h-[calc(100vh-180px)] overflow-hidden flex flex-col">
           {activeTab === "chat" && (
             <ChatInterface />
           )}
