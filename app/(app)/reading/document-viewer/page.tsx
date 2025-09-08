@@ -3,6 +3,7 @@
 import React from "react"
 import { DocumentViewer } from "@/components/reading/document-viewer"
 import { DocumentProvider } from "@/components/reading/document-context"
+import { HighlightContextProvider } from "@/components/reading/highlight-context"
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 
@@ -18,10 +19,12 @@ function DocumentViewerContent() {
   }), [documentUrl, documentTitle])
   
   return (
-    <DocumentViewer 
-      documentUrl={memoizedProps.documentUrl} 
-      documentTitle={memoizedProps.documentTitle} 
-    />
+    <HighlightContextProvider documentUrl={memoizedProps.documentUrl || ""}>
+      <DocumentViewer 
+        documentUrl={memoizedProps.documentUrl} 
+        documentTitle={memoizedProps.documentTitle} 
+      />
+    </HighlightContextProvider>
   )
 }
 

@@ -20,9 +20,13 @@ import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
 
 import { DocumentProvider } from "@/components/reading/document-context"
+import { FileUploaderComponent } from "@/components/reading/file-uploader"
+import { DocumentListModal } from "@/components/reading/document-list-modal"
 
 const ReadingPage = () => {
   const router = useRouter()
+  const [showUploadModal, setShowUploadModal] = React.useState(false)
+  const [showDocumentListModal, setShowDocumentListModal] = React.useState(false)
 
   const uploadOptions = [
     {
@@ -30,7 +34,14 @@ const ReadingPage = () => {
       title: "Upload Documents",
       description: "PDF, DOCX, images, and text files",
       gradient: "from-blue-500 to-indigo-600",
-      action: () => router.push("/reading/document-viewer?title=Uploaded+Document&url=/sample-document.pdf")
+      action: () => setShowUploadModal(true)
+    },
+    {
+      icon: BookOpen,
+      title: "Load Existing Document",
+      description: "Browse and load documents from your library",
+      gradient: "from-purple-500 to-violet-600",
+      action: () => setShowDocumentListModal(true)
     },
     {
       icon: Globe,
@@ -100,8 +111,8 @@ const ReadingPage = () => {
               <p className="text-xl text-gray-600 max-w-2xl mx-auto">Choose how you&apos;d like to add your content</p>
             </div>
             
-            <div className="w-full max-w-5xl">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="w-full max-w-6xl">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {uploadOptions.map((option, index) => (
                   <Card 
                     key={index} 
@@ -130,6 +141,16 @@ const ReadingPage = () => {
 
         </main>
       </div>
+      
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <FileUploaderComponent onClose={() => setShowUploadModal(false)} />
+      )}
+      
+      {/* Document List Modal */}
+      {showDocumentListModal && (
+        <DocumentListModal onClose={() => setShowDocumentListModal(false)} />
+      )}
     </DocumentProvider>
   )
 }

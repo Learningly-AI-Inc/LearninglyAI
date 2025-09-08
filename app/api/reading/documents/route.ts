@@ -1,0 +1,156 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase-server';
+
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('❌ User authentication failed:', userError);
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    console.log('📚 Fetching documents for user:', user.id);
+
+    // Fetch user's documents from database
+    const { data: documents, error: dbError } = await supabase
+      .from('reading_documents')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (dbError) {
+      console.error('❌ Database error:', dbError);
+      return NextResponse.json(
+        { error: 'Failed to fetch documents' },
+        { status: 500 }
+      );
+    }
+
+    console.log('✅ Documents fetched:', documents?.length || 0);
+
+    // Transform documents for frontend
+    const transformedDocuments = documents?.map(doc => ({
+      id: doc.id,
+      title: doc.title,
+      originalFilename: doc.original_filename,
+      fileType: doc.file_type,
+      fileSize: doc.file_size,
+      pageCount: doc.page_count,
+      textLength: doc.text_length,
+      processingStatus: doc.processing_status,
+      publicUrl: doc.public_url,
+      filePath: doc.file_path,
+      createdAt: doc.created_at,
+      updatedAt: doc.updated_at,
+      metadata: doc.metadata
+    })) || [];
+
+    return NextResponse.json({
+      success: true,
+      documents: transformedDocuments,
+      count: transformedDocuments.length
+    });
+
+  } catch (error) {
+    console.error('💥 Unexpected error in documents API:', error);
+    
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error occurred'
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const documentId = searchParams.get('id');
+
+    if (!documentId) {
+      return NextResponse.json(
+        { error: 'Document ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const supabase = await createClient();
+
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('❌ User authentication failed:', userError);
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Get document details first
+    const { data: document, error: fetchError } = await supabase
+      .from('reading_documents')
+      .select('file_path')
+      .eq('id', documentId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (fetchError || !document) {
+      console.error('❌ Document not found:', fetchError);
+      return NextResponse.json(
+        { error: 'Document not found' },
+        { status: 404 }
+      );
+    }
+
+    // Delete from storage
+    const { error: storageError } = await supabase.storage
+      .from('reading-documents')
+      .remove([document.file_path]);
+
+    if (storageError) {
+      console.error('❌ Storage deletion error:', storageError);
+      // Continue with database deletion even if storage fails
+    }
+
+    // Delete from database
+    const { error: dbError } = await supabase
+      .from('reading_documents')
+      .delete()
+      .eq('id', documentId)
+      .eq('user_id', user.id);
+
+    if (dbError) {
+      console.error('❌ Database deletion error:', dbError);
+      return NextResponse.json(
+        { error: 'Failed to delete document' },
+        { status: 500 }
+      );
+    }
+
+    console.log('✅ Document deleted successfully:', documentId);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Document deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('💥 Unexpected error in delete API:', error);
+    
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error occurred'
+      },
+      { status: 500 }
+    );
+  }
+}

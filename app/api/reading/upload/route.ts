@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile } from 'fs/promises';
-import path from 'path';
+import { createClient } from '@/lib/supabase-server';
 
 export async function POST(req: NextRequest) {
-  console.log('📤 Upload API called');
+  console.log('📤 Reading Upload API called');
   
   try {
     // Parse form data
@@ -93,6 +92,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Initialize Supabase client
+    const supabase = await createClient();
+
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('❌ User authentication failed:', userError);
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    console.log('✅ User authenticated:', user.id);
+
     // Convert file to buffer
     let buffer: Buffer;
     try {
@@ -122,7 +136,11 @@ export async function POST(req: NextRequest) {
         try {
           // Dynamic import of pdf-parse to avoid compilation issues
           const { default: PDFParse } = await import('pdf-parse');
-          const pdfData = await PDFParse(buffer);
+          
+          // Create a clean buffer without any file system references
+          const cleanBuffer = Buffer.from(buffer);
+          
+          const pdfData = await PDFParse(cleanBuffer);
           extractedText = pdfData.text || '';
           pageCount = pdfData.numpages || 1;
           
@@ -186,32 +204,73 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Save the uploaded file to public/uploads directory
-    const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const safeFileName = `${documentId}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-    const filePath = path.join(uploadsDir, safeFileName);
-    
-    try {
-      // Ensure uploads directory exists
-      const fs = await import('fs');
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-      
-      // Save file to public/uploads
-      await writeFile(filePath, buffer);
-      console.log('💾 File saved to:', filePath);
-    } catch (saveError) {
-      console.error('❌ Failed to save file:', saveError);
+    // Create unique filename for Supabase storage
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const storagePath = `${user.id}/${timestamp}-${safeFileName}`;
+
+    console.log('📤 Uploading to Supabase storage:', storagePath);
+
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('reading-documents')
+      .upload(storagePath, buffer, {
+        contentType: file.type,
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('❌ Supabase upload error:', uploadError);
       return NextResponse.json(
-        { error: 'Failed to save uploaded file' },
+        { 
+          error: 'Failed to upload file to storage',
+          details: uploadError.message
+        },
         { status: 500 }
       );
     }
 
-    // Generate metadata with file URL
-    const fileUrl = `/uploads/${safeFileName}`;
+    console.log('✅ File uploaded to Supabase storage:', uploadData.path);
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('reading-documents')
+      .getPublicUrl(storagePath);
+
+    // Store document metadata in database
+    const { data: documentRecord, error: dbError } = await supabase
+      .from('reading_documents')
+      .insert({
+        user_id: user.id,
+        title: file.name.replace(/\.(pdf|txt)$/i, ''),
+        original_filename: file.name,
+        file_path: storagePath,
+        file_type: fileExtension,
+        file_size: file.size,
+        mime_type: file.type,
+        extracted_text: extractedText,
+        page_count: pageCount,
+        text_length: extractedText.length,
+        processing_status: 'completed',
+        processing_notes: processingNotes,
+        public_url: urlData.publicUrl,
+        metadata: {
+          uploadedAt: new Date().toISOString(),
+          processingNotes
+        }
+      })
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error('❌ Database error:', dbError);
+      // Don't fail the request if DB insert fails, file is still uploaded
+      console.warn('⚠️ File uploaded but database record failed');
+    }
+
+    console.log('✅ Document record created:', documentRecord?.id);
+
+    // Generate response metadata
     const metadata = {
       title: file.name.replace(/\.(pdf|txt)$/i, ''),
       originalFileName: file.name,
@@ -222,24 +281,27 @@ export async function POST(req: NextRequest) {
       textLength: extractedText.length,
       uploadedAt: new Date().toISOString(),
       processingNotes,
-      fileUrl // Add the accessible file URL
+      fileUrl: urlData.publicUrl,
+      documentId: documentRecord?.id
     };
 
     console.log('✅ Upload successful:', {
-      documentId,
+      documentId: documentRecord?.id,
       title: metadata.title,
       fileSize: metadata.fileSize,
-      textLength: metadata.textLength
+      textLength: metadata.textLength,
+      storagePath
     });
 
     // Return success response with file URL
     return NextResponse.json({
       success: true,
-      documentId,
+      documentId: documentRecord?.id,
       text: extractedText,
       metadata,
-      fileUrl,
-      message: 'Document processed successfully'
+      fileUrl: urlData.publicUrl,
+      title: metadata.title,
+      message: 'Document processed and uploaded successfully'
     });
 
   } catch (error: any) {
