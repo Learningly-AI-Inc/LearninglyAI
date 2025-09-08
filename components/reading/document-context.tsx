@@ -80,6 +80,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     progress: 0,
     message: ''
   });
+  
 
   const addMessage = React.useCallback((message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
     const newMessage: ChatMessage = {
@@ -187,12 +188,20 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         throw new Error(data.error || 'Upload was not successful');
       }
 
-      // Create document data
+      // Use server-provided extracted text (client-side PDF parsing disabled due to webpack issues)
+      const extractedText = data.text || '';
+      const pageCount = data.metadata?.pages || 1;
+
+      // Create document data with extracted text
       const documentData: DocumentData = {
         id: data.documentId,
         title: data.metadata.title,
-        text: data.text,
-        metadata: data.metadata,
+        text: extractedText,
+        metadata: {
+          ...data.metadata,
+          pages: pageCount,
+          textLength: extractedText.length
+        },
       };
 
       setUploadProgress({

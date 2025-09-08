@@ -86,7 +86,8 @@ export function DocumentListModal({ onClose }: DocumentListModalProps) {
       
       const title = encodeURIComponent(document.title)
       const url = encodeURIComponent(document.publicUrl)
-      router.push(`/reading/document-viewer?title=${title}&url=${url}`)
+      const documentId = encodeURIComponent(document.id)
+      router.push(`/reading/document-viewer?title=${title}&url=${url}&documentId=${documentId}`)
       onClose()
     } catch (error) {
       console.error('Failed to load document:', error)

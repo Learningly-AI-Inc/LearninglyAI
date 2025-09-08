@@ -5,6 +5,8 @@ import { Send, Loader2, Bot, FileText, Upload, Sparkles, BookOpen } from 'lucide
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useDocument } from './document-context';
+import { useDocumentContext } from '@/hooks/use-document-context';
+import { useDocumentSummarization } from '@/hooks/use-document-summarization';
 import { FadeContent } from '@/components/react-bits/fade-content';
 import { ClickSpark } from '@/components/react-bits/click-spark';
 import { ChatMessage } from '@/components/ui/chat-message';
@@ -33,6 +35,8 @@ function Chip({ text, onClick, icon }: ChipProps) {
 
 export function ChatInterface() {
   const { messages, sendMessage, isLoading, document } = useDocument();
+  const { chatWithContext, isLoading: isContextLoading } = useDocumentContext();
+  const { summarizeDocument, isLoading: isSummarizing } = useDocumentSummarization();
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -47,24 +51,98 @@ export function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
+  // Helper function to check if a string is a valid UUID
+  const isValidUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const isValid = uuidRegex.test(str);
+    console.log(`🔍 UUID Validation: "${str}" is ${isValid ? 'VALID' : 'INVALID'} UUID`);
+    return isValid;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || isLoading) return;
+    if (!inputValue.trim() || isLoading || isContextLoading || isSummarizing) return;
 
     const message = inputValue.trim();
     setInputValue('');
-    await sendMessage(message);
+    
+    // Use context-aware chat only if document has a valid UUID, otherwise fallback to regular chat
+    console.log('🔍 Chat Debug Info:', {
+      hasDocument: !!document,
+      documentId: document?.id,
+      documentTitle: document?.title,
+      willUseContextChat: document?.id && isValidUUID(document.id)
+    });
+    
+    if (document?.id && isValidUUID(document.id)) {
+      console.log('✅ Using context-aware chat with valid UUID:', document.id);
+      try {
+        const response = await chatWithContext(message, document.id, messages);
+        if (response) {
+          // Add user message and AI response to the chat
+          sendMessage(message); // This will add the user message
+          // The AI response will be handled by the context system
+        }
+      } catch (error) {
+        console.error('Context chat failed, falling back to regular chat:', error);
+        await sendMessage(message);
+      }
+    } else {
+      console.log('❌ Document ID is not a valid UUID, using regular chat:', document?.id);
+      await sendMessage(message);
+    }
   };
 
   const handleChipClick = async (chipText: string) => {
-    await sendMessage(chipText);
+    // Handle special actions
+    if (chipText === "summarize") {
+      await handleSummarizeDocument();
+      return;
+    }
+
+    if (document?.id && isValidUUID(document.id)) {
+      try {
+        const response = await chatWithContext(chipText, document.id, messages);
+        if (response) {
+          sendMessage(chipText);
+        }
+      } catch (error) {
+        console.error('Context chat failed, falling back to regular chat:', error);
+        await sendMessage(chipText);
+      }
+    } else {
+      console.log('Document ID is not a valid UUID, using regular chat for chip click:', document?.id);
+      await sendMessage(chipText);
+    }
+  };
+
+  const handleSummarizeDocument = async () => {
+    if (!document?.id || !isValidUUID(document.id) || isSummarizing) return;
+
+    try {
+      console.log('📄 Starting document summarization with GPT-5');
+      
+      const result = await summarizeDocument(document.id, {
+        summaryType: 'comprehensive',
+        model: 'gpt-5'
+      });
+
+      if (result) {
+        // Add the summary as a message to the chat
+        const summaryMessage = `📄 **Document Summary**\n\n${result.summary}\n\n---\n*Generated using GPT-5 • ${result.metadata.tokensUsed} tokens used*`;
+        await sendMessage(summaryMessage);
+      }
+    } catch (error) {
+      console.error('❌ Error summarizing document:', error);
+      await sendMessage('Sorry, I couldn\'t summarize the document. Please try again.');
+    }
   };
 
   const quickActions = [
     {
       text: "Summarize this document",
       icon: <Sparkles className="h-3 w-3" />,
-      action: "Summarize this document"
+      action: "summarize"
     },
     {
       text: "What are the key points?",
@@ -87,7 +165,7 @@ export function ChatInterface() {
     <div className="flex flex-col h-full bg-white">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {messages.length === 0 && !isLoading && (
+        {messages.length === 0 && !isLoading && !isContextLoading && !isSummarizing && (
           <FadeContent>
             <div className="text-center py-8 px-4">
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
@@ -156,7 +234,7 @@ export function ChatInterface() {
           </div>
         ))}
 
-        {isLoading && (
+        {(isLoading || isContextLoading || isSummarizing) && (
           <div className="flex justify-start mb-6">
             <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-white border border-gray-200 shadow-sm">
               <div className="flex items-center space-x-3">
@@ -165,7 +243,9 @@ export function ChatInterface() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                  <span className="text-sm text-gray-600 font-medium">Thinking...</span>
+                  <span className="text-sm text-gray-600 font-medium">
+                    {isSummarizing ? 'Summarizing with GPT-5...' : 'Thinking...'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -183,12 +263,12 @@ export function ChatInterface() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             placeholder={document ? `Ask me anything about "${document.title}"...` : "Upload a document to start chatting"}
-            disabled={!document || isLoading}
+            disabled={!document || isLoading || isContextLoading || isSummarizing}
             className="flex-1 text-sm rounded-xl border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
           />
           <Button
             type="submit"
-            disabled={!inputValue.trim() || isLoading || !document}
+            disabled={!inputValue.trim() || isLoading || isContextLoading || isSummarizing || !document}
             size="sm"
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl shadow-sm hover:shadow-md transition-all duration-200"
           >

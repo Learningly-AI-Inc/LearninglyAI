@@ -84,11 +84,14 @@ export function FileUploaderComponent({ onClose }: FileUploaderProps) {
         description: `${file.name} has been processed and is ready for analysis.`,
       })
       
-      // Navigate to document viewer with the actual file URL
+      // Navigate to document viewer with the actual file URL and document ID
       const title = result.title || file.name
       const url = result.fileUrl
+      const documentId = result.documentId
       
-      if (url) {
+      if (url && documentId) {
+        router.push(`/reading/document-viewer?title=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}&documentId=${encodeURIComponent(documentId)}`)
+      } else if (url) {
         router.push(`/reading/document-viewer?title=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`)
       } else {
         // Fallback if no URL returned

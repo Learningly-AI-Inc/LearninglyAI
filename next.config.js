@@ -12,6 +12,23 @@ const nextConfig = {
   },
   // Enable compression
   compress: true,
+  // Webpack configuration for PDF.js
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Exclude PDF.js from server-side rendering
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+      };
+    }
+
+    // Handle PDF.js workers from pdf-parse - using dynamic imports instead
+    // Note: pdf-parse workers are handled via dynamic imports in the API route
+
+    return config;
+  },
   // Security headers for legal platform
   async headers() {
     return [

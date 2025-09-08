@@ -28,10 +28,11 @@ import { useHighlights, useHighlightActions } from "@/components/reading/highlig
 interface DocumentViewerProps {
   documentUrl?: string
   documentTitle?: string
+  documentId?: string
 }
 
-export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentTitle = "Document" }: DocumentViewerProps) {
-  console.log('🎬 DocumentViewer rendered with:', { documentUrl, documentTitle })
+export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentTitle = "Document", documentId }: DocumentViewerProps) {
+  console.log('🎬 DocumentViewer rendered with:', { documentUrl, documentTitle, documentId })
   
   const { document, setDocument } = useDocument()
   const router = useRouter()
@@ -63,11 +64,92 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
   // Set document title in context when props are provided
   const hasProcessedRef = React.useRef(false)
   
+  // Function to fetch document data from API
+  const fetchDocumentData = React.useCallback(async (docId: string) => {
+    try {
+      console.log('📚 Fetching document data for ID:', docId)
+      const response = await fetch('/api/reading/documents')
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents')
+      }
+      const data = await response.json()
+      const documentData = data.documents?.find((doc: any) => doc.id === docId)
+      
+      if (documentData) {
+        console.log('✅ Found document data:', documentData)
+        const fullDocument = {
+          id: documentData.id,
+          title: documentData.title,
+          text: documentData.extracted_text || '',
+          metadata: {
+            originalFileName: documentData.original_filename,
+            fileSize: documentData.file_size,
+            fileType: documentData.file_type,
+            mimeType: documentData.mime_type,
+            pages: documentData.page_count,
+            textLength: documentData.text_length,
+            uploadedAt: documentData.created_at,
+            processingNotes: documentData.processing_notes || []
+          }
+        }
+        setDocument(fullDocument)
+        return true
+      } else {
+        console.log('❌ Document not found in API response')
+        return false
+      }
+    } catch (error) {
+      console.error('❌ Error fetching document data:', error)
+      return false
+    }
+  }, [setDocument])
+
+  // Function to fetch document data by title as fallback
+  const fetchDocumentByTitle = React.useCallback(async (title: string) => {
+    try {
+      console.log('📚 Fetching document data by title:', title)
+      const response = await fetch('/api/reading/documents')
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents')
+      }
+      const data = await response.json()
+      const documentData = data.documents?.find((doc: any) => doc.title === title)
+      
+      if (documentData) {
+        console.log('✅ Found document by title:', documentData)
+        const fullDocument = {
+          id: documentData.id,
+          title: documentData.title,
+          text: documentData.extracted_text || '',
+          metadata: {
+            originalFileName: documentData.original_filename,
+            fileSize: documentData.file_size,
+            fileType: documentData.file_type,
+            mimeType: documentData.mime_type,
+            pages: documentData.page_count,
+            textLength: documentData.text_length,
+            uploadedAt: documentData.created_at,
+            processingNotes: documentData.processing_notes || []
+          }
+        }
+        setDocument(fullDocument)
+        return true
+      } else {
+        console.log('❌ Document not found by title')
+        return false
+      }
+    } catch (error) {
+      console.error('❌ Error fetching document by title:', error)
+      return false
+    }
+  }, [setDocument])
+  
   React.useEffect(() => {
     console.log('🔄 useEffect triggered with:', { 
       document: document?.title, 
       documentUrl, 
       documentTitle, 
+      documentId,
       hasProcessed: hasProcessedRef.current,
       pdfLoading 
     })
@@ -75,31 +157,80 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
     // Reset the processed flag when documentUrl changes
     hasProcessedRef.current = false
     
-    if (!document && documentUrl && documentTitle && !hasProcessedRef.current) {
-      console.log('✅ Conditions met - starting document processing')
+    if (!document && !hasProcessedRef.current) {
       hasProcessedRef.current = true
       
-      // Create a basic document structure for the UI
-      const basicDocument = {
-        id: 'doc-' + Date.now(),
-        title: documentTitle,
-        text: '', // Will be populated by PDF processing
-        metadata: {
-          originalFileName: documentTitle,
-          fileSize: 0,
-          fileType: 'pdf',
-          mimeType: 'application/pdf',
-          pages: 0,
-          textLength: 0,
-          uploadedAt: new Date().toISOString(),
+      // If we have a documentId, try to fetch the document data from API
+      if (documentId) {
+        console.log('🔍 Document ID provided, fetching from API...')
+        fetchDocumentData(documentId).then((found) => {
+          if (!found && documentUrl && documentTitle) {
+            // If not found in API, fall back to creating a basic document
+            console.log('📄 Document not found in API, creating basic document')
+            const basicDocument = {
+              id: documentId,
+              title: documentTitle,
+              text: '', // Will be populated by PDF processing
+              metadata: {
+                originalFileName: documentTitle,
+                fileSize: 0,
+                fileType: 'pdf',
+                mimeType: 'application/pdf',
+                pages: 0,
+                textLength: 0,
+                uploadedAt: new Date().toISOString(),
+              }
+            }
+            setDocument(basicDocument)
+            processPDFText(documentUrl, documentTitle)
+          }
+        })
+      } else if (documentTitle && documentTitle !== "Document") {
+        // Try to fetch document by title as fallback
+        console.log('🔍 No document ID, trying to fetch by title:', documentTitle)
+        fetchDocumentByTitle(documentTitle).then((found) => {
+          if (!found && documentUrl) {
+            // If not found by title, create a basic document and process PDF
+            console.log('📄 Document not found by title, creating basic document')
+            const basicDocument = {
+              id: 'doc-' + Date.now(),
+              title: documentTitle,
+              text: '', // Will be populated by PDF processing
+              metadata: {
+                originalFileName: documentTitle,
+                fileSize: 0,
+                fileType: 'pdf',
+                mimeType: 'application/pdf',
+                pages: 0,
+                textLength: 0,
+                uploadedAt: new Date().toISOString(),
+              }
+            }
+            setDocument(basicDocument)
+            processPDFText(documentUrl, documentTitle)
+          }
+        })
+      } else if (documentUrl && documentTitle) {
+        // No documentId, create a basic document and process PDF
+        console.log('✅ No document ID, creating basic document and processing PDF')
+        const basicDocument = {
+          id: 'doc-' + Date.now(),
+          title: documentTitle,
+          text: '', // Will be populated by PDF processing
+          metadata: {
+            originalFileName: documentTitle,
+            fileSize: 0,
+            fileType: 'pdf',
+            mimeType: 'application/pdf',
+            pages: 0,
+            textLength: 0,
+            uploadedAt: new Date().toISOString(),
+          }
         }
+        console.log('📄 Created basic document:', basicDocument)
+        setDocument(basicDocument)
+        processPDFText(documentUrl, documentTitle)
       }
-      console.log('📄 Created basic document:', basicDocument)
-      setDocument(basicDocument)
-      
-      // Process the PDF to extract text
-      console.log('🚀 Starting PDF text processing...')
-      processPDFText(documentUrl, documentTitle)
     } else {
       console.log('❌ Conditions not met:', {
         hasDocument: !!document,
@@ -118,7 +249,7 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
     }, 15000) // 15 second timeout
 
     return () => clearTimeout(loadingTimeout)
-  }, [documentUrl, documentTitle, document, setDocument, pdfLoading])
+  }, [documentUrl, documentTitle, documentId, document, setDocument, pdfLoading, fetchDocumentData, fetchDocumentByTitle])
 
   // Cleanup effect to reset processed flag on unmount
   React.useEffect(() => {
@@ -221,7 +352,7 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
           console.log('🆕 Creating new document...')
           // If document is null, create a new one
           const newDocument = {
-            id: 'doc-' + Date.now(),
+            id: documentId || 'doc-' + Date.now(),
             title: title,
             text: data.text,
             metadata: {

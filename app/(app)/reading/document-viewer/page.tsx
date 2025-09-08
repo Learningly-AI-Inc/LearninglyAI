@@ -32,17 +32,30 @@ function DocumentViewerContent() {
       return "Untitled Document"
     }
   }, [searchParams])
+
+  const documentId = React.useMemo(() => {
+    try {
+      const id = searchParams.get("documentId")
+      // Decode the documentId if it's encoded
+      return id ? decodeURIComponent(id) : null
+    } catch (error) {
+      console.error('Error getting documentId param:', error)
+      return null
+    }
+  }, [searchParams])
   
   console.log('🌐 DocumentViewerContent - URL params:', {
     url: documentUrl,
-    title: documentTitle
+    title: documentTitle,
+    documentId
   })
   
   // Memoize the props to prevent unnecessary re-renders
   const memoizedProps = React.useMemo(() => ({
     documentUrl: documentUrl || undefined,
-    documentTitle
-  }), [documentUrl, documentTitle])
+    documentTitle,
+    documentId: documentId || undefined
+  }), [documentUrl, documentTitle, documentId])
   
   console.log('📝 DocumentViewerContent - Memoized props:', memoizedProps)
   
@@ -50,7 +63,8 @@ function DocumentViewerContent() {
     <HighlightContextProvider documentUrl={memoizedProps.documentUrl || ""}>
       <DocumentViewer 
         documentUrl={memoizedProps.documentUrl} 
-        documentTitle={memoizedProps.documentTitle} 
+        documentTitle={memoizedProps.documentTitle}
+        documentId={memoizedProps.documentId}
       />
     </HighlightContextProvider>
   )

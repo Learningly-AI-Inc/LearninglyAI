@@ -69,11 +69,11 @@ export async function POST(req: NextRequest) {
     console.log('✅ User authenticated:', user.id);
 
     // Download file from Supabase storage
-    let buffer: Buffer;
+    let buffer: Buffer | undefined;
+    let storagePath: string = '';
+    
     try {
       // Extract storage path from URL
-      let storagePath: string;
-      
       if (fileUrl.includes('supabase')) {
         // Handle Supabase public URLs
         const urlParts = fileUrl.split('/');
@@ -85,14 +85,14 @@ export async function POST(req: NextRequest) {
         }
       } else if (fileUrl.startsWith('/uploads/')) {
         // Handle legacy local uploads (fallback)
-        const fs = await import('fs');
+        const fs = await import('fs/promises');
         const path = await import('path');
         const filePath = path.join(process.cwd(), 'public', fileUrl);
         buffer = await fs.readFile(filePath);
         console.log('✅ File read from local storage:', buffer.length, 'bytes');
       } else if (fileUrl.startsWith('/')) {
         // Handle local files from public directory
-        const fs = await import('fs');
+        const fs = await import('fs/promises');
         const path = await import('path');
         const filePath = path.join(process.cwd(), 'public', fileUrl);
         buffer = await fs.readFile(filePath);
@@ -110,13 +110,11 @@ export async function POST(req: NextRequest) {
         if (downloadError) {
           console.error('❌ Failed to download from Supabase:', downloadError);
           console.log('🔍 Download error details:', {
-            message: downloadError.message,
-            statusCode: downloadError.statusCode,
-            error: downloadError.error
+            message: downloadError.message
           });
 
           // Check if it's an authentication issue
-          if (downloadError.message?.includes('not found') || downloadError.statusCode === 404) {
+          if (downloadError.message?.includes('not found')) {
             return NextResponse.json(
               {
                 error: 'File not found or access denied',
@@ -159,68 +157,25 @@ export async function POST(req: NextRequest) {
     try {
       console.log('📄 Processing PDF...');
       
-      // Suppress stderr and console.error temporarily to avoid test file errors
-      const originalStderr = process.stderr.write;
-      const originalConsoleError = console.error;
-      let suppressedErrors: string[] = [];
+      // Dynamic import of pdf-parse to avoid compilation issues
+      const { default: PDFParse } = await import('pdf-parse');
       
-      // Override stderr to catch library errors
-      process.stderr.write = function(chunk: any) {
-        const msg = chunk.toString();
-        // Filter out known pdf-parse test file errors and related ENOENT errors
-        if (msg.includes('test/data/05-versions-space.pdf') || 
-            msg.includes('ENOENT') && msg.includes('test') ||
-            msg.includes('no such file or directory') && msg.includes('test')) {
-          suppressedErrors.push(msg);
-          return true;
-        }
-        return originalStderr.call(process.stderr, chunk);
-      };
+      // Create a clean buffer without any file system references
+      const cleanBuffer = Buffer.from(buffer);
       
-      // Override console.error to catch additional errors
-      console.error = function(...args: any[]) {
-        const msg = args.join(' ');
-        if (msg.includes('test/data/05-versions-space.pdf') || 
-            msg.includes('ENOENT') && msg.includes('test') ||
-            msg.includes('no such file or directory') && msg.includes('test')) {
-          suppressedErrors.push(msg);
-          return;
-        }
-        return originalConsoleError.apply(console, args);
-      };
-      
-      try {
-        // Dynamic import of pdf-parse to avoid compilation issues
-        const { default: PDFParse } = await import('pdf-parse');
-        
-        // Create a clean buffer without any file system references
-        const cleanBuffer = Buffer.from(buffer);
-        
         // Add timeout to PDF processing to prevent hanging
         const parsePromise = PDFParse(cleanBuffer, {
           // Optimized options for better text extraction
-          max: 0,  // No page limit
-          normalizeWhitespace: true,  // Enable whitespace normalization for better text extraction
-          disableCombineTextItems: false  // Enable text combining for better extraction
+          max: 0  // No page limit
         });
 
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('PDF processing timeout')), 10000); // 10 second timeout
-        });
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('PDF processing timeout')), 10000); // 10 second timeout
+      });
 
-        const pdfData = await Promise.race([parsePromise, timeoutPromise]) as any;
-        extractedText = pdfData.text || '';
-        pageCount = pdfData.numpages || 1;
-      } finally {
-        // Restore original functions
-        process.stderr.write = originalStderr;
-        console.error = originalConsoleError;
-        
-        // Log suppressed errors for debugging (but not to stderr)
-        if (suppressedErrors.length > 0 && process.env.NODE_ENV === 'development') {
-          console.log('ℹ️ Suppressed pdf-parse test file errors:', suppressedErrors.length);
-        }
-      }
+      const pdfData = await Promise.race([parsePromise, timeoutPromise]) as any;
+      extractedText = pdfData.text || '';
+      pageCount = pdfData.numpages || 1;
       
       if (extractedText.trim().length === 0) {
         extractedText = 'This PDF appears to be image-based or contains no extractable text. The document will display visually for reading and analysis, but AI chat features may be limited without searchable text.';
@@ -234,14 +189,7 @@ export async function POST(req: NextRequest) {
       });
       
     } catch (pdfError: any) {
-      // Filter out non-critical errors (like ENOENT for test files)
-      if (pdfError.code === 'ENOENT' && pdfError.path && 
-          (pdfError.path.includes('test/data') || pdfError.path.includes('05-versions-space.pdf'))) {
-        console.log('⚠️ Ignoring pdf-parse test file error (non-critical)');
-        // This is a known issue with pdf-parse trying to access test files
-        // Continue processing normally - the PDF was actually processed successfully
-        console.log('✅ PDF processing completed (test file error ignored)');
-      } else if (pdfError.message === 'PDF processing timeout') {
+      if (pdfError.message === 'PDF processing timeout') {
         console.log('⚠️ PDF processing timed out - continuing with visual PDF display');
         extractedText = 'PDF processing timed out. The document will display visually for reading, but AI chat features may be limited without extracted text.';
         pageCount = 1;

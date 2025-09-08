@@ -116,7 +116,8 @@
     "nodemon": "^3.1.10",
     "postcss": "^8.4.49",
     "supabase": "^2.34.3",
-    "tailwindcss": "^3.4.15"
+    "tailwindcss": "^3.4.15",
+    "worker-loader": "^3.0.8"
   },
   "engines": {
     "node": ">=18.17.0"
