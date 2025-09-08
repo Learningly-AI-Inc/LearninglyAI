@@ -72,10 +72,14 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    console.log('🗑️ DELETE request received');
     const { searchParams } = new URL(request.url);
     const documentId = searchParams.get('id');
+    
+    console.log('🔍 Document ID from request:', documentId);
 
     if (!documentId) {
+      console.log('❌ No document ID provided');
       return NextResponse.json(
         { error: 'Document ID is required' },
         { status: 400 }
@@ -86,6 +90,8 @@ export async function DELETE(request: NextRequest) {
 
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
+    console.log('👤 User authentication result:', { user: user?.id, error: userError });
+    
     if (userError || !user) {
       console.error('❌ User authentication failed:', userError);
       return NextResponse.json(
@@ -95,12 +101,15 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get document details first
+    console.log('🔍 Fetching document details for:', documentId);
     const { data: document, error: fetchError } = await supabase
       .from('reading_documents')
       .select('file_path')
       .eq('id', documentId)
       .eq('user_id', user.id)
       .single();
+
+    console.log('📄 Document fetch result:', { document, fetchError });
 
     if (fetchError || !document) {
       console.error('❌ Document not found:', fetchError);
@@ -111,6 +120,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete from storage
+    console.log('🗂️ Deleting from storage:', document.file_path);
     const { error: storageError } = await supabase.storage
       .from('reading-documents')
       .remove([document.file_path]);
@@ -118,9 +128,12 @@ export async function DELETE(request: NextRequest) {
     if (storageError) {
       console.error('❌ Storage deletion error:', storageError);
       // Continue with database deletion even if storage fails
+    } else {
+      console.log('✅ Storage deletion successful');
     }
 
     // Delete from database
+    console.log('🗃️ Deleting from database:', documentId);
     const { error: dbError } = await supabase
       .from('reading_documents')
       .delete()
@@ -133,6 +146,8 @@ export async function DELETE(request: NextRequest) {
         { error: 'Failed to delete document' },
         { status: 500 }
       );
+    } else {
+      console.log('✅ Database deletion successful');
     }
 
     console.log('✅ Document deleted successfully:', documentId);

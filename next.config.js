@@ -12,7 +12,7 @@ const nextConfig = {
   },
   // Enable compression
   compress: true,
-  // Webpack configuration for PDF.js
+  // Webpack configuration
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Exclude PDF.js from server-side rendering
@@ -24,8 +24,12 @@ const nextConfig = {
       };
     }
 
-    // Handle PDF.js workers from pdf-parse - using dynamic imports instead
-    // Note: pdf-parse workers are handled via dynamic imports in the API route
+    // Suppress Adobe PDF Services SDK warnings
+    config.ignoreWarnings = [
+      /Critical dependency: the request of a dependency is an expression/,
+      /Module not found: Can't resolve 'fs'/,
+      /Module not found: Can't resolve 'path'/,
+    ];
 
     return config;
   },

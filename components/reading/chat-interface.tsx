@@ -34,7 +34,7 @@ function Chip({ text, onClick, icon }: ChipProps) {
 }
 
 export function ChatInterface() {
-  const { messages, sendMessage, isLoading, document } = useDocument();
+  const { messages, sendMessage, addMessage, isLoading, document } = useDocument();
   const { chatWithContext, isLoading: isContextLoading } = useDocumentContext();
   const { summarizeDocument, isLoading: isSummarizing } = useDocumentSummarization();
   const [inputValue, setInputValue] = useState('');
@@ -77,15 +77,30 @@ export function ChatInterface() {
     if (document?.id && isValidUUID(document.id)) {
       console.log('✅ Using context-aware chat with valid UUID:', document.id);
       try {
+        // Add user message to chat first
+        addMessage({ role: 'user', content: message });
+        
         const response = await chatWithContext(message, document.id, messages);
+        console.log('🔍 Context response:', { response: response ? 'SUCCESS' : 'NULL', length: response?.length || 0 });
+        
         if (response) {
-          // Add user message and AI response to the chat
-          sendMessage(message); // This will add the user message
-          // The AI response will be handled by the context system
+          // Add AI response to chat
+          addMessage({ role: 'assistant', content: response });
+          console.log('✅ Context-aware chat completed successfully - NO FALLBACK');
+          return; // Exit early to prevent fallback
+        } else {
+          console.log('❌ Context response was null/empty');
+          addMessage({ 
+            role: 'assistant', 
+            content: 'Sorry, I encountered an issue processing your request. Please try again.'
+          });
         }
       } catch (error) {
-        console.error('Context chat failed, falling back to regular chat:', error);
-        await sendMessage(message);
+        console.error('❌ Context chat failed:', error);
+        addMessage({ 
+          role: 'assistant', 
+          content: `Sorry, I encountered an error: ${error.message}. Please try again.`
+        });
       }
     } else {
       console.log('❌ Document ID is not a valid UUID, using regular chat:', document?.id);
@@ -102,16 +117,27 @@ export function ChatInterface() {
 
     if (document?.id && isValidUUID(document.id)) {
       try {
+        // Add user message first
+        addMessage({ role: 'user', content: chipText });
+        
         const response = await chatWithContext(chipText, document.id, messages);
         if (response) {
-          sendMessage(chipText);
+          addMessage({ role: 'assistant', content: response });
+        } else {
+          addMessage({ 
+            role: 'assistant', 
+            content: 'Sorry, I encountered an issue processing your request. Please try again.'
+          });
         }
       } catch (error) {
-        console.error('Context chat failed, falling back to regular chat:', error);
-        await sendMessage(chipText);
+        console.error('❌ Context chat failed:', error);
+        addMessage({ 
+          role: 'assistant', 
+          content: `Sorry, I encountered an error: ${error.message}. Please try again.`
+        });
       }
     } else {
-      console.log('Document ID is not a valid UUID, using regular chat for chip click:', document?.id);
+      console.log('❌ Document ID is not a valid UUID, using regular chat for chip click:', document?.id);
       await sendMessage(chipText);
     }
   };

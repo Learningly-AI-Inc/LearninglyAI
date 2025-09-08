@@ -216,9 +216,9 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       // Small delay to show completion
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Send initial message to AI
-      console.log('🤖 Sending initial message to AI');
-      await sendMessage('Document uploaded and ready for analysis');
+      // Send initial message to AI - Let chat interface handle this with proper API
+      console.log('🤖 Document ready for chat analysis');
+      // Note: Initial message will be handled by chat interface with context-aware API
       
       // Return the file URL and metadata for navigation
       return {

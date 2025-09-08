@@ -23,8 +23,14 @@ export async function POST(req: NextRequest) {
 
     // Extract file and optional extracted text
     const file = formData.get('file') as File;
-    const extractedText = formData.get('extractedText') as string;
+    const rawExtractedText = formData.get('extractedText') as string;
     const pageCount = formData.get('pageCount') as string;
+    
+    // Clean client-side extracted text of null characters and control characters
+    const extractedText = rawExtractedText ? rawExtractedText
+      .replace(/\u0000/g, '') // Remove null characters
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove other control characters
+      .trim() : '';
     
     if (!file) {
       console.error('❌ No file in request');
@@ -43,6 +49,9 @@ export async function POST(req: NextRequest) {
       size: file.size,
       lastModified: file.lastModified
     });
+
+    // Extract file extension first
+    const fileExtension = file.name.toLowerCase().split('.').pop() || '';
 
     // Validate file size (20MB limit)
     const maxSize = 20 * 1024 * 1024; // 20MB
@@ -68,8 +77,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate minimum file size for PDFs
+    if (fileExtension === 'pdf' && file.size < 500) { // Less than 500 bytes is likely corrupt
+      console.error('❌ PDF file too small:', file.size);
+      return NextResponse.json(
+        { 
+          error: 'Invalid PDF file',
+          details: 'The PDF file appears to be corrupted or incomplete (too small)'
+        },
+        { status: 400 }
+      );
+    }
+
     // Validate file type
-    const fileExtension = file.name.toLowerCase().split('.').pop() || '';
     const allowedExtensions = ['pdf', 'txt'];
     const allowedMimeTypes = ['application/pdf', 'text/plain'];
     
@@ -147,59 +167,201 @@ export async function POST(req: NextRequest) {
         console.log('📄 Processing PDF...');
         
         try {
-          // Suppress stderr temporarily to avoid test file errors from pdf-parse
-          const originalStderr = process.stderr.write;
-          const originalConsoleError = console.error;
-          let suppressedErrors: string[] = [];
+          // Check file size to decide which service to use
+          const fileSizeMB = file.size / (1024 * 1024);
+          const maxOCRSize = 1; // 1MB limit for OCR.space free tier
           
-          // Override stderr to catch library errors
-          process.stderr.write = function(chunk: any) {
-            const msg = chunk.toString();
-            // Filter out known pdf-parse test file errors
-            if (msg.includes('test/data/05-versions-space.pdf') || 
-                msg.includes('ENOENT') && msg.includes('test') ||
-                msg.includes('no such file or directory') && msg.includes('test')) {
-              suppressedErrors.push(msg);
-              return true;
-            }
-            return originalStderr.call(process.stderr, chunk);
-          };
-          
-          // Override console.error to catch additional errors
-          console.error = function(...args: any[]) {
-            const msg = args.join(' ');
-            if (msg.includes('test/data/05-versions-space.pdf') || 
-                msg.includes('ENOENT') && msg.includes('test') ||
-                msg.includes('no such file or directory') && msg.includes('test')) {
-              suppressedErrors.push(msg);
-              return;
-            }
-            return originalConsoleError.apply(console, args);
-          };
-          
-          try {
-            // Dynamic import of pdf-parse to avoid compilation issues
-            const { default: PDFParse } = await import('pdf-parse');
+          if (fileSizeMB <= maxOCRSize) {
+            console.log('📄 Starting PDF parsing with OCR.space (small file)...');
             
-            // Create a clean buffer without any file system references
-            const cleanBuffer = Buffer.from(buffer);
+            // Use OCR.space API for smaller files
+            const formData = new FormData();
+            const blob = new Blob([buffer], { type: 'application/pdf' });
+            formData.append('file', blob, file.name);
             
-            console.log('📄 Starting PDF parsing with pdf-parse...');
-            const pdfData = await PDFParse(cleanBuffer, {
-              // Add options to improve parsing
-              max: 0, // Parse all pages
-              version: 'v1.10.100' // Use specific version
+            // Add OCR parameters for better results
+            const ocrParams = new URLSearchParams({
+              'filetype': 'PDF',
+              'detectOrientation': 'false',
+              'isCreateSearchablePdf': 'false',
+              'isSearchablePdfHideTextLayer': 'false',
+              'scale': 'true',
+              'isTable': 'true',
+              'OCREngine': '2'
             });
-          
-          serverExtractedText = pdfData.text || '';
-          serverPageCount = pdfData.numpages || 1;
-          
-          console.log('📊 PDF parsing results:', {
+            
+            const ocrResponse = await fetch(`https://api.ocr.space/parse/image?${ocrParams}`, {
+              method: 'POST',
+              headers: {
+                'apikey': process.env.NEXT_OCR_SPACE_KEY || 'K88523969288957',
+              },
+              body: formData
+            });
+            
+            const ocrData = await ocrResponse.json();
+            
+            if (ocrData.IsErroredOnProcessing) {
+              console.error('❌ OCR.space processing error:', ocrData.ErrorMessage);
+              throw new Error(`OCR processing failed: ${ocrData.ErrorMessage}`);
+            }
+            
+            // Extract text from OCR response
+            if (ocrData.ParsedResults && ocrData.ParsedResults.length > 0) {
+              serverExtractedText = ocrData.ParsedResults[0].ParsedText || '';
+              serverPageCount = ocrData.ParsedResults.length;
+              
+              console.log('📊 OCR.space parsing results:', {
+                pages: serverPageCount,
+                textLength: serverExtractedText.length,
+                hasText: serverExtractedText.trim().length > 0,
+                processingTime: ocrData.ProcessingTimeInMilliseconds
+              });
+              
+              processingNotes.push(`OCR.space processing completed in ${ocrData.ProcessingTimeInMilliseconds}ms`);
+            } else {
+              throw new Error('No parsed results returned from OCR.space');
+            }
+            
+          } else {
+            console.log('📄 Starting PDF parsing with Adobe PDF Services (large file)...');
+            
+            // Use Adobe PDF Services for larger files
+            const { 
+              ServicePrincipalCredentials,
+              PDFServices,
+              MimeType,
+              ExtractPDFParams,
+              ExtractElementType,
+              ExtractPDFJob,
+              ExtractPDFResult
+            } = await import('@adobe/pdfservices-node-sdk');
+            
+            // Check if credentials are available
+            if (!process.env.ADOBE_PDF_SERVICES_CLIENT_ID || !process.env.ADOBE_PDF_SERVICES_CLIENT_SECRET) {
+              throw new Error('Adobe PDF Services credentials not configured. Please add ADOBE_PDF_SERVICES_CLIENT_ID and ADOBE_PDF_SERVICES_CLIENT_SECRET to your environment variables.');
+            }
+            
+            // Set up credentials
+            const credentials = new ServicePrincipalCredentials({
+              clientId: process.env.ADOBE_PDF_SERVICES_CLIENT_ID,
+              clientSecret: process.env.ADOBE_PDF_SERVICES_CLIENT_SECRET
+            });
+            
+            // Create PDF Services instance
+            const pdfServices = new PDFServices({credentials});
+            
+            // Create a readable stream from buffer 
+            const { Readable } = require('stream');
+            const bufferStream = new Readable({
+              read() {} // Required method for Readable streams
+            });
+            bufferStream.push(buffer);
+            bufferStream.push(null);
+            
+            // Upload the PDF
+            const inputAsset = await pdfServices.upload({
+              readStream: bufferStream,
+              mimeType: MimeType.PDF
+            });
+            
+            // Create parameters for text extraction
+            const params = new ExtractPDFParams({
+              elementsToExtract: [ExtractElementType.TEXT]
+            });
+            
+            // Create and submit the job
+            const job = new ExtractPDFJob({inputAsset, params});
+            const pollingURL = await pdfServices.submit({job});
+            
+            // Get the result
+            const pdfServicesResponse = await pdfServices.getJobResult({
+              pollingURL,
+              resultType: ExtractPDFResult
+            });
+            
+            // Get content from the resulting asset
+            const resultAsset = pdfServicesResponse.result?.resource;
+            if (!resultAsset) {
+              throw new Error('No result asset returned from Adobe PDF Services');
+            }
+            
+            const streamAsset = await pdfServices.getContent({asset: resultAsset});
+            
+            // Adobe PDF Services returns a ZIP file, so we need to process it
+            const chunks: Buffer[] = [];
+            streamAsset.readStream.on('data', (chunk: Buffer) => {
+              chunks.push(chunk);
+            });
+            
+            await new Promise((resolve, reject) => {
+              streamAsset.readStream.on('end', resolve);
+              streamAsset.readStream.on('error', reject);
+            });
+            
+            const zipBuffer = Buffer.concat(chunks);
+            
+            // Process the ZIP file to extract text
+            const AdmZip = require('adm-zip');
+            const zip = new AdmZip(zipBuffer);
+            
+            // Check if structuredData.json exists in the ZIP
+            const zipEntries = zip.getEntries();
+            const hasStructuredData = zipEntries.some((entry: any) => entry.entryName === 'structuredData.json');
+            
+            if (!hasStructuredData) {
+              console.warn('⚠️ No structuredData.json found in Adobe PDF Services response');
+              throw new Error('Adobe PDF Services response does not contain expected structured data');
+            }
+            
+            // Read the structured data JSON file from the ZIP
+            const jsonData = zip.readAsText('structuredData.json');
+            const data = JSON.parse(jsonData);
+            
+            // Extract text from the structured data
+            let extractedText = '';
+            if (data.elements && Array.isArray(data.elements)) {
+              console.log(`📊 Processing ${data.elements.length} elements from Adobe PDF Services`);
+              
+              data.elements.forEach((element: any) => {
+                if (element.Text) {
+                  extractedText += element.Text;
+                  
+                  // Add appropriate spacing based on element type
+                  if (element.Path && element.Path.includes('H')) {
+                    // Heading - add extra line break
+                    extractedText += '\n\n';
+                  } else if (element.Path && element.Path.includes('P')) {
+                    // Paragraph - add line break
+                    extractedText += '\n';
+                  } else {
+                    // Default spacing
+                    extractedText += ' ';
+                  }
+                }
+              });
+            } else {
+              console.warn('⚠️ No elements found in Adobe PDF Services structured data');
+            }
+            
+            extractedText = extractedText.trim();
+            
+            // Clean null characters and other problematic characters for database storage
+            serverExtractedText = extractedText
+              .replace(/\u0000/g, '') // Remove null characters
+              .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove other control characters
+              .trim();
+            serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000)); // Estimate pages
+            
+            console.log('📊 Adobe PDF Services parsing results:', {
             pages: serverPageCount,
             textLength: serverExtractedText.length,
             hasText: serverExtractedText.trim().length > 0
           });
           
+            processingNotes.push(`Adobe PDF Services processing completed`);
+          }
+          
+          // Handle empty text results
           if (serverExtractedText.trim().length === 0) {
             serverExtractedText = `PDF Document Analysis
 
@@ -227,57 +389,30 @@ The document is now available in our system and ready for your questions.`;
             processingNotes: processingNotes
           });
           
-          } finally {
-            // Restore original functions
-            process.stderr.write = originalStderr;
-            console.error = originalConsoleError;
-            
-            // Log suppressed errors for debugging (but not to stderr)
-            if (suppressedErrors.length > 0 && process.env.NODE_ENV === 'development') {
-              console.log('ℹ️ Suppressed pdf-parse test file errors:', suppressedErrors.length);
-            }
+        } catch (pdfError: any) {
+          console.error('❌ PDF processing error:', pdfError);
+          
+          // Provide more specific error messages
+          let errorMessage = 'PDF processing encountered an issue. ';
+          if (pdfError.message.includes('OCR processing failed')) {
+            errorMessage += 'OCR processing failed. ';
+          } else if (pdfError.message.includes('Adobe') || pdfError.message.includes('PDFServices')) {
+            errorMessage += 'Adobe PDF Services processing failed. ';
+          } else if (pdfError.message.includes('network') || pdfError.message.includes('fetch')) {
+            errorMessage += 'Network error during processing. ';
+          } else if (pdfError.message.includes('limit') || pdfError.message.includes('quota')) {
+            errorMessage += 'API limit exceeded. ';
+          } else if (pdfError.message.includes('credentials') || pdfError.message.includes('authentication')) {
+            errorMessage += 'Authentication error. ';
+          } else {
+            errorMessage += 'The file may be corrupted, password-protected, or contain only images. ';
           }
           
-        } catch (pdfError: any) {
-          // Filter out non-critical ENOENT errors for test files
-          if (pdfError.code === 'ENOENT' && pdfError.path && 
-              (pdfError.path.includes('test/data') || pdfError.path.includes('05-versions-space.pdf'))) {
-            console.log('⚠️ Ignoring pdf-parse test file error (non-critical)');
-            // This is a known issue with pdf-parse trying to access test files
-            // Continue processing normally - set default values
-            serverExtractedText = `PDF Document Analysis
-
-This PDF document has been successfully uploaded and is ready for analysis. The document contains ${serverPageCount} page(s).
-
-Note: The PDF appears to contain mostly images, scanned content, or non-text elements. While full text extraction wasn't possible, you can still:
-- Ask questions about the document structure
-- Request analysis of the content type
-- Discuss the document's purpose or context
-- Get help with document-related tasks
-
-The document is now available in our system and ready for your questions.`;
-            processingNotes.push('PDF processed successfully (ignored test file error)');
-          } else {
-              console.error('❌ PDF parsing error:', pdfError);
-            
-            // Provide more specific error messages
-            let errorMessage = 'PDF processing encountered an issue. ';
-            if (pdfError.message.includes('password')) {
-              errorMessage += 'The PDF appears to be password-protected. ';
-            } else if (pdfError.message.includes('corrupt')) {
-              errorMessage += 'The PDF file appears to be corrupted. ';
-            } else if (pdfError.message.includes('invalid')) {
-              errorMessage += 'The file may not be a valid PDF. ';
-            } else {
-              errorMessage += 'The file may be corrupted, password-protected, or contain only images. ';
-            }
-            
-            errorMessage += 'You can still upload it, but text extraction is limited. The document is available for reference and you can ask questions about it.';
-            
-            serverExtractedText = errorMessage;
-            serverPageCount = 1;
-            processingNotes.push(`PDF parsing failed: ${pdfError.message}`);
-          }
+          errorMessage += 'You can still upload it, but text extraction is limited. The document is available for reference and you can ask questions about it.';
+          
+          serverExtractedText = errorMessage;
+          serverPageCount = 1;
+          processingNotes.push(`PDF processing failed: ${pdfError.message}`);
         }
         
       } else if (fileExtension === 'txt' || file.type === 'text/plain') {

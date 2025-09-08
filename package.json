@@ -11,6 +11,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@adobe/pdfservices-node-sdk": "^4.1.0",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "^1.1.2",
@@ -46,6 +47,7 @@
     "@supabase/supabase-js": "^2.56.0",
     "@tabler/icons-react": "^3.34.1",
     "@types/react-pdf": "^6.2.0",
+    "adm-zip": "^0.5.16",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
@@ -68,7 +70,6 @@
     "ogl": "^1.0.11",
     "openai": "^5.16.0",
     "pdf-lib": "^1.17.1",
-    "pdf-parse": "^1.1.1",
     "pdf2pic": "^3.2.0",
     "pdfjs-dist": "^5.4.149",
     "react": "^18.3.1",
