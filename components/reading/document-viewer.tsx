@@ -447,9 +447,9 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
     } catch (error) {
       console.error('💥 Exception in processPDFText:', error)
       console.error('🔍 Error details:', {
-        name: error?.name,
-        message: error?.message,
-        stack: error?.stack
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
       })
       setPdfLoading(false) // Clear loading state on error
     }

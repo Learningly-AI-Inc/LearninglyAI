@@ -16,21 +16,21 @@ export async function GET(request: NextRequest) {
     }
 
     // Test 2: Check if bucket exists
-    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+    const { data: buckets, error: bucketListError } = await supabase.storage.listBuckets();
     const bucketExists = buckets?.some(bucket => bucket.id === 'exam-files');
 
     // Test 3: Try to list files in bucket (should work even if empty)
     let bucketAccessible = false;
-    let bucketError = null;
+    let bucketAccessError = null;
     try {
       const { data: files, error: listError } = await supabase.storage
         .from('exam-files')
         .list(user.id, { limit: 1 });
       
       bucketAccessible = !listError;
-      bucketError = listError;
+      bucketAccessError = listError;
     } catch (err) {
-      bucketError = err;
+      bucketAccessError = err;
     }
 
     // Test 4: Check if database tables exist
@@ -59,12 +59,12 @@ export async function GET(request: NextRequest) {
         bucket: {
           exists: bucketExists,
           accessible: bucketAccessible,
-          error: bucketError?.message || null,
+          error: bucketAccessError instanceof Error ? bucketAccessError.message : null,
           buckets: buckets?.map(b => ({ id: b.id, name: b.name, public: b.public })) || []
         },
         database: {
           tablesExist: tablesExist,
-          error: tableError?.message || null
+          error: tableError instanceof Error ? tableError.message : null
         }
       },
       recommendations: [

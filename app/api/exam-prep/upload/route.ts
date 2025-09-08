@@ -63,8 +63,6 @@ export async function POST(request: NextRequest) {
       console.error('Upload error:', uploadError);
       console.error('Upload error details:', {
         message: uploadError.message,
-        status: uploadError.status,
-        statusCode: uploadError.statusCode,
         filename: filename,
         fileSize: file.size,
         fileType: file.type
@@ -74,7 +72,6 @@ export async function POST(request: NextRequest) {
         { 
           error: 'Failed to upload file', 
           details: uploadError.message,
-          status: uploadError.status,
           filename: filename
         },
         { status: 500 }

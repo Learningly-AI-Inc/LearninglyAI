@@ -64,7 +64,7 @@ export function usePdfParser(): UsePdfParserReturn {
         }
 
         // Extract the text from the page
-        const textItems = content.items.map((item) => item.str);
+        const textItems = content.items.map((item) => 'str' in item ? item.str : '');
         const pageText = textItems.join(' ');
         textContent += pageText + '\n\n';
 

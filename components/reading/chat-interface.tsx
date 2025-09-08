@@ -99,7 +99,7 @@ export function ChatInterface() {
         console.error('❌ Context chat failed:', error);
         addMessage({ 
           role: 'assistant', 
-          content: `Sorry, I encountered an error: ${error.message}. Please try again.`
+          content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`
         });
       }
     } else {
@@ -133,7 +133,7 @@ export function ChatInterface() {
         console.error('❌ Context chat failed:', error);
         addMessage({ 
           role: 'assistant', 
-          content: `Sorry, I encountered an error: ${error.message}. Please try again.`
+          content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`
         });
       }
     } else {

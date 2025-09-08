@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     if (fileUrl.includes('supabase')) {
       // Handle Supabase URLs
       const urlParts = fileUrl.split('/');
-      const bucketIndex = urlParts.findIndex(part => part === 'reading-documents');
+      const bucketIndex = urlParts.findIndex((part: string) => part === 'reading-documents');
       if (bucketIndex !== -1 && bucketIndex < urlParts.length - 1) {
         storagePath = urlParts.slice(bucketIndex + 1).join('/');
       } else {

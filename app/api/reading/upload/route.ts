@@ -251,7 +251,7 @@ export async function POST(req: NextRequest) {
             const pdfServices = new PDFServices({credentials});
             
             // Create a readable stream from buffer 
-            const { Readable } = require('stream');
+            const { Readable } = await import('stream');
             const bufferStream = new Readable({
               read() {} // Required method for Readable streams
             });
@@ -301,7 +301,7 @@ export async function POST(req: NextRequest) {
             const zipBuffer = Buffer.concat(chunks);
             
             // Process the ZIP file to extract text
-            const AdmZip = require('adm-zip');
+            const AdmZip = (await import('adm-zip')).default;
             const zip = new AdmZip(zipBuffer);
             
             // Check if structuredData.json exists in the ZIP
