@@ -57,11 +57,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       case 'mobile':
         return 'p-2';
       case 'tablet':
-        return 'p-3';
+        return 'p-2.5';
       case 'laptop':
-        return 'p-4';
+        return 'p-3';
       case 'desktop':
-        return 'p-5';
+        return 'p-4';
       default:
         return 'p-3';
     }

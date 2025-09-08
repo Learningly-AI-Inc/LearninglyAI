@@ -31,15 +31,15 @@ export const HeroSection: React.FC = () => {
           <div className="grid lg:grid-cols-2 gap-8 items-center">
             <div className="text-center lg:text-left">
               <SlideIn direction="down" delay={0.1}>
-                <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight mb-4">
+                <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight mb-3">
                   Stop cramming. <span className="text-blue-500">Start learning smarter.</span>
                 </h1>
               </SlideIn>
               
               <SlideIn direction="down" delay={0.3}>
                 <div className="max-w-xl mx-auto lg:mx-0 mb-8">
-                  <p className="text-xl text-gray-300 leading-relaxed">
-                    Learningly AI helps you ace exams. Summarize, write, solve, and study all in one platform.
+                  <p className="text-lg text-gray-300 leading-relaxed">
+                    Learningly helps you ace exams. Summarize, write, solve, and study—all in one platform.
                   </p>
                 </div>
               </SlideIn>
@@ -51,8 +51,8 @@ export const HeroSection: React.FC = () => {
                     whileTap={{ scale: 0.95 }}
                   >
                     <Button 
-                      size="lg" 
-                      className="px-8 py-3 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-300 shadow-lg hover:shadow-xl"
+                      size="sm" 
+                      className="px-6 py-2.5 text-base font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-300 shadow-lg hover:shadow-xl"
                       onClick={handleStartStudying}
                     >
                       <Rocket className="mr-2 h-5 w-5" />
@@ -65,8 +65,8 @@ export const HeroSection: React.FC = () => {
                   >
                     <Button 
                       variant="outline" 
-                      size="lg" 
-                      className="px-8 py-3 text-lg font-semibold border-2 border-gray-400 text-gray-200 hover:bg-gray-700 hover:text-white rounded-md transition-all duration-300"
+                      size="sm" 
+                      className="px-6 py-2.5 text-base font-semibold border-2 border-gray-400 text-gray-200 hover:bg-gray-700 hover:text-white rounded-md transition-all duration-300"
                       onClick={handleSeeHowItWorks}
                     >
                       <Brain className="mr-2 h-5 w-5" />

@@ -192,12 +192,27 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
             
             <TabsContent value="grammar" className="h-full m-0">
               {isProcessing ? (
-                <div className="flex items-center justify-center h-[calc(100vh-320px)] border-2 border-dashed border-gray-300 rounded-lg bg-white/50 backdrop-blur-sm">
-                  <div className="text-center">
-                    <div className="relative">
-                      <RefreshCw className="h-12 w-12 mx-auto mb-4 animate-spin text-gray-600" />
-                      <div className="absolute inset-0 rounded-full border-4 border-gray-200 border-t-gray-600 animate-spin"></div>
-                    </div>
+                <div className="space-y-4 p-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Skeleton className="h-4 w-4 rounded-full" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-5/6" />
+                    <Skeleton className="h-4 w-4/5" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-5/6" />
+                    <Skeleton className="h-4 w-2/3" />
+                  </div>
+                  
+                  <div className="space-y-2 mt-6">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                  
+                  <div className="text-center mt-6">
                     <p className="text-gray-700 font-medium">Checking grammar...</p>
                     <p className="text-gray-500 text-sm mt-1">Analyzing your text for errors</p>
                   </div>

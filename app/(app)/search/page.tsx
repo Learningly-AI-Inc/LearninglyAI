@@ -50,7 +50,7 @@ const SearchPage = () => {
     {
       id: '1',
       type: 'assistant',
-      content: 'Hello! I\'m your AI research assistant. I can help you search through your uploaded documents and answer questions about them. What would you like to know?',
+      content: 'Hello! I\'m your study assistant. I can help you search through your uploaded documents and answer questions about them. What would you like to know?',
       timestamp: new Date(),
     }
   ])
@@ -317,11 +317,11 @@ const SearchPage = () => {
           msg.isTyping ? aiMessage : msg
         ))
 
-        console.log('💬 [SEARCH PAGE] AI response message added to chat')
+        console.log('💬 [SEARCH PAGE] Assistant response message added to chat')
 
         // Save AI response to Supabase
         if (selectedConversationId) {
-          console.log('💬 [SEARCH PAGE] Saving AI response to Supabase')
+          console.log('💬 [SEARCH PAGE] Saving assistant response to Supabase')
           // The AI response will be saved via the API route
         }
       } else if (response.ok) {
@@ -331,7 +331,7 @@ const SearchPage = () => {
           hasResponse: !!data?.response,
           responseType: typeof data?.response
         })
-        toast.error('Received empty response from AI service')
+        toast.error('Received empty response from the service')
         
         // Remove the typing message
         setMessages(prev => prev.filter(msg => !msg.isTyping))

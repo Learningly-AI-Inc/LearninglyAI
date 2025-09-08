@@ -11,6 +11,8 @@ import {
   Wand2,
   ArrowUpDown,
   Loader2,
+  User,
+  Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -141,6 +143,54 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
             </TooltipTrigger>
             <TooltipContent>
               <p>Expand selected text</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="relative">
+                <Button
+                  variant="default"
+                  size="sm"
+                  disabled={true}
+                  className="bg-gray-500 hover:bg-gray-500 text-white shadow-md transition-all duration-200 border-0 px-4 py-2 h-9 opacity-60"
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Humanizer
+                </Button>
+                <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+                  Coming soon
+                </span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Make AI-generated text sound more human</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="relative">
+                <Button
+                  variant="default"
+                  size="sm"
+                  disabled={true}
+                  className="bg-gray-500 hover:bg-gray-500 text-white shadow-md transition-all duration-200 border-0 px-4 py-2 h-9 opacity-60"
+                >
+                  <Bot className="h-4 w-4 mr-2" />
+                  AI Detection
+                </Button>
+                <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+                  Coming soon
+                </span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Detect if text was written by AI</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

@@ -113,13 +113,13 @@ export const PlatformFeaturesSection: React.FC = () => {
             <span className="inline-block px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium rounded-full mb-6">
               Your Study Game Changer
             </span>
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-5">
               Everything you need to{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-green-400">
                 raise your grades
               </span>
             </h2>
-            <p className="text-xl text-gray-400 leading-relaxed">
+            <p className="text-lg text-gray-400 leading-relaxed">
               Our comprehensive platform covers every aspect of your academic journey with powerful, personalized tools.
             </p>
         </motion.div>

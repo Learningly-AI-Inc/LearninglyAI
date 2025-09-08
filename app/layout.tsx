@@ -19,13 +19,13 @@ const fontHeading = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Learningly AI - AI-Powered Learning Platform",
-    template: "%s | Learningly AI",
+    default: "Learningly - Smarter Learning Platform",
+    template: "%s | Learningly",
   },
   description:
-    "Auto-generate interactive study materials like summaries, quizzes, and flashcards from your documents and videos.",
+    "Generate interactive study materials like summaries, quizzes, and flashcards from your documents and videos.",
   keywords: [
-    "AI learning",
+    "learning assistant",
     "study tools",
     "quiz generator",
     "summary generator",
@@ -33,8 +33,8 @@ export const metadata: Metadata = {
     "e-learning",
     "edtech",
   ],
-  authors: [{ name: "Learningly AI Team" }],
-  creator: "Learningly AI",
+  authors: [{ name: "Learningly Team" }],
+  creator: "Learningly",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   ),
@@ -42,16 +42,16 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "/",
-    title: "Learningly AI - AI-Powered Learning Platform",
+    title: "Learningly - Smarter Learning Platform",
     description:
-      "Transform your study materials into interactive content with the power of AI.",
-    siteName: "Learningly AI",
+      "Transform your study materials into interactive content.",
+    siteName: "Learningly",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Learningly AI - AI-Powered Learning Platform",
+    title: "Learningly - Smarter Learning Platform",
     description:
-      "Generate quizzes, summaries, and flashcards in seconds with Learningly AI.",
+      "Generate quizzes, summaries, and flashcards in seconds with Learningly.",
     creator: "@learninglyai",
   },
   robots: {

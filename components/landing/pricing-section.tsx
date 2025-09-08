@@ -57,11 +57,11 @@ export const PricingSection: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
               We Created Plans That Suit Every Student
             </h2>
-            <p className="text-xl text-gray-600 leading-relaxed">
-              Learningly AI - Ask Anything, I am here to answer!—built to help you read, write, and study like never before.
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Learningly—built to help you read, write, and study like never before.
             </p>
           </motion.div>
         </div>
@@ -98,10 +98,10 @@ export const PricingSection: React.FC = () => {
                   <div className="text-4xl font-bold text-gray-900">Free</div>
                 ) : (
                   <div className="flex items-baseline">
-                    <span className={cn("text-6xl font-bold", plan.name === "Free" ? "text-gray-900" : "text-white")}>
+                    <span className={cn("text-5xl font-bold", plan.name === "Free" ? "text-gray-900" : "text-white")}>
                       ${isYearly ? plan.yearlyPrice : plan.monthlyPrice}
                     </span>
-                    <span className={cn("ml-3 text-xl", plan.name === "Free" ? "text-gray-600" : "text-blue-100")}>
+                    <span className={cn("ml-3 text-lg", plan.name === "Free" ? "text-gray-600" : "text-blue-100")}>
                       USD / {isYearly ? 'year' : 'month'}
                     </span>
                   </div>

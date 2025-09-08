@@ -33,7 +33,7 @@ export const LandingFooter: React.FC = () => {
           <div className="lg:col-span-4">
             <div className="flex items-center space-x-3">
               <Zap className="h-8 w-8 text-blue-500" />
-              <span className="text-2xl font-bold text-white">Learningly AI</span>
+              <span className="text-2xl font-bold text-white">Learningly</span>
             </div>
             <p className="mt-4 text-gray-400 max-w-md">
               The fastest, smartest, and most organized way to learn. Our tool makes your study materials interactive and easy to use.
@@ -85,7 +85,7 @@ export const LandingFooter: React.FC = () => {
 
         <div className="mt-16 border-t border-white/10 pt-8 flex flex-col sm:flex-row items-center justify-between">
           <div className="text-sm text-gray-500">
-            <p>&copy; {new Date().getFullYear()} Learningly AI Inc. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} Learningly Inc. All rights reserved.</p>
           </div>
           <div className="flex items-center space-x-4 mt-4 sm:mt-0">
             {socialLinks.map(link => (

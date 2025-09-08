@@ -116,7 +116,7 @@ export const TestimonialsSection: React.FC = () => {
             <span className="inline-block px-4 py-2 bg-gradient-to-r from-electric-blue to-purple text-white text-sm font-bold rounded-full mb-6">
               Real Student Stories
             </span>
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-6">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-4">
               Students{' '}
               <ShinyText 
                 text="achieving their goals" 
@@ -124,10 +124,10 @@ export const TestimonialsSection: React.FC = () => {
                 speed={3} 
                 className="text-transparent bg-clip-text bg-gradient-to-r from-electric-blue via-purple to-lime-green font-extrabold"
               />
-              {' '}with Learningly AI
+              {' '}with Learningly
             </h2>
-            <p className="text-xl text-gray-400 leading-relaxed">
-              Don't just take our word for it—hear how students are transforming their study habits and boosting their grades with Learningly AI
+            <p className="text-lg text-gray-400 leading-relaxed">
+              Don't just take our word for it—hear how students are transforming their study habits and boosting their grades with Learningly
             </p>
           </motion.div>
         </div>

@@ -96,7 +96,7 @@ const WritingPageClient = () => {
 
   // Function to handle grammar checking
   const handleGrammarCheck = async () => {
-    // Try to get current selection if selectedText is empty
+    // Try to get current selection first
     let textToCheck = selectedText;
     if (!textToCheck.trim()) {
       if (typeof window !== 'undefined') {
@@ -114,11 +114,20 @@ const WritingPageClient = () => {
       }
     }
     
+    // If still no text selected, use the entire editor content
+    if (!textToCheck.trim()) {
+      textToCheck = editorContent;
+      // Strip HTML tags to get plain text for grammar checking
+      if (textToCheck) {
+        textToCheck = textToCheck.replace(/<[^>]*>?/gm, '').trim();
+      }
+    }
+    
     if (!textToCheck.trim()) {
       setSuggestedText("");
       setGrammarIssues([]);
-      setLastProcessedFeature("Selection Required");
-      showWarning("Please select text before clicking 'Check Grammar'");
+      setLastProcessedFeature("Content Required");
+      showWarning("Please add some content to the editor before clicking 'Check Grammar'");
       return;
     }
 

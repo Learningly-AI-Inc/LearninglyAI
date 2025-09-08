@@ -18,8 +18,20 @@
   /* Smooth scrolling */
   html {
     scroll-behavior: smooth;
+    /* Slightly reduce the global font size for better density */
+    font-size: 15px;
   }
   
+  /* Compact scaling for typical 13"-15" laptops */
+  @media (min-width: 1024px) and (max-width: 1440px) {
+    html { font-size: 14px; }
+  }
+
+  /* Keep mobile readable while still slightly compact */
+  @media (max-width: 640px) {
+    html { font-size: 15px; }
+  }
+
   /* Respect reduced motion preference */
   @media (prefers-reduced-motion: reduce) {
     html {
