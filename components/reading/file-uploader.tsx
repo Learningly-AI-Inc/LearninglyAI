@@ -15,7 +15,8 @@ interface FileUploaderProps {
 
 const SUPPORTED_TYPES = {
   'pdf': { mime: 'application/pdf', label: 'PDF' },
-  'txt': { mime: 'text/plain', label: 'TXT' }
+  'txt': { mime: 'text/plain', label: 'TXT' },
+  'docx': { mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', label: 'DOCX' }
 };
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -40,7 +41,7 @@ export function FileUploaderComponent({ onClose }: FileUploaderProps) {
     // Check file extension
     const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase() || ''
     if (!Object.keys(SUPPORTED_TYPES).includes(fileExtension)) {
-      return `Unsupported file type ".${fileExtension}". Please use PDF or TXT files.`
+      return `Unsupported file type ".${fileExtension}". Please use PDF, TXT, or DOCX files.`
     }
     
     return null // No errors
@@ -180,12 +181,12 @@ export function FileUploaderComponent({ onClose }: FileUploaderProps) {
               Drag & drop your document here or click to browse
             </p>
             <p className="text-gray-500 text-sm mb-4">
-              Supports PDF, TXT • Max 20MB
+              Supports PDF, TXT, DOCX • Max 20MB
             </p>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.txt"
+              accept=".pdf,.txt,.docx"
               onChange={(e) => handleChange(e.target.files)}
               className="hidden"
             />

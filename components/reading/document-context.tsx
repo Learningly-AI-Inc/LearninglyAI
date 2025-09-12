@@ -124,11 +124,11 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         throw new Error('File size exceeds 20MB limit');
       }
 
-      const allowedExtensions = ['pdf', 'txt'];
+      const allowedExtensions = ['pdf', 'txt', 'docx'];
       const fileExtension = file.name.toLowerCase().split('.').pop() || '';
       
       if (!allowedExtensions.includes(fileExtension)) {
-        throw new Error(`File type .${fileExtension} not supported. Please use PDF or TXT files.`);
+        throw new Error(`File type .${fileExtension} not supported. Please use PDF, TXT, or DOCX files.`);
       }
 
       console.log('✅ Client-side validation passed');

@@ -38,11 +38,11 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
   const router = useRouter()
   const [pdfError, setPdfError] = React.useState(false)
   const [pdfLoading, setPdfLoading] = React.useState(true)
-  const [zoomLevel, setZoomLevel] = React.useState(100)
+  const [zoomLevel, setZoomLevel] = React.useState(75)
   const [isFocusMode, setIsFocusMode] = React.useState(false)
   const [currentPage, setCurrentPage] = React.useState(1)
   const [pageDimensions, setPageDimensions] = React.useState({ width: 0, height: 0 })
-  const [chatWidth, setChatWidth] = React.useState(360)
+  const [chatWidth, setChatWidth] = React.useState(600)
   const [isResizing, setIsResizing] = React.useState(false)
 
   // Handle resize functionality
@@ -63,8 +63,8 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
     const handleMouseMove = (moveEvent: MouseEvent) => {
       moveEvent.preventDefault()
       const newWidth = window.innerWidth - moveEvent.clientX
-      const minWidth = 280
-      const maxWidth = Math.min(800, window.innerWidth * 0.6)
+      const minWidth = 350
+      const maxWidth = Math.min(1000, window.innerWidth * 0.7)
       
       if (newWidth >= minWidth && newWidth <= maxWidth) {
         setChatWidth(newWidth)
@@ -599,25 +599,25 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
                <span className="text-xs text-gray-500">Chat:</span>
                <div className="flex gap-1">
                  <button
-                   onClick={() => setChatWidth(320)}
-                   className={`px-2 py-1 text-xs rounded transition-colors ${
-                     chatWidth <= 320 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
-                   }`}
-                 >
-                   Narrow
-                 </button>
-                 <button
                    onClick={() => setChatWidth(450)}
                    className={`px-2 py-1 text-xs rounded transition-colors ${
-                     chatWidth > 320 && chatWidth <= 450 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                     chatWidth <= 450 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
                    }`}
                  >
-                   Normal
+                   Compact
                  </button>
                  <button
                    onClick={() => setChatWidth(600)}
                    className={`px-2 py-1 text-xs rounded transition-colors ${
-                     chatWidth > 450 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                     chatWidth > 450 && chatWidth <= 600 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                   }`}
+                 >
+                   Balanced
+                 </button>
+                 <button
+                   onClick={() => setChatWidth(800)}
+                   className={`px-2 py-1 text-xs rounded transition-colors ${
+                     chatWidth > 600 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
                    }`}
                  >
                    Wide

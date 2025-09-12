@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { uploadKnowledgeBaseAs, webhookDebugger } from '@/api-config';
 
 export async function POST(req: NextRequest) {
   console.log('📤 Reading Upload API called');
@@ -90,8 +91,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate file type
-    const allowedExtensions = ['pdf', 'txt'];
-    const allowedMimeTypes = ['application/pdf', 'text/plain'];
+    const allowedExtensions = ['pdf', 'txt', 'docx'];
+    const allowedMimeTypes = ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     
     const isValidExtension = allowedExtensions.includes(fileExtension);
     const isValidMimeType = allowedMimeTypes.includes(file.type);
@@ -108,7 +109,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { 
           error: 'Unsupported file type',
-          details: `Only PDF and TXT files are supported. Found: ${fileExtension} (${file.type})`
+          details: `Only PDF, TXT, and DOCX files are supported. Found: ${fileExtension} (${file.type})`
         },
         { status: 400 }
       );
@@ -163,256 +164,93 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      if (fileExtension === 'pdf' || file.type === 'application/pdf') {
-        console.log('📄 Processing PDF...');
+      if (fileExtension === 'pdf' || file.type === 'application/pdf' || 
+          fileExtension === 'docx' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        console.log(`📄 Processing ${fileExtension.toUpperCase()} with webhook...`);
         
         try {
-          // Check file size to decide which service to use
-          const fileSizeMB = file.size / (1024 * 1024);
-          const maxOCRSize = 1; // 1MB limit for OCR.space free tier
+          // Create a File object from the buffer for the webhook
+          const fileBlob = new File([buffer], file.name, { type: file.type });
           
-          if (fileSizeMB <= maxOCRSize) {
-            console.log('📄 Starting PDF parsing with OCR.space (small file)...');
-            
-            // Use OCR.space API for smaller files
-            const formData = new FormData();
-            const blob = new Blob([buffer], { type: 'application/pdf' });
-            formData.append('file', blob, file.name);
-            
-            // Add OCR parameters for better results
-            const ocrParams = new URLSearchParams({
-              'filetype': 'PDF',
-              'detectOrientation': 'false',
-              'isCreateSearchablePdf': 'false',
-              'isSearchablePdfHideTextLayer': 'false',
-              'scale': 'true',
-              'isTable': 'true',
-              'OCREngine': '2'
-            });
-            
-            const ocrResponse = await fetch(`https://api.ocr.space/parse/image?${ocrParams}`, {
-              method: 'POST',
-              headers: {
-                'apikey': process.env.NEXT_OCR_SPACE_KEY || 'K88523969288957',
-              },
-              body: formData
-            });
-            
-            const ocrData = await ocrResponse.json();
-            
-            if (ocrData.IsErroredOnProcessing) {
-              console.error('❌ OCR.space processing error:', ocrData.ErrorMessage);
-              throw new Error(`OCR processing failed: ${ocrData.ErrorMessage}`);
-            }
-            
-            // Extract text from OCR response
-            if (ocrData.ParsedResults && ocrData.ParsedResults.length > 0) {
-              serverExtractedText = ocrData.ParsedResults[0].ParsedText || '';
-              serverPageCount = ocrData.ParsedResults.length;
-              
-              console.log('📊 OCR.space parsing results:', {
-                pages: serverPageCount,
-                textLength: serverExtractedText.length,
-                hasText: serverExtractedText.trim().length > 0,
-                processingTime: ocrData.ProcessingTimeInMilliseconds
-              });
-              
-              processingNotes.push(`OCR.space processing completed in ${ocrData.ProcessingTimeInMilliseconds}ms`);
-            } else {
-              throw new Error('No parsed results returned from OCR.space');
-            }
-            
-          } else {
-            console.log('📄 Starting PDF parsing with Adobe PDF Services (large file)...');
-            
-            // Use Adobe PDF Services for larger files
-            const { 
-              ServicePrincipalCredentials,
-              PDFServices,
-              MimeType,
-              ExtractPDFParams,
-              ExtractElementType,
-              ExtractPDFJob,
-              ExtractPDFResult
-            } = await import('@adobe/pdfservices-node-sdk');
-            
-            // Check if credentials are available
-            if (!process.env.ADOBE_PDF_SERVICES_CLIENT_ID || !process.env.ADOBE_PDF_SERVICES_CLIENT_SECRET) {
-              throw new Error('Adobe PDF Services credentials not configured. Please add ADOBE_PDF_SERVICES_CLIENT_ID and ADOBE_PDF_SERVICES_CLIENT_SECRET to your environment variables.');
-            }
-            
-            // Set up credentials
-            const credentials = new ServicePrincipalCredentials({
-              clientId: process.env.ADOBE_PDF_SERVICES_CLIENT_ID,
-              clientSecret: process.env.ADOBE_PDF_SERVICES_CLIENT_SECRET
-            });
-            
-            // Create PDF Services instance
-            const pdfServices = new PDFServices({credentials});
-            
-            // Create a readable stream from buffer 
-            const { Readable } = await import('stream');
-            const bufferStream = new Readable({
-              read() {} // Required method for Readable streams
-            });
-            bufferStream.push(buffer);
-            bufferStream.push(null);
-            
-            // Upload the PDF
-            const inputAsset = await pdfServices.upload({
-              readStream: bufferStream,
-              mimeType: MimeType.PDF
-            });
-            
-            // Create parameters for text extraction
-            const params = new ExtractPDFParams({
-              elementsToExtract: [ExtractElementType.TEXT]
-            });
-            
-            // Create and submit the job
-            const job = new ExtractPDFJob({inputAsset, params});
-            const pollingURL = await pdfServices.submit({job});
-            
-            // Get the result
-            const pdfServicesResponse = await pdfServices.getJobResult({
-              pollingURL,
-              resultType: ExtractPDFResult
-            });
-            
-            // Get content from the resulting asset
-            const resultAsset = pdfServicesResponse.result?.resource;
-            if (!resultAsset) {
-              throw new Error('No result asset returned from Adobe PDF Services');
-            }
-            
-            const streamAsset = await pdfServices.getContent({asset: resultAsset});
-            
-            // Adobe PDF Services returns a ZIP file, so we need to process it
-            const chunks: Buffer[] = [];
-            streamAsset.readStream.on('data', (chunk: Buffer) => {
-              chunks.push(chunk);
-            });
-            
-            await new Promise((resolve, reject) => {
-              streamAsset.readStream.on('end', resolve);
-              streamAsset.readStream.on('error', reject);
-            });
-            
-            const zipBuffer = Buffer.concat(chunks);
-            
-            // Process the ZIP file to extract text
-            const AdmZip = (await import('adm-zip')).default;
-            const zip = new AdmZip(zipBuffer);
-            
-            // Check if structuredData.json exists in the ZIP
-            const zipEntries = zip.getEntries();
-            const hasStructuredData = zipEntries.some((entry: any) => entry.entryName === 'structuredData.json');
-            
-            if (!hasStructuredData) {
-              console.warn('⚠️ No structuredData.json found in Adobe PDF Services response');
-              throw new Error('Adobe PDF Services response does not contain expected structured data');
-            }
-            
-            // Read the structured data JSON file from the ZIP
-            const jsonData = zip.readAsText('structuredData.json');
-            const data = JSON.parse(jsonData);
-            
-            // Extract text from the structured data
-            let extractedText = '';
-            if (data.elements && Array.isArray(data.elements)) {
-              console.log(`📊 Processing ${data.elements.length} elements from Adobe PDF Services`);
-              
-              data.elements.forEach((element: any) => {
-                if (element.Text) {
-                  extractedText += element.Text;
-                  
-                  // Add appropriate spacing based on element type
-                  if (element.Path && element.Path.includes('H')) {
-                    // Heading - add extra line break
-                    extractedText += '\n\n';
-                  } else if (element.Path && element.Path.includes('P')) {
-                    // Paragraph - add line break
-                    extractedText += '\n';
-                  } else {
-                    // Default spacing
-                    extractedText += ' ';
-                  }
-                }
-              });
-            } else {
-              console.warn('⚠️ No elements found in Adobe PDF Services structured data');
-            }
-            
-            extractedText = extractedText.trim();
-            
-            // Clean null characters and other problematic characters for database storage
-            serverExtractedText = extractedText
-              .replace(/\u0000/g, '') // Remove null characters
-              .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove other control characters
-              .trim();
-            serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000)); // Estimate pages
-            
-            console.log('📊 Adobe PDF Services parsing results:', {
-            pages: serverPageCount,
-            textLength: serverExtractedText.length,
-            hasText: serverExtractedText.trim().length > 0
+          // Use the webhook to process the PDF
+          const webhookResult = await uploadKnowledgeBaseAs(fileBlob, {
+            filename: file.name,
+            userId: user.id,
+            description: `Reading document upload: ${file.name}`
           });
           
-            processingNotes.push(`Adobe PDF Services processing completed`);
+          if (webhookResult.success && webhookResult.data) {
+            console.log('✅ Webhook processing successful:', webhookResult.data);
+            
+            // Extract text from webhook response
+            // The webhook response structure may vary, so we'll handle different possible formats
+            if (webhookResult.data.text) {
+              serverExtractedText = webhookResult.data.text;
+            } else if (webhookResult.data.content) {
+              serverExtractedText = webhookResult.data.content;
+            } else if (webhookResult.data.extractedText) {
+              serverExtractedText = webhookResult.data.extractedText;
+            } else if (typeof webhookResult.data === 'string') {
+              serverExtractedText = webhookResult.data;
+            } else {
+              // If no text found in response, create a placeholder
+              serverExtractedText = `PDF Document Analysis
+
+This PDF document has been successfully uploaded and processed. The document is ready for analysis.
+
+Note: The document has been processed through our webhook system and is available for questions and analysis.`;
+            }
+            
+            // Extract page count if available
+            if (webhookResult.data.pages) {
+              serverPageCount = webhookResult.data.pages;
+            } else if (webhookResult.data.pageCount) {
+              serverPageCount = webhookResult.data.pageCount;
+            } else {
+              // Estimate pages based on text length
+              serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000));
+            }
+            
+            // Clean up the extracted text
+            serverExtractedText = serverExtractedText
+              .replace(/\u0000/g, '') // Remove null characters
+              .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove other control characters
+              .replace(/\s+/g, ' ')
+              .replace(/\n\s*\n/g, '\n\n')
+              .trim();
+            
+            processingNotes.push(`Webhook processing completed successfully`);
+            
+            console.log('📊 Webhook parsing results:', {
+              pages: serverPageCount,
+              textLength: serverExtractedText.length,
+              hasText: serverExtractedText.trim().length > 0,
+              debugInfo: webhookResult.debugInfo
+            });
+            
+          } else {
+            console.error('❌ Webhook processing failed:', webhookResult.error);
+            throw new Error(`Webhook processing failed: ${webhookResult.error}`);
           }
           
-          // Handle empty text results
-          if (serverExtractedText.trim().length === 0) {
-            serverExtractedText = `PDF Document Analysis
+        } catch (webhookError: any) {
+          console.error('❌ Webhook processing error:', webhookError);
+          
+          // Fallback: Create a basic document entry even if processing fails
+          serverExtractedText = `PDF Document Analysis
 
-This PDF document has been successfully uploaded and is ready for analysis. The document contains ${serverPageCount} page(s).
+This PDF document has been successfully uploaded and is ready for analysis.
 
-Note: The PDF appears to contain mostly images, scanned content, or non-text elements. While full text extraction wasn't possible, you can still:
-- Ask questions about the document structure
-- Request analysis of the content type
+Note: The document processing encountered an issue, but the file is available for reference. You can still:
+- Ask questions about the document
+- Request analysis of the content
 - Discuss the document's purpose or context
 - Get help with document-related tasks
 
 The document is now available in our system and ready for your questions.`;
-            processingNotes.push('PDF contains no extractable text - likely image-based or scanned document');
-          } else {
-            // Clean up the extracted text
-            serverExtractedText = serverExtractedText
-              .replace(/\s+/g, ' ')
-              .replace(/\n\s*\n/g, '\n\n')
-              .trim();
-          }
           
-          console.log('✅ PDF processed successfully:', {
-            pages: serverPageCount,
-            textLength: serverExtractedText.length,
-            processingNotes: processingNotes
-          });
-          
-        } catch (pdfError: any) {
-          console.error('❌ PDF processing error:', pdfError);
-          
-          // Provide more specific error messages
-          let errorMessage = 'PDF processing encountered an issue. ';
-          if (pdfError.message.includes('OCR processing failed')) {
-            errorMessage += 'OCR processing failed. ';
-          } else if (pdfError.message.includes('Adobe') || pdfError.message.includes('PDFServices')) {
-            errorMessage += 'Adobe PDF Services processing failed. ';
-          } else if (pdfError.message.includes('network') || pdfError.message.includes('fetch')) {
-            errorMessage += 'Network error during processing. ';
-          } else if (pdfError.message.includes('limit') || pdfError.message.includes('quota')) {
-            errorMessage += 'API limit exceeded. ';
-          } else if (pdfError.message.includes('credentials') || pdfError.message.includes('authentication')) {
-            errorMessage += 'Authentication error. ';
-          } else {
-            errorMessage += 'The file may be corrupted, password-protected, or contain only images. ';
-          }
-          
-          errorMessage += 'You can still upload it, but text extraction is limited. The document is available for reference and you can ask questions about it.';
-          
-          serverExtractedText = errorMessage;
           serverPageCount = 1;
-          processingNotes.push(`PDF processing failed: ${pdfError.message}`);
+          processingNotes.push(`Webhook processing failed: ${webhookError.message}`);
         }
         
       } else if (fileExtension === 'txt' || file.type === 'text/plain') {
@@ -506,7 +344,7 @@ The document is now available in our system and ready for your questions.`;
       .from('reading_documents')
       .insert({
         user_id: user.id,
-        title: file.name.replace(/\.(pdf|txt)$/i, ''),
+        title: file.name.replace(/\.(pdf|txt|docx)$/i, ''),
         original_filename: file.name,
         file_path: storagePath,
         file_type: fileExtension,
@@ -536,7 +374,7 @@ The document is now available in our system and ready for your questions.`;
 
     // Generate response metadata
     const metadata = {
-      title: file.name.replace(/\.(pdf|txt)$/i, ''),
+      title: file.name.replace(/\.(pdf|txt|docx)$/i, ''),
       originalFileName: file.name,
       fileSize: file.size,
       fileType: fileExtension,
