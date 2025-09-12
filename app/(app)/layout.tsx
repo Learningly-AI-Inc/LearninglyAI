@@ -69,7 +69,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white text-slate-900">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100/50">
         <AppSidebar
           sidebarCollapsed={sidebarCollapsed}
           setSidebarCollapsed={setSidebarCollapsed}
@@ -80,8 +80,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main 
           className={`
             ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-[240px] lg:ml-[280px]'} 
-            transition-all duration-300
-            ${getContentPadding()}
+            transition-all duration-300 ease-out
           `}
         >
           {children}
@@ -91,11 +90,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="md:hidden">
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50 text-black">
-                <Menu className="h-6 w-6" />
+              <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50 bg-white/80 backdrop-blur-sm border border-border/50 hover:bg-white/90 shadow-lg">
+                <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[280px] bg-white p-0">
+            <SheetContent side="left" className="w-[280px] bg-white/95 backdrop-blur-xl p-0 border-r border-border/50">
               <AppSidebar
                 sidebarCollapsed={false}
                 setSidebarCollapsed={() => {}}

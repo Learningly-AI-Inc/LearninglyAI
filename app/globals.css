@@ -56,96 +56,100 @@
 
 @layer base {
   :root {
-    /* ChatGPT-inspired light theme */
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* Modern professional light theme */
+    --background: 0 0% 99%;
+    --foreground: 222 84% 4.9%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 222 84% 4.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --radius: 0.5rem;
+    --popover-foreground: 222 84% 4.9%;
+    --primary: 222 47% 11%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 25% 45%;
+    --accent: 210 40% 94%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 222 47% 11%;
+    --radius: 0.75rem;
 
     /* Sidebar variables */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-muted: 240 4.8% 95.9%;
-    --sidebar-muted-foreground: 240 3.8% 46.1%;
-    --sidebar-border: 240 5.9% 90%;
-    --sidebar-input: 240 5.9% 90%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-destructive: 0 84.2% 60.2%;
-    --sidebar-destructive-foreground: 0 0% 98%;
-    --sidebar-ring: 240 5.9% 10%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 84% 4.9%;
+    --sidebar-muted: 210 40% 96%;
+    --sidebar-muted-foreground: 215 25% 45%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-input: 214 32% 91%;
+    --sidebar-primary: 222 47% 11%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 210 40% 94%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-destructive: 0 84% 60%;
+    --sidebar-destructive-foreground: 210 40% 98%;
+    --sidebar-ring: 222 47% 11%;
     
-    /* ChatGPT-inspired specific colors */
-    --chatgpt-bg: 0 0% 100%;
-    --chatgpt-border: 240 5.9% 90%;
-    --chatgpt-text-primary: 240 10% 3.9%;
-    --chatgpt-text-secondary: 240 3.8% 46.1%;
-    --chatgpt-accent: 240 5.9% 10%;
-    --chatgpt-muted: 240 4.8% 95.9%;
+    /* Professional brand colors */
+    --brand-primary: 222 47% 11%;
+    --brand-secondary: 210 40% 96%;
+    --brand-accent: 268 95% 68%;
+    --brand-gradient-from: 268 95% 68%;
+    --brand-gradient-to: 222 47% 11%;
+    --success: 142 76% 36%;
+    --warning: 43 96% 56%;
+    --info: 199 89% 48%;
   }
 
   .dark {
-    /* ChatGPT-inspired dark theme */
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    /* Modern professional dark theme */
+    --background: 222 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 32% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 32% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 32% 17%;
+    --input: 217 32% 17%;
+    --ring: 212 95% 68%;
 
     /* Sidebar variables for dark mode */
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-muted: 240 3.7% 15.9%;
-    --sidebar-muted-foreground: 240 5% 64.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-input: 240 3.7% 15.9%;
-    --sidebar-primary: 0 0% 98%;
-    --sidebar-primary-foreground: 240 5.9% 10%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-destructive: 0 62.8% 30.6%;
-    --sidebar-destructive-foreground: 0 0% 98%;
-    --sidebar-ring: 240 4.9% 83.9%;
+    --sidebar-background: 222 84% 4.9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-muted: 217 32% 17%;
+    --sidebar-muted-foreground: 215 20% 65%;
+    --sidebar-border: 217 32% 17%;
+    --sidebar-input: 217 32% 17%;
+    --sidebar-primary: 210 40% 98%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 217 32% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-destructive: 0 62% 30%;
+    --sidebar-destructive-foreground: 210 40% 98%;
+    --sidebar-ring: 212 95% 68%;
     
-    /* ChatGPT-inspired specific colors for dark mode */
-    --chatgpt-bg: 240 10% 3.9%;
-    --chatgpt-border: 240 3.7% 15.9%;
-    --chatgpt-text-primary: 0 0% 98%;
-    --chatgpt-text-secondary: 240 5% 64.9%;
-    --chatgpt-accent: 0 0% 98%;
-    --chatgpt-muted: 240 3.7% 15.9%;
+    /* Professional brand colors for dark mode */
+    --brand-primary: 210 40% 98%;
+    --brand-secondary: 217 32% 17%;
+    --brand-accent: 268 95% 68%;
+    --brand-gradient-from: 268 95% 68%;
+    --brand-gradient-to: 210 40% 98%;
+    --success: 142 76% 36%;
+    --warning: 43 96% 56%;
+    --info: 199 89% 48%;
   }
 }
 
@@ -166,4 +170,39 @@
   to {
     background-position: 350% 50%, 350% 50%;
   }
+}
+
+/* Modern gradient utilities */
+.gradient-bg {
+  background: linear-gradient(135deg, hsl(var(--brand-gradient-from)) 0%, hsl(var(--brand-gradient-to)) 100%);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, hsl(var(--brand-gradient-from)) 0%, hsl(var(--brand-gradient-to)) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glass-effect {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modern-shadow {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.modern-shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }

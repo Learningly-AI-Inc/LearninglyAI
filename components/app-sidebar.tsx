@@ -2,8 +2,9 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Menu, LogOut, Settings, BrainCircuit, User, Bolt, ChevronRight, Clock } from "lucide-react"
+import { Menu, LogOut, Settings, BrainCircuit, User, Bolt, ChevronRight, Clock, Crown, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { useAuthContext } from "@/components/auth/auth-provider"
 import { useRouter } from "next/navigation"
 
@@ -27,7 +28,7 @@ function SidebarSection({ title, children, collapsed }: { title: string; childre
   return (
     <div>
       {!collapsed && (
-        <div className="px-4 pt-6 pb-2 text-xs uppercase tracking-wider text-slate-500">{title}</div>
+        <div className="px-4 pt-6 pb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">{title}</div>
       )}
       <div className={`px-2 ${collapsed ? "space-y-2" : "space-y-1"}`}>{children}</div>
     </div>
@@ -47,17 +48,21 @@ function SidebarItem({ icon, label, active, collapsed, href, onClick, comingSoon
     <button
       title={label}
       onClick={onClick}
-      className={`w-full ${collapsed ? "justify-center" : "justify-start"} flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition hover:bg-slate-100 ${active ? "bg-slate-100 font-medium" : "text-slate-700"} ${comingSoon ? "opacity-75" : ""}`}
+      className={`w-full ${collapsed ? "justify-center" : "justify-start"} flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
+        active 
+          ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary border border-primary/20 shadow-sm" 
+          : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+      } ${comingSoon ? "opacity-75" : ""}`}
     >
       {icon}
       {!collapsed && (
         <div className="flex items-center gap-2 flex-1">
           <span className="truncate">{label}</span>
           {comingSoon && (
-            <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
-              <Clock className="w-3 h-3" />
-              <span>Soon</span>
-            </div>
+            <Badge variant="outline" className="text-xs scale-75">
+              <Clock className="w-3 h-3 mr-1" />
+              Soon
+            </Badge>
           )}
         </div>
       )}
@@ -100,20 +105,25 @@ export default function AppSidebar({
 
   return (
     <aside
-      className={`${sidebarCollapsed ? "w-16" : "w-[240px] lg:w-[280px]"} ${isMobile ? 'flex' : 'hidden md:flex'} flex-col border-r bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 transition-[width] duration-200 z-40 h-screen fixed`}
+      className={`${sidebarCollapsed ? "w-16" : "w-[240px] lg:w-[280px]"} ${isMobile ? 'flex' : 'hidden md:flex'} flex-col border-r border-border/50 bg-white/95 backdrop-blur-xl supports-[backdrop-filter]:bg-white/80 transition-[width] duration-300 z-40 h-screen fixed modern-shadow-lg`}
     >
-      <div className="flex items-center gap-2 px-3 h-14 border-b">
-        <div className="h-9 w-9 rounded-2xl grid place-content-center bg-slate-900 text-white font-bold">
+      <div className="flex items-center gap-3 px-4 h-16 border-b border-border/50">
+        <div className="h-10 w-10 rounded-2xl grid place-content-center bg-gradient-to-br from-primary to-primary/80 text-white font-bold shadow-lg">
           <BrainCircuit className="h-5 w-5" />
         </div>
-        {!sidebarCollapsed && <div className="font-semibold">Learningly</div>}
+        {!sidebarCollapsed && (
+          <div className="flex-1">
+            <div className="font-bold text-lg gradient-text">Learningly</div>
+            <div className="text-xs text-muted-foreground">AI Learning Platform</div>
+          </div>
+        )}
         {!isMobile && (
           <button
             aria-label="Collapse sidebar"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="ml-auto rounded-xl p-2 hover:bg-slate-100"
+            className="rounded-xl p-2 hover:bg-accent/60 transition-colors duration-200"
           >
-            <ChevronRight className={`h-4 w-4 ${sidebarCollapsed ? "rotate-180" : ""}`} />
+            <ChevronRight className={`h-4 w-4 transition-transform duration-300 ${sidebarCollapsed ? "rotate-180" : ""}`} />
           </button>
         )}
       </div>
@@ -160,24 +170,34 @@ export default function AppSidebar({
         </SidebarSection>
       </div>
 
-      <div className="p-3 border-t space-y-3">
-        <div className={`rounded-2xl bg-slate-900 text-white ${sidebarCollapsed ? "p-2 text-[10px]" : "p-3"}`}>
+      <div className="p-4 border-t border-border/50 space-y-4">
+        <div className={`rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-white ${sidebarCollapsed ? "p-3 text-center" : "p-4"} modern-shadow`}>
           {!sidebarCollapsed && (
             <>
-              <div className="text-sm font-medium">Team Plan</div>
-              <div className="text-xs opacity-80">Invite teammates, manage workspaces.</div>
+              <div className="flex items-center gap-2 text-sm font-semibold mb-1">
+                <Crown className="h-4 w-4" />
+                Pro Plan
+              </div>
+              <div className="text-xs opacity-90 mb-3 leading-relaxed">
+                Unlock unlimited AI features and advanced tools.
+              </div>
             </>
           )}
-          <button className={`${sidebarCollapsed ? "w-9 h-7 grid place-content-center bg-white/10" : "mt-2 px-3 py-1.5"} text-xs bg-white text-slate-900 rounded-full`}>
-            {sidebarCollapsed ? "+" : "Upgrade"}
+          <button className={`${sidebarCollapsed ? "w-8 h-8 grid place-content-center bg-white/20 rounded-lg" : "w-full px-3 py-2"} text-xs font-medium bg-white text-primary rounded-full hover:bg-white/90 transition-colors duration-200 shadow-sm`}>
+            {sidebarCollapsed ? <Zap className="h-4 w-4" /> : (
+              <div className="flex items-center justify-center gap-1">
+                <Zap className="h-3 w-3" />
+                Upgrade
+              </div>
+            )}
           </button>
         </div>
         <div className="flex items-center justify-between">
-          <Link href="/settings" className="inline-flex items-center gap-2 text-sm">
+          <Link href="/settings" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
             <Settings className="h-4 w-4"/>
             {!sidebarCollapsed && "Settings"}
           </Link>
-          <button onClick={handleLogout} className="inline-flex items-center gap-2 text-sm text-rose-600">
+          <button onClick={handleLogout} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors duration-200">
             <LogOut className="h-4 w-4"/>
             {!sidebarCollapsed && "Logout"}
           </button>
