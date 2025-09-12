@@ -197,36 +197,6 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
           ))}
         </div>
 
-        {/* Quick Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-          {[
-            { label: "Documents Processed", value: "127", icon: BookOpen, trend: "+12%" },
-            { label: "Study Sessions", value: "43", icon: GraduationCap, trend: "+8%" },
-            { label: "Questions Answered", value: "892", icon: Lightbulb, trend: "+23%" },
-          ].map((stat, index) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.6 + 0.1 * index }}
-            >
-              <Card className="p-4 bg-white/70 backdrop-blur-sm border-white/20 modern-shadow hover:bg-white/80 transition-all duration-300">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
-                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <stat.icon className="h-8 w-8 text-primary mb-1" />
-                    <Badge variant="secondary" className="text-xs">
-                      {stat.trend}
-                    </Badge>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
       </main>
     </div>
   )
