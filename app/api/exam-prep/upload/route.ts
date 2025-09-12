@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { uploadKnowledgeBaseAs, webhookDebugger } from '@/api-config';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,9 +15,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (file.type !== 'application/pdf') {
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'text/plain'
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Only PDF files are allowed' },
+        { error: 'Only PDF, DOCX, DOC, PPTX, and TXT files are allowed' },
         { status: 400 }
       );
     }
@@ -103,11 +112,51 @@ export async function POST(request: NextRequest) {
       // Don't fail the request if DB insert fails, file is still uploaded
     }
 
+    // Send file to webhook for PDF/DOCX parsing
+    let webhookResult = null;
+    try {
+      webhookDebugger.info('EXAM_PREP_UPLOAD', 'Sending file to knowledge base webhook', {
+        filename: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        userId: user.id,
+        uploadType: type
+      });
+
+      webhookResult = await uploadKnowledgeBaseAs(file, {
+        filename: file.name,
+        userId: user.id,
+        agentId: type, // Using upload type as agent ID
+        description: `Exam prep file upload: ${file.name}`
+      });
+
+      if (webhookResult.success) {
+        webhookDebugger.info('EXAM_PREP_UPLOAD', 'Webhook processing successful', {
+          filename: file.name,
+          webhookData: webhookResult.data
+        });
+      } else {
+        webhookDebugger.error('EXAM_PREP_UPLOAD', 'Webhook processing failed', {
+          filename: file.name,
+          error: webhookResult.error,
+          debugInfo: webhookResult.debugInfo
+        });
+      }
+    } catch (webhookError) {
+      webhookDebugger.error('EXAM_PREP_UPLOAD', 'Webhook request failed', {
+        filename: file.name,
+        error: webhookError instanceof Error ? webhookError.message : String(webhookError)
+      });
+      // Don't fail the upload if webhook fails
+    }
+
     return NextResponse.json({
       success: true,
       url: urlData.publicUrl,
       filename: file.name,
-      fileId: fileRecord?.id
+      fileId: fileRecord?.id,
+      webhookProcessed: webhookResult?.success || false,
+      webhookError: webhookResult?.error || null
     });
 
   } catch (error) {

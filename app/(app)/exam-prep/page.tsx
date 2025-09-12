@@ -99,15 +99,25 @@ function ExamPrepSelection() {
                   <div className="flex-1 text-center sm:text-left">
                     <h2 className="text-2xl font-bold text-slate-900 mb-2">Full-Length Exam Prep</h2>
                     <p className="text-slate-600 mb-4">
-                      Upload your study materials (PDFs) and get a comprehensive exam tailored to your content
+                      Upload your study materials (PDFs, DOCX, PPTX) and get 10-20 comprehensive exams tailored to your content
                     </p>
-                    <Button 
-                      onClick={() => router.push('/exam-prep/full-exam')}
-                      className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
-                    >
-                      <Upload className="w-4 h-4 mr-2" />
-                      Start Full Exam Prep
-                    </Button>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button 
+                        onClick={() => router.push('/exam-prep/full-exam')}
+                        className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Create New Exams
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        onClick={() => router.push('/exam-prep/manage')}
+                        className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Manage Exams
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>

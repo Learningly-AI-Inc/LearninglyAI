@@ -19,7 +19,8 @@ import {
   AlertCircle,
   Brain,
   Clock,
-  Target
+  Target,
+  Zap
 } from "lucide-react";
 
 interface UploadedFile {
@@ -30,6 +31,8 @@ interface UploadedFile {
   uploadProgress: number;
   status: 'pending' | 'uploading' | 'completed' | 'error';
   url?: string;
+  webhookProcessed?: boolean;
+  webhookError?: string;
 }
 
 interface ExamConfig {
@@ -38,6 +41,8 @@ interface ExamConfig {
   difficulty: 'easy' | 'medium' | 'hard';
   examTitle: string;
   additionalInstructions: string;
+  numExams: number; // Number of PDF exams to generate (10-20)
+  examType: 'full-length' | 'rapid-fire' | 'both';
 }
 
 export default function FullExamPrepPage() {
@@ -52,20 +57,30 @@ export default function FullExamPrepPage() {
     examDuration: 60,
     difficulty: 'medium',
     examTitle: '',
-    additionalInstructions: ''
+    additionalInstructions: '',
+    numExams: 10,
+    examType: 'both'
   });
   const [generationProgress, setGenerationProgress] = useState(0);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    const pdfFiles = files.filter(file => file.type === 'application/pdf');
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'text/plain'
+    ];
     
-    if (pdfFiles.length !== files.length) {
-      alert('Please select only PDF files');
+    const validFiles = files.filter(file => allowedTypes.includes(file.type));
+    
+    if (validFiles.length !== files.length) {
+      alert('Please select only PDF, DOCX, DOC, PPTX, or TXT files');
       return;
     }
 
-    const newFiles: UploadedFile[] = pdfFiles.map(file => ({
+    const newFiles: UploadedFile[] = validFiles.map(file => ({
       file,
       id: Math.random().toString(36).substring(2, 15),
       name: file.name,
@@ -110,7 +125,9 @@ export default function FullExamPrepPage() {
             ...f,
             status: 'completed',
             uploadProgress: 100,
-            url: result.url
+            url: result.url,
+            webhookProcessed: result.webhookProcessed,
+            webhookError: result.webhookError
           } : f)
         );
 
@@ -300,9 +317,9 @@ export default function FullExamPrepPage() {
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Upload PDF Files</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Upload Study Materials</h3>
                     <p className="text-gray-600 mb-4">
-                      Click to select or drag and drop your study materials (PDF format only)
+                      Click to select or drag and drop your study materials (PDF, DOCX, DOC, PPTX, TXT)
                     </p>
                     <Button variant="outline">
                       Select Files
@@ -311,7 +328,7 @@ export default function FullExamPrepPage() {
                       ref={fileInputRef}
                       type="file"
                       multiple
-                      accept=".pdf"
+                      accept=".pdf,.docx,.doc,.pptx,.txt"
                       onChange={handleFileSelect}
                       className="hidden"
                     />
@@ -320,7 +337,14 @@ export default function FullExamPrepPage() {
                   {/* Uploaded Files List */}
                   {uploadedFiles.length > 0 && (
                     <div className="space-y-3">
-                      <h4 className="font-medium text-gray-900">Uploaded Files</h4>
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium text-gray-900">Uploaded Files</h4>
+                        {uploadedFiles.some(f => f.status === 'completed') && (
+                          <div className="text-xs text-gray-500">
+                            {uploadedFiles.filter(f => f.webhookProcessed).length} of {uploadedFiles.filter(f => f.status === 'completed').length} files processed by AI
+                          </div>
+                        )}
+                      </div>
                       {uploadedFiles.map((file) => (
                         <div key={file.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                           <FileText className="w-5 h-5 text-red-500 flex-shrink-0" />
@@ -333,7 +357,21 @@ export default function FullExamPrepPage() {
                           </div>
                           <div className="flex items-center gap-2">
                             {file.status === 'completed' && (
-                              <CheckCircle className="w-5 h-5 text-green-500" />
+                              <div className="flex items-center gap-1">
+                                <CheckCircle className="w-5 h-5 text-green-500" />
+                                {file.webhookProcessed && (
+                                  <div className="flex items-center gap-1 text-xs text-blue-600">
+                                    <Brain className="w-3 h-3" />
+                                    <span>Processed</span>
+                                  </div>
+                                )}
+                                {file.webhookError && (
+                                  <div className="flex items-center gap-1 text-xs text-orange-600">
+                                    <AlertCircle className="w-3 h-3" />
+                                    <span>Parse Error</span>
+                                  </div>
+                                )}
+                              </div>
                             )}
                             {file.status === 'error' && (
                               <AlertCircle className="w-5 h-5 text-red-500" />
@@ -398,6 +436,25 @@ export default function FullExamPrepPage() {
                       </Select>
                     </div>
 
+                    {/* Number of PDF Exams */}
+                    <div className="space-y-2">
+                      <Label htmlFor="numExams">Number of PDF Exams to Generate</Label>
+                      <Select
+                        value={examConfig.numExams.toString()}
+                        onValueChange={(value) => setExamConfig(prev => ({...prev, numExams: parseInt(value)}))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5 Exams</SelectItem>
+                          <SelectItem value="10">10 Exams</SelectItem>
+                          <SelectItem value="15">15 Exams</SelectItem>
+                          <SelectItem value="20">20 Exams</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {/* Exam Duration */}
                     <div className="space-y-2">
                       <Label htmlFor="duration">Exam Duration (minutes)</Label>
@@ -449,6 +506,26 @@ export default function FullExamPrepPage() {
                         placeholder="e.g., Midterm Exam - Computer Science"
                       />
                     </div>
+
+                    {/* Exam Type */}
+                    <div className="space-y-2">
+                      <Label htmlFor="examType">Exam Type</Label>
+                      <Select
+                        value={examConfig.examType}
+                        onValueChange={(value: 'full-length' | 'rapid-fire' | 'both') => 
+                          setExamConfig(prev => ({...prev, examType: value}))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="full-length">Full-Length Exams Only</SelectItem>
+                          <SelectItem value="rapid-fire">Rapid-Fire Quizzes Only</SelectItem>
+                          <SelectItem value="both">Both Full-Length & Rapid-Fire</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   {/* Additional Instructions */}
@@ -467,9 +544,11 @@ export default function FullExamPrepPage() {
                   <div className="bg-orange-50 p-4 rounded-lg">
                     <h4 className="font-medium text-orange-900 mb-2">Exam Summary</h4>
                     <ul className="text-sm text-orange-800 space-y-1">
-                      <li>• {examConfig.numMCQ} Multiple Choice Questions</li>
-                      <li>• {examConfig.examDuration} minutes duration</li>
+                      <li>• {examConfig.numExams} PDF exam(s) to generate</li>
+                      <li>• {examConfig.numMCQ} Multiple Choice Questions per exam</li>
+                      <li>• {examConfig.examDuration} minutes duration per exam</li>
                       <li>• {examConfig.difficulty.charAt(0).toUpperCase() + examConfig.difficulty.slice(1)} difficulty level</li>
+                      <li>• Exam type: {examConfig.examType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</li>
                       <li>• Based on {uploadedFiles.filter(f => f.status === 'completed').length} uploaded document(s)</li>
                     </ul>
                   </div>
@@ -506,14 +585,18 @@ export default function FullExamPrepPage() {
               <Card>
                 <CardContent className="p-8 text-center">
                   <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-6" />
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-2">Your Exam is Ready!</h3>
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-2">Your Exams are Ready!</h3>
                   <p className="text-gray-600 mb-6">
-                    We've generated a comprehensive {examConfig.numMCQ}-question exam based on your study materials.
+                    We've generated {examConfig.numExams} comprehensive {examConfig.numMCQ}-question {examConfig.examType === 'both' ? 'exams and rapid-fire quizzes' : examConfig.examType === 'rapid-fire' ? 'rapid-fire quizzes' : 'exams'} based on your study materials.
                   </p>
                   
                   <div className="bg-green-50 p-4 rounded-lg mb-6 max-w-md mx-auto">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-green-800">Questions:</span>
+                      <span className="text-green-800">Exams Generated:</span>
+                      <span className="font-medium text-green-900">{examConfig.numExams}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-green-800">Questions per exam:</span>
                       <span className="font-medium text-green-900">{examConfig.numMCQ}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
@@ -526,14 +609,48 @@ export default function FullExamPrepPage() {
                     </div>
                   </div>
 
-                  <Button 
-                    onClick={startExam}
-                    size="lg"
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <Clock className="w-5 h-5 mr-2" />
-                    Start Exam Now
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    {examConfig.examType === 'both' && (
+                      <>
+                        <Button 
+                          onClick={() => router.push('/exam-prep/full-exam/session')}
+                          size="lg"
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Clock className="w-5 h-5 mr-2" />
+                          Start Full-Length Exam
+                        </Button>
+                        <Button 
+                          onClick={() => router.push('/exam-prep/rapid-fire')}
+                          size="lg"
+                          className="bg-purple-600 hover:bg-purple-700"
+                        >
+                          <Zap className="w-5 h-5 mr-2" />
+                          Start Rapid-Fire Quiz
+                        </Button>
+                      </>
+                    )}
+                    {examConfig.examType === 'full-length' && (
+                      <Button 
+                        onClick={() => router.push('/exam-prep/full-exam/session')}
+                        size="lg"
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Clock className="w-5 h-5 mr-2" />
+                        Start Full-Length Exam
+                      </Button>
+                    )}
+                    {examConfig.examType === 'rapid-fire' && (
+                      <Button 
+                        onClick={() => router.push('/exam-prep/rapid-fire')}
+                        size="lg"
+                        className="bg-purple-600 hover:bg-purple-700"
+                      >
+                        <Zap className="w-5 h-5 mr-2" />
+                        Start Rapid-Fire Quiz
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}

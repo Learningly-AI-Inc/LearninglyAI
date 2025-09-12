@@ -62,8 +62,20 @@ export default function ExamSessionPage() {
     if (storedExam) {
       try {
         const parsedExam = JSON.parse(storedExam);
-        setExamData(parsedExam.exam);
-        setTimeLeft(parsedExam.exam.duration * 60); // Convert minutes to seconds
+        // Handle both single exam and multiple exams format
+        let examToUse;
+        if (parsedExam.exam) {
+          // Single exam format (legacy)
+          examToUse = parsedExam.exam;
+        } else if (parsedExam.exams && parsedExam.exams.length > 0) {
+          // Multiple exams format - use first full-length exam
+          examToUse = parsedExam.exams.find((exam: any) => exam.examType === 'full-length') || parsedExam.exams[0];
+        } else {
+          throw new Error('Invalid exam data format');
+        }
+        
+        setExamData(examToUse);
+        setTimeLeft(examToUse.duration * 60); // Convert minutes to seconds
       } catch (error) {
         console.error('Failed to load exam data:', error);
         router.push('/exam-prep/full-exam');
