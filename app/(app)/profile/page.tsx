@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { useAuthContext } from "@/components/auth/auth-provider"
 import { getUserMetadata, getAuthProviderFromUser } from "@/types/auth"
 import { getSupabaseClient } from "@/lib/supabase-client"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 const ProfilePage = () => {
   // ALL HOOKS MUST BE CALLED FIRST - NO EXCEPTIONS
@@ -21,7 +21,7 @@ const ProfilePage = () => {
   const [loading, setLoading] = React.useState(false)
   const [displayName, setDisplayName] = React.useState('')
   const { user } = useAuthContext()
-  const { showSuccess, showError } = useToast()
+  // Using Sonner toast directly
   const supabase = getSupabaseClient()
   
   // Derived values that handle null user safely
@@ -50,7 +50,7 @@ const ProfilePage = () => {
 
   const handleSave = async () => {
     if (!displayName.trim()) {
-      showError("Name cannot be empty")
+      toast.error("Name cannot be empty")
       return
     }
     
@@ -66,11 +66,11 @@ const ProfilePage = () => {
         throw error
       }
       
-      showSuccess("Profile updated successfully")
+      toast.success("Profile updated successfully")
       setIsEditing(false)
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to update profile"
-      showError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }

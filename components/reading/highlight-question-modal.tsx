@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { SlideIn } from '@/components/react-bits/slide-in';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface HighlightQuestionModalProps {
   isOpen: boolean;
@@ -25,7 +25,7 @@ export function HighlightQuestionModal({
   const [question, setQuestion] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { showError, showSuccess } = useToast();
+  // Using Sonner toast directly
 
   // Focus textarea when modal opens
   useEffect(() => {
@@ -46,12 +46,12 @@ export function HighlightQuestionModal({
     e.preventDefault();
     
     if (!question.trim()) {
-      showError("Please enter a question about the highlighted text.");
+      toast.error("Please enter a question about the highlighted text.");
       return;
     }
 
     if (question.trim().length < 10) {
-      showError("Please enter a more detailed question (at least 10 characters).");
+      toast.error("Please enter a more detailed question (at least 10 characters).");
       return;
     }
 
@@ -59,10 +59,10 @@ export function HighlightQuestionModal({
     
     try {
       await onSubmitQuestion(question.trim(), highlightId);
-      showSuccess("Your question has been added to the chat.");
+      toast.success("Your question has been added to the chat.");
       onClose();
     } catch {
-      showError("Failed to submit question. Please try again.");
+      toast.error("Failed to submit question. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

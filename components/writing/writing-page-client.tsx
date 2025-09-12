@@ -10,7 +10,7 @@ import WordCounter from "@/components/writing/word-counter"
 import LengthAdjustDialog from "@/components/writing/length-adjust-dialog"
 import { getMockUserId } from "@/lib/mock-user"
 import { openInGoogleDocs, downloadFile } from "@/components/writing/google-docs-export"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import Toast from "@/components/ui/toast"
 import { ImprovedWritingPage } from "./improved/improved-writing-page"
 
@@ -41,7 +41,7 @@ const WritingPageClient = () => {
   const [activeTab, setActiveTab] = useState<string>("paraphrase")
   const [lastSelectedText, setLastSelectedText] = useState<string>("") // Backup for selected text
   
-  const { toasts, showSuccess, showError, showInfo, showWarning, hideToast } = useToast()
+  // Using Sonner toast directly
   
   // Function to handle paraphrasing
   const handleParaphrase = async () => {
@@ -57,7 +57,7 @@ const WritingPageClient = () => {
       setSuggestedText("");
       setGrammarIssues([]);
       setLastProcessedFeature("Content Required");
-      showWarning("Please add some content to the editor before clicking 'Paraphrase'");
+      toast.warning("Please add some content to the editor before clicking 'Paraphrase'");
       return;
     }
 
@@ -86,11 +86,11 @@ const WritingPageClient = () => {
       setSuggestedText(data.result);
       setLastProcessedFeature("Paraphrase");
       setIsProcessing(false);
-      showInfo(`Entire content paraphrased successfully in ${tone} tone!`);
+      toast.info(`Entire content paraphrased successfully in ${tone} tone!`);
     } catch (error) {
       console.error("Error during paraphrasing:", error);
       setIsProcessing(false);
-      showError("An error occurred while paraphrasing. Please try again.");
+      toast.error("An error occurred while paraphrasing. Please try again.");
     }
   };
 
@@ -127,7 +127,7 @@ const WritingPageClient = () => {
       setSuggestedText("");
       setGrammarIssues([]);
       setLastProcessedFeature("Content Required");
-      showWarning("Please add some content to the editor before clicking 'Check Grammar'");
+      toast.warning("Please add some content to the editor before clicking 'Check Grammar'");
       return;
     }
 
@@ -154,17 +154,17 @@ const WritingPageClient = () => {
       if (data.grammarIssues && data.grammarIssues.length > 0) {
         setGrammarIssues(data.grammarIssues);
         setLastProcessedFeature("Grammar Check");
-        showInfo(`Found ${data.grammarIssues.length} grammar issue${data.grammarIssues.length > 1 ? 's' : ''} to review`);
+        toast.info(`Found ${data.grammarIssues.length} grammar issue${data.grammarIssues.length > 1 ? 's' : ''} to review`);
       } else {
         setGrammarIssues([]);
         setLastProcessedFeature("Grammar Check (No issues)");
-        showSuccess('No grammar issues found. Your text looks great!');
+        toast.success('No grammar issues found. Your text looks great!');
       }
       setIsProcessing(false);
     } catch (error) {
       console.error("Error during grammar check:", error);
       setIsProcessing(false);
-      showError("An error occurred while checking grammar. Please try again.");
+      toast.error("An error occurred while checking grammar. Please try again.");
     }
   };
 
@@ -216,9 +216,9 @@ const WritingPageClient = () => {
       setGrammarIssues([]);
       setSelectedText("");
       setLastSelectedText(""); // Clear backup
-      showSuccess(`All ${appliedCount} grammar issue${appliedCount > 1 ? 's' : ''} fixed successfully!`);
+      toast.success(`All ${appliedCount} grammar issue${appliedCount > 1 ? 's' : ''} fixed successfully!`);
     } else {
-      showError("Could not apply grammar fixes. Please try individual fixes.");
+      toast.error("Could not apply grammar fixes. Please try individual fixes.");
     }
   };
 
@@ -274,7 +274,7 @@ const WritingPageClient = () => {
             setSuggestedText("");
             setSelectedText("");
             setLastSelectedText(""); // Clear backup too
-            showSuccess("Text paraphrased successfully!");
+            toast.success("Text paraphrased successfully!");
           } else if (issue) {
             // Only remove the specific grammar issue that was accepted
             const updatedGrammarIssues = grammarIssues.filter(gi => gi.id !== issue.id);
@@ -284,23 +284,23 @@ const WritingPageClient = () => {
             // Success message for grammar
             const remainingCount = grammarIssues.length - 1;
             if (remainingCount > 0) {
-              showSuccess(`Grammar issue fixed! ${remainingCount} remaining.`);
+              toast.success(`Grammar issue fixed! ${remainingCount} remaining.`);
             } else {
-              showSuccess("Grammar issue fixed! All issues resolved.");
+              toast.success("Grammar issue fixed! All issues resolved.");
               setLastSelectedText(""); // Clear backup when all issues resolved
             }
           }
         } else {
-          showWarning("Could not find the exact text to replace. Please try selecting the text again.");
+          toast.warning("Could not find the exact text to replace. Please try selecting the text again.");
         }
         
       } catch (error) {
         console.error("Error replacing text:", error);
-        showError("An error occurred while updating the text. Please try again.");
+        toast.error("An error occurred while updating the text. Please try again.");
       }
     } else {
       // If no content or text to replace
-      showWarning("Unable to determine where to replace text. Please select text again.");
+      toast.warning("Unable to determine where to replace text. Please select text again.");
     }
   };
 
@@ -311,9 +311,9 @@ const WritingPageClient = () => {
       const updatedGrammarIssues = grammarIssues.filter(gi => gi.id !== issueId);
       setGrammarIssues(updatedGrammarIssues);
       if (updatedGrammarIssues.length > 0) {
-        showInfo(`Grammar issue ignored. ${updatedGrammarIssues.length} remaining.`);
+        toast.info(`Grammar issue ignored. ${updatedGrammarIssues.length} remaining.`);
       } else {
-        showSuccess("Grammar issue ignored. All issues resolved.");
+        toast.success("Grammar issue ignored. All issues resolved.");
       }
     } else {
       // Clear all suggestions (for paraphrase rejection)
@@ -333,11 +333,11 @@ const WritingPageClient = () => {
   // Function to handle saving drafts
   const handleSaveDraft = async () => {
     if (!editorContent.trim()) {
-      showWarning("Nothing to save. Please add some content first.");
+      toast.warning("Nothing to save. Please add some content first.");
       return;
     }
 
-    showInfo("Saving draft...");
+    toast.info("Saving draft...");
     
     try {
       const response = await fetch('/api/writing/drafts/save', {
@@ -363,26 +363,26 @@ const WritingPageClient = () => {
         setCurrentDraftId(data.id);
       }
       
-      showSuccess(`Draft ${data.isNewDraft ? 'created' : 'updated'} successfully!`);
+      toast.success(`Draft ${data.isNewDraft ? 'created' : 'updated'} successfully!`);
     } catch (error) {
       console.error("Error saving draft:", error);
-      showError("Error saving draft. Please try again.");
+      toast.error("Error saving draft. Please try again.");
     }
   };
 
   // Function to handle exporting
   const handleExport = async (format: string) => {
     if (!editorContent.trim()) {
-      showWarning("Nothing to export. Please add some content first.");
+      toast.warning("Nothing to export. Please add some content first.");
       return;
     }
     
     // Handle Google Docs export separately (client-side)
     if (format === "gdocs") {
-      showInfo("Opening in Google Docs...");
+      toast.info("Opening in Google Docs...");
       try {
         openInGoogleDocs(editorContent);
-        showSuccess("Opened in Google Docs successfully!");
+        toast.success("Opened in Google Docs successfully!");
         
         // Log the export
         await fetch('/api/writing/drafts/save', {
@@ -396,14 +396,14 @@ const WritingPageClient = () => {
         });
       } catch (error) {
         console.error("Error opening in Google Docs:", error);
-        showError("Failed to open in Google Docs. Please try again.");
+        toast.error("Failed to open in Google Docs. Please try again.");
       }
       return;
     }
     
     // For simple text download, handle it client-side
     if (format === "txt") {
-      showInfo(`Preparing TXT export...`);
+      toast.info(`Preparing TXT export...`);
       try {
         // Strip HTML tags for plain text
         const plainText = editorContent.replace(/<[^>]*>?/gm, '');
@@ -415,7 +415,7 @@ const WritingPageClient = () => {
         // Download the file
         downloadFile(plainText, filename, "text/plain");
         
-        showSuccess(`Text file downloaded successfully!`);
+        toast.success(`Text file downloaded successfully!`);
         
         // Log the download
         await fetch('/api/writing/drafts/save', {
@@ -431,13 +431,13 @@ const WritingPageClient = () => {
         return;
       } catch (error) {
         console.error("Error downloading text file:", error);
-        showError("Text export failed. Please try again.");
+        toast.error("Text export failed. Please try again.");
         return;
       }
     }
     
     // For PDF and DOCX, use the server API
-    showInfo(`Preparing ${format.toUpperCase()} export...`);
+    toast.info(`Preparing ${format.toUpperCase()} export...`);
     
     try {
       const response = await fetch('/api/writing/export', {
@@ -457,7 +457,7 @@ const WritingPageClient = () => {
       
       const data = await response.json();
       
-      showSuccess(`${format.toUpperCase()} export ready! Download started.`);
+      toast.success(`${format.toUpperCase()} export ready! Download started.`);
       
       // Create an invisible link to trigger download
       const link = document.createElement('a');
@@ -479,7 +479,7 @@ const WritingPageClient = () => {
       });
     } catch (error) {
       console.error("Error exporting document:", error);
-      showError(`${format.toUpperCase()} export failed. Please try again.`);
+      toast.error(`${format.toUpperCase()} export failed. Please try again.`);
     }
   };
 
@@ -494,7 +494,7 @@ const WritingPageClient = () => {
       setSuggestedText("");
       setGrammarIssues([]);
       setLastProcessedFeature("Selection Required");
-      showWarning(`Please select text before using the ${action === 'shorten' ? 'shorten' : 'expand'} feature`);
+      toast.warning(`Please select text before using the ${action === 'shorten' ? 'shorten' : 'expand'} feature`);
       return;
     }
     
@@ -505,7 +505,7 @@ const WritingPageClient = () => {
   // Function to handle length adjustments with percentage parameter
   const handleLengthAdjust = async (action: 'shorten' | 'expand', percentage: number = 50) => {
     if (!selectedText.trim()) {
-      showWarning(`Please select text to ${action}`);
+      toast.warning(`Please select text to ${action}`);
       return;
     }
 
@@ -532,11 +532,11 @@ const WritingPageClient = () => {
       setSuggestedText(data.result);
       setLastProcessedFeature(`${action === 'shorten' ? 'Shortened' : 'Expanded'} Text (${percentage}%)`);
       setIsProcessing(false);
-      showInfo(`Text ${action}ed successfully by ${percentage}%!`);
+      toast.info(`Text ${action}ed successfully by ${percentage}%!`);
     } catch (error) {
       console.error(`Error ${action}ing text:`, error);
       setIsProcessing(false);
-      showError(`An error occurred while ${action}ing the text. Please try again.`);
+      toast.error(`An error occurred while ${action}ing the text. Please try again.`);
     }
   };
 
@@ -561,7 +561,7 @@ const WritingPageClient = () => {
 
   // Function to handle loading a draft
   const handleLoadDraft = async (draftId: string) => {
-    showInfo("Loading draft...");
+    toast.info("Loading draft...");
     setIsProcessing(true);
     
     try {
@@ -580,10 +580,10 @@ const WritingPageClient = () => {
       setCurrentDraftId(data.id);
       setEditorKey(prev => prev + 1); // Force editor re-render
       
-      showSuccess("Draft loaded successfully!");
+      toast.success("Draft loaded successfully!");
     } catch (error) {
       console.error("Error loading draft:", error);
-      showError("Error loading draft. Please try again.");
+      toast.error("Error loading draft. Please try again.");
     } finally {
       setIsProcessing(false);
     }

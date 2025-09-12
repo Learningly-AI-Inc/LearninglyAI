@@ -100,7 +100,7 @@ function AccountContent() {
                   </h1>
                   
                   <p className="text-base sm:text-lg lg:text-xl text-gray-600 leading-relaxed max-w-none lg:max-w-lg">
-                    Sign in with Google to access thousands of AI-powered learning tools and transform your education.
+                    Sign up or sign in to access thousands of AI-powered learning tools and transform your education.
                   </p>
                 </div>
               </div>
@@ -161,7 +161,6 @@ export default function AccountPage() {
   return (
     <AuthProvider>
       <AccountContent />
-      <Toaster />
     </AuthProvider>
   )
 }

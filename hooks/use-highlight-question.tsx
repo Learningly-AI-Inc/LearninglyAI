@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useDocument } from '@/components/reading/document-context';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface Highlight {
   id: string;
@@ -27,7 +27,7 @@ export function useHighlightQuestion(): UseHighlightQuestionReturn {
   const [selectedHighlight, setSelectedHighlight] = useState<Highlight | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { document } = useDocument();
-  const { showError, showSuccess } = useToast();
+  // Using Sonner toast directly
 
   const openQuestionModal = useCallback((highlight: Highlight) => {
     setSelectedHighlight(highlight);
@@ -73,16 +73,16 @@ export function useHighlightQuestion(): UseHighlightQuestionReturn {
         questionId: `q-${Date.now()}`
       });
 
-      showSuccess("Your question has been added to the chat.");
+      toast.success("Your question has been added to the chat.");
 
     } catch (error) {
       console.error('Error submitting question:', error);
-      showError("Failed to submit question. Please try again.");
+      toast.error("Failed to submit question. Please try again.");
       throw error;
     } finally {
       setIsSubmitting(false);
     }
-  }, [document, selectedHighlight, showError, showSuccess]);
+  }, [document, selectedHighlight]);
 
   return {
     isModalOpen,
