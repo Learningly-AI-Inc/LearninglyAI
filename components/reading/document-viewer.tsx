@@ -16,6 +16,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import { Allotment } from "allotment"
+import "allotment/dist/style.css"
 import { EnhancedPDFViewer } from "./pdf-viewer-wrapper"
 import { RightDrawer } from "./right-drawer"
 import { useDocument } from "./document-context"
@@ -42,85 +44,7 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
   const [isFocusMode, setIsFocusMode] = React.useState(false)
   const [currentPage, setCurrentPage] = React.useState(1)
   const [pageDimensions, setPageDimensions] = React.useState({ width: 0, height: 0 })
-  const [chatWidth, setChatWidth] = React.useState(1000)
-  const [isDragging, setIsDragging] = React.useState(false)
   const [isClient, setIsClient] = React.useState(false)
-
-
-  // Simple drag resize functionality - improved for double-tap handling
-  const handleDragStart = React.useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    console.log('🖱️ Drag started')
-    
-    // Prevent body scrolling during drag (browser only)
-    if (typeof window !== 'undefined' && window.document?.body) {
-      window.document.body.style.userSelect = 'none'
-      window.document.body.style.cursor = 'col-resize'
-    }
-    
-    setIsDragging(true)
-    
-    const startX = e.clientX
-    const startWidth = chatWidth
-    
-    // Function to handle the dragging behavior
-    const handleDrag = (moveEvent: MouseEvent) => {
-      const deltaX = startX - moveEvent.clientX  // Corrected: drag left = expand chat, drag right = shrink chat
-      const newWidth = Math.max(400, Math.min(1400, startWidth + deltaX))
-      setChatWidth(newWidth)
-    }
-    
-    // Function to handle when drag ends (mouseup or double tap release)
-    const handleDragEnd = () => {
-      console.log('🖱️ Drag ended')
-      setIsDragging(false) // Reset dragging state immediately
-      
-      // Restore body styles
-      if (typeof window !== 'undefined' && window.document?.body) {
-        window.document.body.style.userSelect = ''
-        window.document.body.style.cursor = ''
-      }
-      
-      // Clean up event listeners with debounce to handle double-tap
-      setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          window.removeEventListener('mousemove', handleDrag)
-          window.removeEventListener('mouseup', handleDragEnd)
-        }
-      }, 100) // Small delay to debounce the double tap issue
-    }
-    
-    // Add event listeners to handle the dragging and ending of the drag
-    if (typeof window !== 'undefined') {
-      window.addEventListener('mousemove', handleDrag)
-      window.addEventListener('mouseup', handleDragEnd) // Ensures dragging ends on mouse up
-    }
-  }, [chatWidth])
-
-  // Safety mechanism to ensure drag state doesn't get stuck
-  React.useEffect(() => {
-    const handleGlobalMouseUp = () => {
-      if (isDragging) {
-        console.log('🔒 Global mouseup detected - ensuring drag state is reset')
-        setIsDragging(false)
-        if (typeof window !== 'undefined' && window.document?.body) {
-          window.document.body.style.userSelect = ''
-          window.document.body.style.cursor = ''
-        }
-      }
-    }
-
-    // Add global mouseup listener as backup
-    if (typeof window !== 'undefined' && window.document) {
-      window.document.addEventListener('mouseup', handleGlobalMouseUp)
-      
-      return () => {
-        if (window.document) {
-          window.document.removeEventListener('mouseup', handleGlobalMouseUp)
-        }
-      }
-    }
-  }, [isDragging])
 
   // Text selection state
   const [selectedText, setSelectedText] = React.useState('')
@@ -601,72 +525,71 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
   }, [getSignedUrl]);
   
      return (
-     <div className="flex min-h-screen">
-      {/* Main Content */}
-      <main className="relative flex flex-col h-screen flex-1">
-                          {/* Header */}
-         <div className="flex items-center justify-between gap-2 border-b px-4 py-3 bg-white shadow-sm">
-           <div className="flex items-center gap-3">
-             <button className="xl:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-               <Menu className="h-4 w-4 text-gray-600" />
-             </button>
-             {document?.title && (
-               <div className="text-xs text-gray-700 font-medium px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200 flex items-center gap-1.5">
-                 <span className="text-blue-600">📄</span>
-                 <span className="truncate max-w-[200px]">{document.title}</span>
-               </div>
-             )}
-             <Button 
-               variant="outline" 
-               size="sm"
-               onClick={() => router.push('/reading')}
-               className="text-gray-600 hover:text-gray-900 flex items-center gap-2 px-3 py-1.5 h-8"
-               title="Load another document"
+     <div className="h-screen flex flex-col">
+       {/* Header */}
+       <div className="flex items-center justify-between gap-2 border-b px-4 py-3 bg-white shadow-sm flex-shrink-0">
+         <div className="flex items-center gap-3">
+           <button className="xl:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+             <Menu className="h-4 w-4 text-gray-600" />
+           </button>
+           {document?.title && (
+             <div className="text-xs text-gray-700 font-medium px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200 flex items-center gap-1.5">
+               <span className="text-blue-600">📄</span>
+               <span className="truncate max-w-[200px]">{document.title}</span>
+             </div>
+           )}
+           <Button 
+             variant="outline" 
+             size="sm"
+             onClick={() => router.push('/reading')}
+             className="text-gray-600 hover:text-gray-900 flex items-center gap-2 px-3 py-1.5 h-8"
+             title="Load another document"
+           >
+             <Upload className="h-3 w-3" />
+             <span className="text-xs">Load Another</span>
+           </Button>
+         </div>
+         
+         <div className="flex items-center gap-3">
+           {/* Zoom Controls */}
+           <div className="flex items-center gap-1 bg-gray-100 rounded-lg px-2 py-1">
+             <button
+               onClick={() => setZoomLevel(prev => Math.max(25, prev - 25))}
+               className="p-1 rounded hover:bg-gray-200 transition-colors"
+               title="Zoom Out"
              >
-               <Upload className="h-3 w-3" />
-               <span className="text-xs">Load Another</span>
-             </Button>
+               <ChevronDown className="h-3 w-3 text-gray-600" />
+             </button>
+             <span className="text-xs font-medium text-gray-700 min-w-[40px] text-center">
+               {zoomLevel}%
+             </span>
+             <button
+               onClick={() => setZoomLevel(prev => Math.min(200, prev + 25))}
+               className="p-1 rounded hover:bg-gray-200 transition-colors"
+               title="Zoom In"
+             >
+               <ChevronUp className="h-3 w-3 text-gray-600" />
+             </button>
            </div>
            
-           <div className="flex items-center gap-3">
-             {/* Zoom Controls */}
-             <div className="flex items-center gap-1 bg-gray-100 rounded-lg px-2 py-1">
-               <button
-                 onClick={() => setZoomLevel(prev => Math.max(25, prev - 25))}
-                 className="p-1 rounded hover:bg-gray-200 transition-colors"
-                 title="Zoom Out"
-               >
-                 <ChevronDown className="h-3 w-3 text-gray-600" />
-               </button>
-               <span className="text-xs font-medium text-gray-700 min-w-[40px] text-center">
-                 {zoomLevel}%
-               </span>
-               <button
-                 onClick={() => setZoomLevel(prev => Math.min(200, prev + 25))}
-                 className="p-1 rounded hover:bg-gray-200 transition-colors"
-                 title="Zoom In"
-               >
-                 <ChevronUp className="h-3 w-3 text-gray-600" />
-               </button>
-             </div>
-             
-             <Button 
-               variant="ghost" 
-               size="sm"
-               onClick={() => setIsFocusMode(prev => !prev)}
-               className="text-gray-600 hover:text-gray-900 p-1.5"
-               title="Focus Mode (Ctrl+F)"
-             >
-               <Focus className="h-3 w-3" />
-             </Button>
-             
-
-           </div>
+           <Button 
+             variant="ghost" 
+             size="sm"
+             onClick={() => setIsFocusMode(prev => !prev)}
+             className="text-gray-600 hover:text-gray-900 p-1.5"
+             title="Focus Mode (Ctrl+F)"
+           >
+             <Focus className="h-3 w-3" />
+           </Button>
          </div>
+       </div>
 
-                                  {/* PDF Area */}
-         <section className="flex-1 overflow-hidden bg-gray-50">
-           <div className="h-full w-full">
+       {/* Split Layout */}
+       <div className="flex-1 overflow-hidden">
+         <Allotment defaultSizes={[60, 40]} minSize={300}>
+           {/* Left Panel - PDF Viewer */}
+           <Allotment.Pane>
+             <div className="h-full w-full bg-gray-50">
                <div className="h-full w-full bg-white overflow-hidden">
                  {documentUrl ? (
                    <div className="w-full h-full overflow-hidden">
@@ -719,36 +642,22 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
                   </div>
                 )}
               </div>
-          </div>
-        </section>
+             </div>
+           </Allotment.Pane>
 
-        
-      </main>
-
-      {/* Simple Drag Handle - Client Side Only */}
-      {isClient && (
-        <div 
-          className="hidden xl:flex items-center justify-center w-2 bg-gray-200 hover:bg-blue-300 cursor-col-resize transition-colors"
-          onMouseDown={handleDragStart}
-          style={{ backgroundColor: isDragging ? '#3b82f6' : undefined }}
-          title="Drag to resize chat panel"
-        >
-          <div className="w-0.5 h-8 bg-gray-400 rounded-full" />
-        </div>
-      )}
-       
-       {/* Right Drawer - Desktop */}
-       <aside 
-         className="hidden xl:flex flex-col border-l bg-white"
-         style={{ width: `${chatWidth}px` }}
-       >
-         <RightDrawer 
-           isOpen={true}
-           onClose={() => {}}
-           document={document}
-           className="h-full"
-         />
-       </aside>
+           {/* Right Panel - Chat Interface */}
+           <Allotment.Pane>
+             <div className="h-full border-l bg-white">
+               <RightDrawer 
+                 isOpen={true}
+                 onClose={() => {}}
+                 document={document}
+                 className="h-full"
+               />
+             </div>
+           </Allotment.Pane>
+         </Allotment>
+       </div>
 
       {/* Highlight Question Modal */}
       <HighlightQuestionModal

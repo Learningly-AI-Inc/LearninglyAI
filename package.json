@@ -48,6 +48,7 @@
     "@tabler/icons-react": "^3.34.1",
     "@types/react-pdf": "^6.2.0",
     "adm-zip": "^0.5.16",
+    "allotment": "^1.20.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
