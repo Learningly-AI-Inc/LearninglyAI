@@ -42,56 +42,85 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
   const [isFocusMode, setIsFocusMode] = React.useState(false)
   const [currentPage, setCurrentPage] = React.useState(1)
   const [pageDimensions, setPageDimensions] = React.useState({ width: 0, height: 0 })
-  const [chatWidth, setChatWidth] = React.useState(600)
-  const [isResizing, setIsResizing] = React.useState(false)
+  const [chatWidth, setChatWidth] = React.useState(1000)
+  const [isDragging, setIsDragging] = React.useState(false)
+  const [isClient, setIsClient] = React.useState(false)
 
-  // Handle resize functionality
-  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
+
+  // Simple drag resize functionality - improved for double-tap handling
+  const handleDragStart = React.useCallback((e: React.MouseEvent) => {
     e.preventDefault()
-    e.stopPropagation()
-    console.log('🖱️ Resize handle clicked')
+    console.log('🖱️ Drag started')
     
-    // Check if we're in browser environment
-    if (typeof window === 'undefined' || !window.document) {
-      console.warn('Not in browser environment')
-      return
+    // Prevent body scrolling during drag (browser only)
+    if (typeof window !== 'undefined' && window.document?.body) {
+      window.document.body.style.userSelect = 'none'
+      window.document.body.style.cursor = 'col-resize'
     }
     
-    setIsResizing(true)
+    setIsDragging(true)
     
-    // Add event listeners immediately
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      moveEvent.preventDefault()
-      const newWidth = window.innerWidth - moveEvent.clientX
-      const minWidth = 350
-      const maxWidth = Math.min(1000, window.innerWidth * 0.7)
+    const startX = e.clientX
+    const startWidth = chatWidth
+    
+    // Function to handle the dragging behavior
+    const handleDrag = (moveEvent: MouseEvent) => {
+      const deltaX = startX - moveEvent.clientX  // Corrected: drag left = expand chat, drag right = shrink chat
+      const newWidth = Math.max(400, Math.min(1400, startWidth + deltaX))
+      setChatWidth(newWidth)
+    }
+    
+    // Function to handle when drag ends (mouseup or double tap release)
+    const handleDragEnd = () => {
+      console.log('🖱️ Drag ended')
+      setIsDragging(false) // Reset dragging state immediately
       
-      if (newWidth >= minWidth && newWidth <= maxWidth) {
-        setChatWidth(newWidth)
+      // Restore body styles
+      if (typeof window !== 'undefined' && window.document?.body) {
+        window.document.body.style.userSelect = ''
+        window.document.body.style.cursor = ''
       }
+      
+      // Clean up event listeners with debounce to handle double-tap
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('mousemove', handleDrag)
+          window.removeEventListener('mouseup', handleDragEnd)
+        }
+      }, 100) // Small delay to debounce the double tap issue
     }
     
-    const handleMouseUp = () => {
-      console.log('🖱️ Mouse up - stopping resize')
-      setIsResizing(false)
-      
-      if (window.document) {
-        window.document.removeEventListener('mousemove', handleMouseMove)
-        window.document.removeEventListener('mouseup', handleMouseUp)
-        if (window.document.body) {
-          window.document.body.style.cursor = ''
+    // Add event listeners to handle the dragging and ending of the drag
+    if (typeof window !== 'undefined') {
+      window.addEventListener('mousemove', handleDrag)
+      window.addEventListener('mouseup', handleDragEnd) // Ensures dragging ends on mouse up
+    }
+  }, [chatWidth])
+
+  // Safety mechanism to ensure drag state doesn't get stuck
+  React.useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDragging) {
+        console.log('🔒 Global mouseup detected - ensuring drag state is reset')
+        setIsDragging(false)
+        if (typeof window !== 'undefined' && window.document?.body) {
           window.document.body.style.userSelect = ''
+          window.document.body.style.cursor = ''
         }
       }
     }
-    
-    window.document.addEventListener('mousemove', handleMouseMove)
-    window.document.addEventListener('mouseup', handleMouseUp)
-    if (window.document.body) {
-      window.document.body.style.cursor = 'col-resize'
-      window.document.body.style.userSelect = 'none'
+
+    // Add global mouseup listener as backup
+    if (typeof window !== 'undefined' && window.document) {
+      window.document.addEventListener('mouseup', handleGlobalMouseUp)
+      
+      return () => {
+        if (window.document) {
+          window.document.removeEventListener('mouseup', handleGlobalMouseUp)
+        }
+      }
     }
-  }, [setChatWidth, setIsResizing])
+  }, [isDragging])
 
   // Text selection state
   const [selectedText, setSelectedText] = React.useState('')
@@ -308,6 +337,7 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
     }
   }, [])
 
+
   // Function to get signed URL for private bucket access
   const getSignedUrl = React.useCallback(async (url: string) => {
     console.log('🔐 Getting signed URL for:', url)
@@ -496,6 +526,11 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Client-side mounting check
+  React.useEffect(() => {
+    setIsClient(true)
+  }, [])
+
   // Handle text selection from PDF
   const handleTextSelectionChange = (text: string, pageNumber: number, selection: Selection | null) => {
     if (text.trim().length > 10) { // Only show modal for meaningful text selections
@@ -594,37 +629,6 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
            </div>
            
            <div className="flex items-center gap-3">
-             {/* Chat Width Presets */}
-             <div className="flex items-center gap-2">
-               <span className="text-xs text-gray-500">Chat:</span>
-               <div className="flex gap-1">
-                 <button
-                   onClick={() => setChatWidth(450)}
-                   className={`px-2 py-1 text-xs rounded transition-colors ${
-                     chatWidth <= 450 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
-                   }`}
-                 >
-                   Compact
-                 </button>
-                 <button
-                   onClick={() => setChatWidth(600)}
-                   className={`px-2 py-1 text-xs rounded transition-colors ${
-                     chatWidth > 450 && chatWidth <= 600 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
-                   }`}
-                 >
-                   Balanced
-                 </button>
-                 <button
-                   onClick={() => setChatWidth(800)}
-                   className={`px-2 py-1 text-xs rounded transition-colors ${
-                     chatWidth > 600 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
-                   }`}
-                 >
-                   Wide
-                 </button>
-               </div>
-             </div>
-             
              {/* Zoom Controls */}
              <div className="flex items-center gap-1 bg-gray-100 rounded-lg px-2 py-1">
                <button
@@ -721,40 +725,17 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
         
       </main>
 
-             {/* Resize Handle - User Friendly */}
-       <div 
-         className={`hidden xl:flex flex-col items-center justify-center w-6 transition-all duration-200 flex-shrink-0 relative z-10 group ${
-           isResizing 
-             ? 'bg-blue-100 border-l-2 border-r-2 border-blue-400' 
-             : 'bg-gray-50 border-l border-r border-gray-200 hover:bg-blue-50 hover:border-blue-300'
-         }`}
-         onMouseDown={handleMouseDown}
-         title="Drag to resize chat panel"
-         style={{ minHeight: '100vh' }}
-       >
-         {/* Visual grip indicator */}
-         <div className="flex flex-col space-y-1">
-           <div className={`w-1 h-4 rounded-full transition-colors ${
-             isResizing ? 'bg-blue-400' : 'bg-gray-300 group-hover:bg-blue-400'
-           }`} />
-           <div className={`w-1 h-4 rounded-full transition-colors ${
-             isResizing ? 'bg-blue-400' : 'bg-gray-300 group-hover:bg-blue-400'
-           }`} />
-           <div className={`w-1 h-4 rounded-full transition-colors ${
-             isResizing ? 'bg-blue-400' : 'bg-gray-300 group-hover:bg-blue-400'
-           }`} />
-         </div>
-         
-         {/* Help text on hover */}
-         <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-           <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap -mt-8">
-             Drag to resize
-           </div>
-         </div>
-         
-         {/* Cursor indicator */}
-         <div className="absolute inset-0 cursor-col-resize" />
-       </div>
+      {/* Simple Drag Handle - Client Side Only */}
+      {isClient && (
+        <div 
+          className="hidden xl:flex items-center justify-center w-2 bg-gray-200 hover:bg-blue-300 cursor-col-resize transition-colors"
+          onMouseDown={handleDragStart}
+          style={{ backgroundColor: isDragging ? '#3b82f6' : undefined }}
+          title="Drag to resize chat panel"
+        >
+          <div className="w-0.5 h-8 bg-gray-400 rounded-full" />
+        </div>
+      )}
        
        {/* Right Drawer - Desktop */}
        <aside 
