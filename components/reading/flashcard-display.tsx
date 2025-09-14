@@ -206,27 +206,27 @@ export function FlashcardDisplay({
                     <div className={`absolute inset-0 w-full h-full transition-all duration-700 ${
                       isFlipped ? 'opacity-0 rotate-y-180' : 'opacity-100 rotate-y-0'
                     }`}>
-                      <div className="w-full h-full bg-gradient-to-br from-blue-500 via-blue-600 to-purple-700 p-6 flex flex-col justify-center text-white">
-                        <div className="text-center">
-                          <div className="flex items-center justify-center gap-2 mb-4">
-                            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                              <BookOpen className="h-4 w-4" />
-                            </div>
-                            <Badge className="bg-white/20 text-white border-white/30">
-                              Question
-                            </Badge>
+                      <div className="w-full h-full bg-gradient-to-br from-blue-500 via-blue-600 to-purple-700 p-6 flex flex-col text-white">
+                        <div className="flex items-center justify-center gap-2 mb-4 flex-shrink-0">
+                          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                            <BookOpen className="h-4 w-4" />
                           </div>
-                          
-                          <div className="text-lg leading-relaxed mb-6">
+                          <Badge className="bg-white/20 text-white border-white/30">
+                            Question
+                          </Badge>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-white/10 scrollbar-thumb-white/30 hover:scrollbar-thumb-white/50">
+                          <div className="text-lg leading-relaxed text-center px-2">
                             <Markdown className="text-white [&>*]:text-white [&>strong]:text-blue-100">
                               {currentCard.front}
                             </Markdown>
                           </div>
-                          
-                          <div className="flex items-center justify-center gap-2 text-sm text-blue-100">
-                            <Eye className="h-4 w-4" />
-                            <span>Click to reveal answer</span>
-                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-center gap-2 text-sm text-blue-100 mt-4 flex-shrink-0">
+                          <Eye className="h-4 w-4" />
+                          <span>Click to reveal answer</span>
                         </div>
                       </div>
                     </div>
@@ -235,27 +235,27 @@ export function FlashcardDisplay({
                     <div className={`absolute inset-0 w-full h-full transition-all duration-700 ${
                       isFlipped ? 'opacity-100 rotate-y-0' : 'opacity-0 rotate-y-180'
                     }`}>
-                      <div className="w-full h-full bg-gradient-to-br from-green-500 via-green-600 to-emerald-700 p-6 flex flex-col justify-center text-white">
-                        <div className="text-center">
-                          <div className="flex items-center justify-center gap-2 mb-4">
-                            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                              <CheckCircle className="h-4 w-4" />
-                            </div>
-                            <Badge className="bg-white/20 text-white border-white/30">
-                              Answer
-                            </Badge>
+                      <div className="w-full h-full bg-gradient-to-br from-green-500 via-green-600 to-emerald-700 p-6 flex flex-col text-white">
+                        <div className="flex items-center justify-center gap-2 mb-4 flex-shrink-0">
+                          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                            <CheckCircle className="h-4 w-4" />
                           </div>
-                          
-                          <div className="text-lg leading-relaxed mb-6">
+                          <Badge className="bg-white/20 text-white border-white/30">
+                            Answer
+                          </Badge>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-white/10 scrollbar-thumb-white/30 hover:scrollbar-thumb-white/50">
+                          <div className="text-lg leading-relaxed text-center px-2">
                             <Markdown className="text-white [&>*]:text-white [&>strong]:text-green-100">
                               {currentCard.back}
                             </Markdown>
                           </div>
-                          
-                          <div className="flex items-center justify-center gap-2 text-sm text-green-100">
-                            <EyeOff className="h-4 w-4" />
-                            <span>Click to see question</span>
-                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-center gap-2 text-sm text-green-100 mt-4 flex-shrink-0">
+                          <EyeOff className="h-4 w-4" />
+                          <span>Click to see question</span>
                         </div>
                       </div>
                     </div>
