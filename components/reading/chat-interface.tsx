@@ -34,7 +34,7 @@ function Chip({ text, onClick, icon }: ChipProps) {
 }
 
 export function ChatInterface() {
-  const { messages, sendMessage, addMessage, isLoading, document } = useDocument();
+  const { messages, sendMessage, addMessage, isLoading, document, setMessages } = useDocument();
   const { chatWithContext, isLoading: isContextLoading } = useDocumentContext();
   const { summarizeDocument, isLoading: isSummarizing } = useDocumentSummarization();
   const [inputValue, setInputValue] = useState('');
@@ -59,12 +59,124 @@ export function ChatInterface() {
     return isValid;
   };
 
+  const handleChipClick = (chipText: string) => {
+    setInputValue(chipText);
+    // Auto-submit the chip text
+    setTimeout(() => {
+      handleSubmit(new Event('submit') as any);
+    }, 100);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || isLoading || isContextLoading || isSummarizing) return;
 
     const message = inputValue.trim();
     setInputValue('');
+    
+    // Check if this is a summarize action
+    if (message.toLowerCase().includes('summarize') && document) {
+      console.log('📄 Detected summarize action, triggering summarization...');
+      
+      // Add user message to chat
+      addMessage({ role: 'user', content: message });
+      
+      // Add loading message
+      addMessage({ 
+        role: 'assistant', 
+        content: 'Generating document summary... Please wait.' 
+      });
+      
+      try {
+        // Check if document has a valid UUID (database-stored document)
+        if (document.id && isValidUUID(document.id)) {
+          console.log('📄 Using database document summarization for:', document.id);
+          const result = await summarizeDocument(document.id, {
+            summaryType: 'comprehensive',
+            maxTokens: 2000,
+            model: 'gpt-5'
+          });
+
+          if (result) {
+            // Replace the loading message with the actual summary
+            setMessages(prev => {
+              const newMessages = [...prev];
+              const lastMessageIndex = newMessages.length - 1;
+              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
+                newMessages[lastMessageIndex] = {
+                  ...newMessages[lastMessageIndex],
+                  content: `**Document Summary**\n\n${result.summary}\n\n*Generated using ${result.metadata.model} • ${result.metadata.tokensUsed} tokens used*`
+                };
+              }
+              return newMessages;
+            });
+          } else {
+            // Replace loading message with error
+            setMessages(prev => {
+              const newMessages = [...prev];
+              const lastMessageIndex = newMessages.length - 1;
+              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
+                newMessages[lastMessageIndex] = {
+                  ...newMessages[lastMessageIndex],
+                  content: 'Sorry, I encountered an error while generating the summary. Please try again.'
+                };
+              }
+              return newMessages;
+            });
+          }
+        } else {
+          // Use the simple text-based summarization for sample documents
+          console.log('📄 Using text-based summarization for sample document');
+          const response = await fetch('/api/reading/summarize', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              text: document.text,
+              documentTitle: document.title
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.summary) {
+              // Replace the loading message with the actual summary
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const lastMessageIndex = newMessages.length - 1;
+                if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
+                  newMessages[lastMessageIndex] = {
+                    ...newMessages[lastMessageIndex],
+                    content: `**Document Summary**\n\n${data.summary}\n\n*Generated using ${data.model} • ${data.tokens_used} tokens used*`
+                  };
+                }
+                return newMessages;
+              });
+            } else {
+              throw new Error('Failed to generate summary');
+            }
+          } else {
+            throw new Error('Failed to generate summary');
+          }
+        }
+      } catch (error: any) {
+        console.error('❌ Summarization error:', error);
+        // Replace loading message with error
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMessageIndex = newMessages.length - 1;
+          if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
+            newMessages[lastMessageIndex] = {
+              ...newMessages[lastMessageIndex],
+              content: `Sorry, I encountered an error while generating the summary: ${error.message}. Please try again.`
+            };
+          }
+          return newMessages;
+        });
+      }
+      return;
+    }
     
     // Use context-aware chat only if document has a valid UUID, otherwise fallback to regular chat
     console.log('🔍 Chat Debug Info:', {
@@ -108,39 +220,6 @@ export function ChatInterface() {
     }
   };
 
-  const handleChipClick = async (chipText: string) => {
-    // Handle special actions
-    if (chipText === "summarize") {
-      await handleSummarizeDocument();
-      return;
-    }
-
-    if (document?.id && isValidUUID(document.id)) {
-      try {
-        // Add user message first
-        addMessage({ role: 'user', content: chipText });
-        
-        const response = await chatWithContext(chipText, document.id, messages);
-        if (response) {
-          addMessage({ role: 'assistant', content: response });
-        } else {
-          addMessage({ 
-            role: 'assistant', 
-            content: 'Sorry, I encountered an issue processing your request. Please try again.'
-          });
-        }
-      } catch (error) {
-        console.error('❌ Context chat failed:', error);
-        addMessage({ 
-          role: 'assistant', 
-          content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`
-        });
-      }
-    } else {
-      console.log('❌ Document ID is not a valid UUID, using regular chat for chip click:', document?.id);
-      await sendMessage(chipText);
-    }
-  };
 
   const handleSummarizeDocument = async () => {
     if (!document?.id || !isValidUUID(document.id) || isSummarizing) return;
@@ -253,10 +332,26 @@ export function ChatInterface() {
             key={index}
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-6`}
           >
-            <ChatMessage 
-              content={message.content}
-              role={message.role}
-            />
+            <div className="max-w-[95%]">
+              <ChatMessage 
+                content={message.content}
+                role={message.role}
+              />
+              {message.chips && message.chips.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {message.chips.map((chip, chipIndex) => (
+                    <Chip
+                      key={chipIndex}
+                      text={chip}
+                      onClick={() => handleChipClick(chip)}
+                      icon={chip.toLowerCase().includes('summarize') ? <Sparkles className="h-3 w-3" /> : 
+                            chip.toLowerCase().includes('flashcard') ? <BookOpen className="h-3 w-3" /> : 
+                            <FileText className="h-3 w-3" />}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         ))}
 
