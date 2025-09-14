@@ -184,14 +184,23 @@ export async function POST(req: NextRequest) {
             
             // Extract text from webhook response
             // The webhook response structure may vary, so we'll handle different possible formats
-            if (webhookResult.data.text) {
-              serverExtractedText = webhookResult.data.text;
-            } else if (webhookResult.data.content) {
-              serverExtractedText = webhookResult.data.content;
-            } else if (webhookResult.data.extractedText) {
-              serverExtractedText = webhookResult.data.extractedText;
-            } else if (typeof webhookResult.data === 'string') {
-              serverExtractedText = webhookResult.data;
+            let responseData = webhookResult.data;
+            
+            // Handle array response (n8n returns array format)
+            if (Array.isArray(responseData) && responseData.length > 0) {
+              responseData = responseData[0]; // Take the first item from the array
+            }
+            
+            if (responseData.text) {
+              serverExtractedText = responseData.text;
+            } else if (responseData.content) {
+              serverExtractedText = responseData.content;
+            } else if (responseData.extractedText) {
+              serverExtractedText = responseData.extractedText;
+            } else if (responseData.extracted_text) {
+              serverExtractedText = responseData.extracted_text;
+            } else if (typeof responseData === 'string') {
+              serverExtractedText = responseData;
             } else {
               // If no text found in response, create a placeholder
               serverExtractedText = `PDF Document Analysis
@@ -202,10 +211,10 @@ Note: The document has been processed through our webhook system and is availabl
             }
             
             // Extract page count if available
-            if (webhookResult.data.pages) {
-              serverPageCount = webhookResult.data.pages;
-            } else if (webhookResult.data.pageCount) {
-              serverPageCount = webhookResult.data.pageCount;
+            if (responseData.pages) {
+              serverPageCount = responseData.pages;
+            } else if (responseData.pageCount) {
+              serverPageCount = responseData.pageCount;
             } else {
               // Estimate pages based on text length
               serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000));
