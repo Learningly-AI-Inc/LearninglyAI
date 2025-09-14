@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@adobe/pdfservices-node-sdk": "^4.1.0",
+    "@dagrejs/dagre": "^1.1.5",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "^1.1.2",
@@ -86,6 +87,7 @@
     "react-pdf": "^10.1.0",
     "react-resizable-panels": "^2.1.7",
     "reactbits-dev-mcp-server": "^1.1.2",
+    "reactflow": "^11.11.4",
     "recharts": "^2.12.7",
     "rehype-highlight": "^7.0.2",
     "rehype-katex": "^7.0.1",

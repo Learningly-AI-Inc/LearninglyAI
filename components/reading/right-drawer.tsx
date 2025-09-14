@@ -7,15 +7,19 @@ import {
   Sparkles, 
   FileText,
   BookOpen,
-  Loader2
+  Loader2,
+  Brain
 } from "lucide-react"
 import { ChatInterface } from "./chat-interface"
 import { useDocument } from "./document-context"
 import { useDocumentSummarization } from "@/hooks/use-document-summarization"
 import { useFlashcards } from "@/hooks/use-flashcards"
+import { useMindmap } from "@/hooks/use-mindmap"
 import { Markdown } from "@/components/ui/markdown"
 import { FlashcardDisplay } from "./flashcard-display"
 import { FlashcardSettingsModal } from "./flashcard-settings-modal"
+import { EnhancedMindmapDisplay } from "./enhanced-mindmap-display"
+import { MindmapSettingsModal } from "./mindmap-settings-modal"
 
 interface RightDrawerProps {
   isOpen: boolean
@@ -32,10 +36,16 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
   const [flashcardMetadata, setFlashcardMetadata] = React.useState<any>(null)
   const [flashcardError, setFlashcardError] = React.useState<string | null>(null)
   const [showFlashcardSettings, setShowFlashcardSettings] = React.useState(false)
+  const [mindmapNodes, setMindmapNodes] = React.useState<any[]>([])
+  const [mindmapEdges, setMindmapEdges] = React.useState<any[]>([])
+  const [mindmapMetadata, setMindmapMetadata] = React.useState<any>(null)
+  const [mindmapError, setMindmapError] = React.useState<string | null>(null)
+  const [showMindmapSettings, setShowMindmapSettings] = React.useState(false)
   
   const { document: contextDocument } = useDocument()
   const { summarizeDocument, isLoading: isSummarizing, error: summarizationError } = useDocumentSummarization()
   const { generateFlashcards, isLoading: isGeneratingFlashcards, error: flashcardGenerationError } = useFlashcards()
+  const { generateMindmap, isLoading: isGeneratingMindmap, error: mindmapGenerationError } = useMindmap()
   
   // Use context document if available, otherwise fallback to prop
   const currentDocument = contextDocument || document
@@ -50,6 +60,11 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
       id: "flashcards", 
       label: "Flashcards",
       icon: <Sparkles className="h-4 w-4" />
+    },
+    {
+      id: "mindmap",
+      label: "Mindmap",
+      icon: <Brain className="h-4 w-4" />
     },
     {
       id: "summary",
@@ -164,6 +179,53 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
 
   const handleShowSettings = () => {
     setShowFlashcardSettings(true)
+  }
+
+  const handleGenerateMindmap = async (settings?: any) => {
+    if (!currentDocument?.id) {
+      setMindmapError("No document available for mindmap generation")
+      return
+    }
+
+    setMindmapError(null)
+    setMindmapNodes([])
+    setMindmapEdges([])
+    setMindmapMetadata(null)
+    setShowMindmapSettings(false)
+
+    try {
+      // Check if document has a valid UUID (database-stored document)
+      const isValidUUID = (str: string): boolean => {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(str);
+      };
+
+      if (currentDocument.id && isValidUUID(currentDocument.id)) {
+        console.log('🧠 Using database document mindmap generation for:', currentDocument.id);
+        const result = await generateMindmap(currentDocument.id, settings || {
+          style: 'hierarchical',
+          complexity: 'medium'
+        });
+
+        if (result) {
+          setMindmapNodes(result.mindmap.nodes)
+          setMindmapEdges(result.mindmap.edges)
+          setMindmapMetadata(result.metadata)
+        } else {
+          setMindmapError("Failed to generate mindmap")
+        }
+      } else {
+        // For sample documents, show error
+        setMindmapError("Mindmap generation requires a properly uploaded document")
+      }
+    } catch (error: any) {
+      console.error('❌ Mindmap generation error:', error);
+      setMindmapError(error.message || "Failed to generate mindmap")
+    }
+  }
+
+  const handleShowMindmapSettings = () => {
+    setShowMindmapSettings(true)
   }
 
   const quickActions = [
@@ -319,6 +381,92 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                )}
              </div>
           )}
+
+                     {activeTab === "mindmap" && (
+             <div className="h-full flex flex-col">
+               {!currentDocument ? (
+                 <div className="h-full flex items-center justify-center">
+                   <div className="text-center">
+                     <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <Brain className="h-6 w-6 text-purple-600" />
+                     </div>
+                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                       Mindmap
+                     </h3>
+                     <p className="text-xs text-gray-600 mb-4">
+                       Interactive knowledge visualization will appear here based on your document content.
+                     </p>
+                     <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                       <FileText className="h-5 w-5 text-purple-600" />
+                     </div>
+                   </div>
+                 </div>
+               ) : mindmapNodes.length > 0 ? (
+                 <EnhancedMindmapDisplay
+                   nodes={mindmapNodes}
+                   edges={mindmapEdges}
+                   metadata={mindmapMetadata}
+                   onRegenerate={handleShowMindmapSettings}
+                   isRegenerating={isGeneratingMindmap}
+                 />
+               ) : mindmapError ? (
+                 <div className="h-full flex items-center justify-center">
+                   <div className="text-center">
+                     <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <Brain className="h-6 w-6 text-red-600" />
+                     </div>
+                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                       Mindmap Error
+                     </h3>
+                     <p className="text-xs text-red-600 mb-4">
+                       {mindmapError}
+                     </p>
+                     <button
+                       onClick={handleShowMindmapSettings}
+                       disabled={isGeneratingMindmap}
+                       className="px-3 py-2 rounded-full text-xs bg-purple-600 text-white hover:bg-purple-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
+                     >
+                       {isGeneratingMindmap ? (
+                         <Loader2 className="h-3 w-3 animate-spin" />
+                       ) : (
+                         <Brain className="h-3 w-3" />
+                       )}
+                       {isGeneratingMindmap ? "Generating..." : "Try Again"}
+                     </button>
+                   </div>
+                 </div>
+               ) : (
+                 <div className="h-full flex items-center justify-center">
+                   <div className="text-center">
+                     <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <Brain className="h-6 w-6 text-purple-600" />
+                     </div>
+                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                       Ready to create mindmap!
+                     </h3>
+                     <p className="text-xs text-gray-600 mb-4">
+                       Generate an interactive knowledge visualization from your document content.
+                     </p>
+                     <button
+                       onClick={handleShowMindmapSettings}
+                       disabled={isGeneratingMindmap}
+                       className="px-3 py-2 rounded-full text-xs bg-purple-600 text-white hover:bg-purple-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
+                     >
+                       {isGeneratingMindmap ? (
+                         <Loader2 className="h-3 w-3 animate-spin" />
+                       ) : (
+                         <Brain className="h-3 w-3" />
+                       )}
+                       {isGeneratingMindmap ? "Generating..." : "Create mindmap"}
+                     </button>
+                     <div className="text-xs text-gray-500 mt-2">
+                       Click the button above to generate a mindmap from &ldquo;{currentDocument.title}&rdquo;
+                     </div>
+                   </div>
+                 </div>
+               )}
+             </div>
+          )}
           
                      {activeTab === "summary" && (
              <div className="h-full flex flex-col">
@@ -431,6 +579,15 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
         onClose={() => setShowFlashcardSettings(false)}
         onGenerate={handleGenerateFlashcards}
         isGenerating={isGeneratingFlashcards}
+        documentTitle={currentDocument?.title}
+      />
+
+      {/* Mindmap Settings Modal */}
+      <MindmapSettingsModal
+        isOpen={showMindmapSettings}
+        onClose={() => setShowMindmapSettings(false)}
+        onGenerate={handleGenerateMindmap}
+        isGenerating={isGeneratingMindmap}
         documentTitle={currentDocument?.title}
       />
     </div>
