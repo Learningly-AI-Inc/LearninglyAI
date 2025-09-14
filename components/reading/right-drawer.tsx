@@ -15,6 +15,7 @@ import { useDocumentSummarization } from "@/hooks/use-document-summarization"
 import { useFlashcards } from "@/hooks/use-flashcards"
 import { Markdown } from "@/components/ui/markdown"
 import { FlashcardDisplay } from "./flashcard-display"
+import { FlashcardSettingsModal } from "./flashcard-settings-modal"
 
 interface RightDrawerProps {
   isOpen: boolean
@@ -30,6 +31,7 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
   const [flashcards, setFlashcards] = React.useState<any[]>([])
   const [flashcardMetadata, setFlashcardMetadata] = React.useState<any>(null)
   const [flashcardError, setFlashcardError] = React.useState<string | null>(null)
+  const [showFlashcardSettings, setShowFlashcardSettings] = React.useState(false)
   
   const { document: contextDocument } = useDocument()
   const { summarizeDocument, isLoading: isSummarizing, error: summarizationError } = useDocumentSummarization()
@@ -118,7 +120,7 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
     }
   }
 
-  const handleGenerateFlashcards = async () => {
+  const handleGenerateFlashcards = async (settings?: any) => {
     if (!currentDocument?.id) {
       setFlashcardError("No document available for flashcard generation")
       return
@@ -127,6 +129,7 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
     setFlashcardError(null)
     setFlashcards([])
     setFlashcardMetadata(null)
+    setShowFlashcardSettings(false)
 
     try {
       // Check if document has a valid UUID (database-stored document)
@@ -137,7 +140,7 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
 
       if (currentDocument.id && isValidUUID(currentDocument.id)) {
         console.log('🃏 Using database document flashcard generation for:', currentDocument.id);
-        const result = await generateFlashcards(currentDocument.id, {
+        const result = await generateFlashcards(currentDocument.id, settings || {
           count: 8,
           difficulty: 'medium',
           focus: 'comprehensive'
@@ -157,6 +160,10 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
       console.error('❌ Flashcard generation error:', error);
       setFlashcardError(error.message || "Failed to generate flashcards")
     }
+  }
+
+  const handleShowSettings = () => {
+    setShowFlashcardSettings(true)
   }
 
   const quickActions = [
@@ -267,7 +274,7 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                        {flashcardError}
                      </p>
                      <button
-                       onClick={handleGenerateFlashcards}
+                       onClick={handleShowSettings}
                        disabled={isGeneratingFlashcards}
                        className="px-3 py-2 rounded-full text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
                      >
@@ -293,7 +300,7 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                        Generate AI-powered flashcards from your document content.
                      </p>
                      <button
-                       onClick={handleGenerateFlashcards}
+                       onClick={handleShowSettings}
                        disabled={isGeneratingFlashcards}
                        className="px-3 py-2 rounded-full text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
                      >
@@ -417,6 +424,15 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
           )}
         </div>
       </div>
+
+      {/* Flashcard Settings Modal */}
+      <FlashcardSettingsModal
+        isOpen={showFlashcardSettings}
+        onClose={() => setShowFlashcardSettings(false)}
+        onGenerate={handleGenerateFlashcards}
+        isGenerating={isGeneratingFlashcards}
+        documentTitle={currentDocument?.title}
+      />
     </div>
   )
 }
