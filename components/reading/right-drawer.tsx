@@ -12,6 +12,9 @@ import {
 import { ChatInterface } from "./chat-interface"
 import { useDocument } from "./document-context"
 import { useDocumentSummarization } from "@/hooks/use-document-summarization"
+import { useFlashcards } from "@/hooks/use-flashcards"
+import { Markdown } from "@/components/ui/markdown"
+import { FlashcardDisplay } from "./flashcard-display"
 
 interface RightDrawerProps {
   isOpen: boolean
@@ -24,9 +27,13 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
   const [activeTab, setActiveTab] = React.useState("chat")
   const [summary, setSummary] = React.useState<string | null>(null)
   const [summaryError, setSummaryError] = React.useState<string | null>(null)
+  const [flashcards, setFlashcards] = React.useState<any[]>([])
+  const [flashcardMetadata, setFlashcardMetadata] = React.useState<any>(null)
+  const [flashcardError, setFlashcardError] = React.useState<string | null>(null)
   
   const { document: contextDocument } = useDocument()
   const { summarizeDocument, isLoading: isSummarizing, error: summarizationError } = useDocumentSummarization()
+  const { generateFlashcards, isLoading: isGeneratingFlashcards, error: flashcardGenerationError } = useFlashcards()
   
   // Use context document if available, otherwise fallback to prop
   const currentDocument = contextDocument || document
@@ -111,6 +118,47 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
     }
   }
 
+  const handleGenerateFlashcards = async () => {
+    if (!currentDocument?.id) {
+      setFlashcardError("No document available for flashcard generation")
+      return
+    }
+
+    setFlashcardError(null)
+    setFlashcards([])
+    setFlashcardMetadata(null)
+
+    try {
+      // Check if document has a valid UUID (database-stored document)
+      const isValidUUID = (str: string): boolean => {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(str);
+      };
+
+      if (currentDocument.id && isValidUUID(currentDocument.id)) {
+        console.log('🃏 Using database document flashcard generation for:', currentDocument.id);
+        const result = await generateFlashcards(currentDocument.id, {
+          count: 8,
+          difficulty: 'medium',
+          focus: 'comprehensive'
+        });
+
+        if (result) {
+          setFlashcards(result.flashcards)
+          setFlashcardMetadata(result.metadata)
+        } else {
+          setFlashcardError("Failed to generate flashcards")
+        }
+      } else {
+        // For sample documents, we could create a fallback or show an error
+        setFlashcardError("Flashcard generation requires a properly uploaded document")
+      }
+    } catch (error: any) {
+      console.error('❌ Flashcard generation error:', error);
+      setFlashcardError(error.message || "Failed to generate flashcards")
+    }
+  }
+
   const quickActions = [
     {
       text: "Summarize this document",
@@ -181,44 +229,88 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
           )}
           
                      {activeTab === "flashcards" && (
-             <div className="h-full flex items-center justify-center">
-               <div className="text-center">
-                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                   <Sparkles className="h-6 w-6 text-blue-600" />
-                 </div>
-                 <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                   {currentDocument ? "Ready to create flashcards!" : "Flashcards"}
-                 </h3>
-                 <p className="text-xs text-gray-600 mb-4">
-                   {currentDocument ? 
-                     "Generate AI-powered flashcards from your document content." :
-                     "AI-generated flashcards will appear here based on your document content."
-                   }
-                 </p>
-                                 {currentDocument ? (
-                   <div className="space-y-3">
-                     <div className="flex flex-wrap justify-center gap-1.5">
-                       {quickActions.slice(3, 4).map((action, index) => (
-                         <button
-                           key={index}
-                           className="px-3 py-2 rounded-full text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1 font-medium"
-                         >
-                           {action.icon}
-                           {action.text}
-                         </button>
-                       ))}
+             <div className="h-full flex flex-col">
+               {!currentDocument ? (
+                 <div className="h-full flex items-center justify-center">
+                   <div className="text-center">
+                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <Sparkles className="h-6 w-6 text-blue-600" />
                      </div>
-                     <div className="text-xs text-gray-500">
+                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                       Flashcards
+                     </h3>
+                     <p className="text-xs text-gray-600 mb-4">
+                       AI-generated flashcards will appear here based on your document content.
+                     </p>
+                     <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                       <FileText className="h-5 w-5 text-blue-600" />
+                     </div>
+                   </div>
+                 </div>
+               ) : flashcards.length > 0 ? (
+                 <FlashcardDisplay
+                   flashcards={flashcards}
+                   metadata={flashcardMetadata}
+                   onRegenerate={handleGenerateFlashcards}
+                   isRegenerating={isGeneratingFlashcards}
+                 />
+               ) : flashcardError ? (
+                 <div className="h-full flex items-center justify-center">
+                   <div className="text-center">
+                     <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <Sparkles className="h-6 w-6 text-red-600" />
+                     </div>
+                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                       Flashcard Error
+                     </h3>
+                     <p className="text-xs text-red-600 mb-4">
+                       {flashcardError}
+                     </p>
+                     <button
+                       onClick={handleGenerateFlashcards}
+                       disabled={isGeneratingFlashcards}
+                       className="px-3 py-2 rounded-full text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
+                     >
+                       {isGeneratingFlashcards ? (
+                         <Loader2 className="h-3 w-3 animate-spin" />
+                       ) : (
+                         <Sparkles className="h-3 w-3" />
+                       )}
+                       {isGeneratingFlashcards ? "Generating..." : "Try Again"}
+                     </button>
+                   </div>
+                 </div>
+               ) : (
+                 <div className="h-full flex items-center justify-center">
+                   <div className="text-center">
+                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <Sparkles className="h-6 w-6 text-blue-600" />
+                     </div>
+                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                       Ready to create flashcards!
+                     </h3>
+                     <p className="text-xs text-gray-600 mb-4">
+                       Generate AI-powered flashcards from your document content.
+                     </p>
+                     <button
+                       onClick={handleGenerateFlashcards}
+                       disabled={isGeneratingFlashcards}
+                       className="px-3 py-2 rounded-full text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
+                     >
+                       {isGeneratingFlashcards ? (
+                         <Loader2 className="h-3 w-3 animate-spin" />
+                       ) : (
+                         <Sparkles className="h-3 w-3" />
+                       )}
+                       {isGeneratingFlashcards ? "Generating..." : "Create flashcards"}
+                     </button>
+                     <div className="text-xs text-gray-500 mt-2">
                        Click the button above to generate flashcards from &ldquo;{currentDocument.title}&rdquo;
                      </div>
                    </div>
-                 ) : (
-                   <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                     <FileText className="h-5 w-5 text-blue-600" />
-                   </div>
-                 )}
-              </div>
-            </div>
+                 </div>
+               )}
+             </div>
           )}
           
                      {activeTab === "summary" && (
@@ -259,11 +351,9 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                        {isSummarizing ? "Generating..." : "Regenerate"}
                      </button>
                    </div>
-                   <div className="flex-1 overflow-y-auto p-3">
-                     <div className="prose prose-sm max-w-none">
-                       <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
-                         {summary}
-                       </div>
+                   <div className="flex-1 overflow-y-auto p-4">
+                     <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-strong:text-gray-900 prose-strong:font-semibold prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:text-gray-700">
+                       <Markdown>{summary}</Markdown>
                      </div>
                    </div>
                  </div>

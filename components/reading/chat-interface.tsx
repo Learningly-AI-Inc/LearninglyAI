@@ -7,9 +7,11 @@ import { Input } from '@/components/ui/input';
 import { useDocument } from './document-context';
 import { useDocumentContext } from '@/hooks/use-document-context';
 import { useDocumentSummarization } from '@/hooks/use-document-summarization';
+import { useFlashcards } from '@/hooks/use-flashcards';
 import { FadeContent } from '@/components/react-bits/fade-content';
 import { ClickSpark } from '@/components/react-bits/click-spark';
 import { ChatMessage } from '@/components/ui/chat-message';
+import { Markdown } from '@/components/ui/markdown';
 
 interface ChipProps {
   text: string;
@@ -37,6 +39,7 @@ export function ChatInterface() {
   const { messages, sendMessage, addMessage, isLoading, document, setMessages } = useDocument();
   const { chatWithContext, isLoading: isContextLoading } = useDocumentContext();
   const { summarizeDocument, isLoading: isSummarizing } = useDocumentSummarization();
+  const { generateFlashcards, isLoading: isGeneratingFlashcards } = useFlashcards();
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -69,7 +72,7 @@ export function ChatInterface() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || isLoading || isContextLoading || isSummarizing) return;
+    if (!inputValue.trim() || isLoading || isContextLoading || isSummarizing || isGeneratingFlashcards) return;
 
     const message = inputValue.trim();
     setInputValue('');
@@ -170,6 +173,90 @@ export function ChatInterface() {
             newMessages[lastMessageIndex] = {
               ...newMessages[lastMessageIndex],
               content: `Sorry, I encountered an error while generating the summary: ${error.message}. Please try again.`
+            };
+          }
+          return newMessages;
+        });
+      }
+      return;
+    }
+
+    // Check if this is a flashcard action
+    if ((message.toLowerCase().includes('flashcard') || message.toLowerCase().includes('flash card')) && document) {
+      console.log('🃏 Detected flashcard action, triggering flashcard generation...');
+      
+      // Add user message to chat
+      addMessage({ role: 'user', content: message });
+      
+      // Add loading message
+      addMessage({ 
+        role: 'assistant', 
+        content: 'Generating flashcards... Please wait.' 
+      });
+      
+      try {
+        // Check if document has a valid UUID (database-stored document)
+        if (document.id && isValidUUID(document.id)) {
+          console.log('🃏 Using database document flashcard generation for:', document.id);
+          const result = await generateFlashcards(document.id, {
+            count: 8,
+            difficulty: 'medium',
+            focus: 'comprehensive'
+          });
+
+          if (result) {
+            // Replace the loading message with the flashcard results
+            setMessages(prev => {
+              const newMessages = [...prev];
+              const lastMessageIndex = newMessages.length - 1;
+              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
+                newMessages[lastMessageIndex] = {
+                  ...newMessages[lastMessageIndex],
+                  content: `**Flashcards Generated!**\n\nI've created ${result.flashcards.length} flashcards from your document "${result.metadata.title}".\n\n**Sample Cards:**\n\n${result.flashcards.slice(0, 3).map((card, index) => 
+                    `**Card ${index + 1}:**\n**Q:** ${card.front}\n**A:** ${card.back}\n`
+                  ).join('\n')}\n\n*Generated using ${result.metadata.model} • ${result.metadata.tokensUsed} tokens used*\n\nYou can view and study all flashcards in the Flashcards tab!`
+                };
+              }
+              return newMessages;
+            });
+          } else {
+            // Replace loading message with error
+            setMessages(prev => {
+              const newMessages = [...prev];
+              const lastMessageIndex = newMessages.length - 1;
+              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
+                newMessages[lastMessageIndex] = {
+                  ...newMessages[lastMessageIndex],
+                  content: 'Sorry, I encountered an error while generating flashcards. Please try again.'
+                };
+              }
+              return newMessages;
+            });
+          }
+        } else {
+          // For sample documents, show error
+          setMessages(prev => {
+            const newMessages = [...prev];
+            const lastMessageIndex = newMessages.length - 1;
+            if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
+              newMessages[lastMessageIndex] = {
+                ...newMessages[lastMessageIndex],
+                content: 'Flashcard generation requires a properly uploaded document. Please upload your document first.'
+              };
+            }
+            return newMessages;
+          });
+        }
+      } catch (error: any) {
+        console.error('❌ Flashcard generation error:', error);
+        // Replace loading message with error
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMessageIndex = newMessages.length - 1;
+          if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
+            newMessages[lastMessageIndex] = {
+              ...newMessages[lastMessageIndex],
+              content: `Sorry, I encountered an error while generating flashcards: ${error.message}. Please try again.`
             };
           }
           return newMessages;
@@ -355,7 +442,7 @@ export function ChatInterface() {
           </div>
         ))}
 
-        {(isLoading || isContextLoading || isSummarizing) && (
+        {(isLoading || isContextLoading || isSummarizing || isGeneratingFlashcards) && (
           <div className="flex justify-start mb-6">
             <div className="max-w-[95%] rounded-2xl px-4 py-3 bg-white border border-gray-200 shadow-sm">
               <div className="flex items-center space-x-3">
@@ -365,7 +452,8 @@ export function ChatInterface() {
                 <div className="flex items-center space-x-2">
                   <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                   <span className="text-sm text-gray-600 font-medium">
-                    {isSummarizing ? 'Summarizing with GPT-5...' : 'Thinking...'}
+                    {isSummarizing ? 'Summarizing with GPT-5...' : 
+                     isGeneratingFlashcards ? 'Generating flashcards...' : 'Thinking...'}
                   </span>
                 </div>
               </div>
@@ -389,7 +477,7 @@ export function ChatInterface() {
           />
           <Button
             type="submit"
-            disabled={!inputValue.trim() || isLoading || isContextLoading || isSummarizing || !document}
+            disabled={!inputValue.trim() || isLoading || isContextLoading || isSummarizing || isGeneratingFlashcards || !document}
             size="sm"
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl shadow-sm hover:shadow-md transition-all duration-200"
           >
