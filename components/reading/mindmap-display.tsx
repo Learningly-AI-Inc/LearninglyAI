@@ -11,7 +11,8 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
   getBezierPath,
-  BackgroundVariant
+  BackgroundVariant,
+  ConnectionMode
 } from "reactflow";
 import dagre from "@dagrejs/dagre";
 import "reactflow/dist/style.css";
@@ -26,10 +27,14 @@ import {
   Plus,
   Minus,
   Maximize,
-  X
+  X,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { ClickSpark } from '@/components/react-bits/click-spark';
 import { FadeContent } from '@/components/react-bits/fade-content';
 

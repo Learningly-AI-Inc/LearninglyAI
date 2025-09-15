@@ -11,7 +11,10 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
   getBezierPath,
-  BackgroundVariant
+  BackgroundVariant,
+  Node,
+  Edge,
+  ConnectionLineType
 } from "reactflow";
 import dagre from "@dagrejs/dagre";
 import "reactflow/dist/style.css";
@@ -52,7 +55,7 @@ const randId = () => Math.random().toString(36).slice(2, 9);
 const pickPalette = () => BRANCH_PALETTES[Math.floor(Math.random() * BRANCH_PALETTES.length)];
 
 // Layout helper using dagre
-function layout(nodes = [], edges = [], direction = "LR") {
+function layout(nodes: Node[] = [], edges: Edge[] = [], direction = "LR") {
   const safeNodes = Array.isArray(nodes) ? nodes : [];
   const safeEdges = Array.isArray(edges) ? edges : [];
   const g = new dagre.graphlib.Graph();
@@ -73,12 +76,12 @@ function layout(nodes = [], edges = [], direction = "LR") {
 }
 
 // Visibility helper for collapsible tree
-function computeVisibility(nodes = [], edges = [], collapsedIds = new Set()) {
+function computeVisibility(nodes: Node[] = [], edges: Edge[] = [], collapsedIds: Set<string> | string[] = new Set()) {
   const safeNodes = Array.isArray(nodes) ? nodes : [];
   const safeEdges = Array.isArray(edges) ? edges : [];
   const collapsed = collapsedIds instanceof Set ? collapsedIds : new Set(collapsedIds || []);
 
-  const childrenMap = safeEdges.reduce((acc, e) => {
+  const childrenMap = safeEdges.reduce((acc: Record<string, string[]>, e) => {
     (acc[e.source] ||= []).push(e.target);
     return acc;
   }, {});
@@ -87,12 +90,14 @@ function computeVisibility(nodes = [], edges = [], collapsedIds = new Set()) {
   const stack = [...collapsed];
   while (stack.length) {
     const cur = stack.pop();
-    (childrenMap[cur] || []).forEach((ch) => {
-      if (!hidden.has(ch)) {
-        hidden.add(ch);
-        stack.push(ch);
-      }
-    });
+    if (cur) {
+      (childrenMap[cur] || []).forEach((ch) => {
+        if (!hidden.has(ch)) {
+          hidden.add(ch);
+          stack.push(ch);
+        }
+      });
+    }
   }
 
   const nextNodes = safeNodes.map((n) => ({ ...n, hidden: hidden.has(n.id) }));
@@ -103,10 +108,10 @@ function computeVisibility(nodes = [], edges = [], collapsedIds = new Set()) {
   return { nodes: nextNodes, edges: nextEdges };
 }
 
-function diffHidden(currentNodes, targetNodes) {
+function diffHidden(currentNodes: Node[], targetNodes: Node[]) {
   const cur = new Map(currentNodes.map((n) => [n.id, !!n.hidden]));
   const tgt = new Map(targetNodes.map((n) => [n.id, !!n.hidden]));
-  const toHide = [], toShow = [];
+  const toHide: string[] = [], toShow: string[] = [];
   for (const n of targetNodes) {
     const c = cur.get(n.id) || false;
     const t = tgt.get(n.id) || false;
@@ -116,16 +121,27 @@ function diffHidden(currentNodes, targetNodes) {
 }
 
 // Edge gradient helpers
-function hexToRgb(hex) {
+function hexToRgb(hex: string) {
   let h = (hex || "#94A3B8").replace('#','');
   if (h.length === 3) h = h.split('').map((c) => c + c).join('');
   const num = parseInt(h, 16);
   return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
 }
-function rgba(hex, a) { const { r, g, b } = hexToRgb(hex); return `rgba(${r}, ${g}, ${b}, ${a})`; }
+function rgba(hex: string, a: number) { const { r, g, b } = hexToRgb(hex); return `rgba(${r}, ${g}, ${b}, ${a})`; }
 
 // Enhanced Edge Component
-function MindEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }) {
+interface MindEdgeProps {
+  id: string;
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
+  sourcePosition: Position;
+  targetPosition: Position;
+  data?: any;
+}
+
+function MindEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: MindEdgeProps) {
   const [edgePath] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
   const fading = data?.fade;
   const opacity = fading === "out" || fading === "pre-in" ? 0 : 1;
@@ -146,12 +162,18 @@ function MindEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
 }
 
 // Enhanced Node Component
-function MindNode({ id, data, selected }) {
-  const [editing, setEditing] = useState(false);
-  const inputRef = useRef(null);
+interface MindNodeProps {
+  id: string;
+  data?: any;
+  selected: boolean;
+}
 
-  const stop = (e) => e.stopPropagation();
-  const onKeyDown = (e) => { if (e.key === "Enter") { e.preventDefault(); inputRef.current?.blur(); } };
+function MindNode({ id, data, selected }: MindNodeProps) {
+  const [editing, setEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+  const onKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Enter") { e.preventDefault(); inputRef.current?.blur(); } };
 
   const isRoot = data?.level === 0 || data?.category === 'central';
   const fading = data?.fade;
@@ -312,7 +334,7 @@ export function EnhancedMindmapDisplay({
   const getEdgesNow = useCallback(() => edgesRef.current || [], []);
 
   // Animate visibility changes
-  const applyVisibility = useCallback((nextCollapsed, baseNodes = getNodesNow(), baseEdges = getEdgesNow()) => {
+  const applyVisibility = useCallback((nextCollapsed: Set<string> | string[], baseNodes = getNodesNow(), baseEdges = getEdgesNow()) => {
     const target = computeVisibility(baseNodes, baseEdges, nextCollapsed);
     const { toHide, toShow } = diffHidden(getNodesNow(), target.nodes);
 
@@ -354,21 +376,21 @@ export function EnhancedMindmapDisplay({
       const edgeHidden = new Map(target.edges.map((e) => [e.id, !!e.hidden]));
       setNodes((cur) => cur.map((n) => { const d = { ...(n.data || {}) }; delete d.fade; return { ...n, hidden: targetHidden.get(n.id) || false, data: d }; }));
       setEdges((cur) => cur.map((e) => { const d = { ...(e.data || {}) }; delete d.fade; return { ...e, hidden: edgeHidden.get(e.id) || false, data: d }; }));
-      setCollapsed(nextCollapsed);
+      setCollapsed(nextCollapsed instanceof Set ? nextCollapsed : new Set(nextCollapsed));
     }, FADE_MS + 30);
   }, [getNodesNow, getEdgesNow]);
 
   // Enrich node data with UI callbacks
-  const withUIData = useCallback((nds) => nds.map((n) => ({
+  const withUIData = useCallback((nds: Node[]) => nds.map((n) => ({
     ...n,
     data: {
       ...n.data,
-      isCollapsed: collapsed.has(n.id),
-      onRename: (id, label) => setNodes((z) => z.map((m) => (m.id === id ? { ...m, data: { ...m.data, label } } : m))),
-      onToggle: (id) => {
+      isCollapsed: collapsed?.has(n.id) || false,
+      onRename: (id: string, label: string) => setNodes((z) => z.map((m) => (m.id === id ? { ...m, data: { ...m.data, label } } : m))),
+      onToggle: (id: string) => {
         const rootNode = nds.find(node => node.data.level === 0 || node.data.category === 'central');
         if (id === rootNode?.id) return; // don't collapse root
-        const next = new Set(collapsed);
+        const next = new Set(collapsed || []);
         if (next.has(id)) next.delete(id); else next.add(id);
         applyVisibility(next);
       },
@@ -389,7 +411,7 @@ export function EnhancedMindmapDisplay({
     // Find nodes that are one level deeper from visible nodes
     const nextLevelNodes = new Set();
     currentEdges.forEach(edge => {
-      if (visibleNodes.has(edge.source) && collapsed.has(edge.source)) {
+      if (visibleNodes.has(edge.source) && collapsed?.has(edge.source)) {
         nextLevelNodes.add(edge.source);
       }
     });
@@ -420,7 +442,7 @@ export function EnhancedMindmapDisplay({
       nodes: nodes || [], 
       edges: edges || [], 
       metadata,
-      expandedNodes: Array.from(collapsed)
+      expandedNodes: Array.from(collapsed || [])
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -611,7 +633,7 @@ export function EnhancedMindmapDisplay({
               panOnDrag={true}
               edgeTypes={edgeTypes}
               defaultEdgeOptions={{ type: "mind" }}
-              connectionLineType="bezier"
+              connectionLineType={ConnectionLineType.Bezier}
               nodeTypes={nodeTypes}
               nodes={withUIData(nodes.filter(n => !n.hidden))}
               edges={edges.filter(e => !e.hidden)}

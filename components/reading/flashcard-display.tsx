@@ -218,9 +218,11 @@ export function FlashcardDisplay({
                         
                         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-white/10 scrollbar-thumb-white/30 hover:scrollbar-thumb-white/50">
                           <div className="text-lg leading-relaxed text-center px-2">
-                            <Markdown className="text-white [&>*]:text-white [&>strong]:text-blue-100">
-                              {currentCard.front}
-                            </Markdown>
+                            <div className="text-white [&>*]:text-white [&>strong]:text-blue-100">
+                              <Markdown>
+                                {currentCard.front}
+                              </Markdown>
+                            </div>
                           </div>
                         </div>
                         
@@ -247,9 +249,11 @@ export function FlashcardDisplay({
                         
                         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-white/10 scrollbar-thumb-white/30 hover:scrollbar-thumb-white/50">
                           <div className="text-lg leading-relaxed text-center px-2">
-                            <Markdown className="text-white [&>*]:text-white [&>strong]:text-green-100">
-                              {currentCard.back}
-                            </Markdown>
+                            <div className="text-white [&>*]:text-white [&>strong]:text-green-100">
+                              <Markdown>
+                                {currentCard.back}
+                              </Markdown>
+                            </div>
                           </div>
                         </div>
                         

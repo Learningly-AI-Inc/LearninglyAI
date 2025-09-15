@@ -5,12 +5,13 @@ import { Send, Loader2, Bot, FileText, Upload, Sparkles, BookOpen } from 'lucide
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useDocument } from './document-context';
+import type { ChatMessage } from './document-context';
 import { useDocumentContext } from '@/hooks/use-document-context';
 import { useDocumentSummarization } from '@/hooks/use-document-summarization';
 import { useFlashcards } from '@/hooks/use-flashcards';
 import { FadeContent } from '@/components/react-bits/fade-content';
 import { ClickSpark } from '@/components/react-bits/click-spark';
-import { ChatMessage } from '@/components/ui/chat-message';
+import { ChatMessage as ChatMessageComponent } from '@/components/ui/chat-message';
 import { Markdown } from '@/components/ui/markdown';
 
 interface ChipProps {
@@ -102,30 +103,26 @@ export function ChatInterface() {
 
           if (result) {
             // Replace the loading message with the actual summary
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessageIndex = newMessages.length - 1;
-              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
-                newMessages[lastMessageIndex] = {
-                  ...newMessages[lastMessageIndex],
-                  content: `**Document Summary**\n\n${result.summary}\n\n*Generated using ${result.metadata.model} • ${result.metadata.tokensUsed} tokens used*`
-                };
-              }
-              return newMessages;
-            });
+            const newMessages = [...messages];
+            const lastMessageIndex = newMessages.length - 1;
+            if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
+              newMessages[lastMessageIndex] = {
+                ...newMessages[lastMessageIndex],
+                content: `**Document Summary**\n\n${result.summary}\n\n*Generated using ${result.metadata.model} • ${result.metadata.tokensUsed} tokens used*`
+              };
+            }
+            setMessages(newMessages);
           } else {
             // Replace loading message with error
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessageIndex = newMessages.length - 1;
-              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
-                newMessages[lastMessageIndex] = {
-                  ...newMessages[lastMessageIndex],
-                  content: 'Sorry, I encountered an error while generating the summary. Please try again.'
-                };
-              }
-              return newMessages;
-            });
+            const newMessages = [...messages];
+            const lastMessageIndex = newMessages.length - 1;
+            if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
+              newMessages[lastMessageIndex] = {
+                ...newMessages[lastMessageIndex],
+                content: 'Sorry, I encountered an error while generating the summary. Please try again.'
+              };
+            }
+            setMessages(newMessages);
           }
         } else {
           // Use the simple text-based summarization for sample documents
@@ -145,17 +142,15 @@ export function ChatInterface() {
             const data = await response.json();
             if (data.success && data.summary) {
               // Replace the loading message with the actual summary
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const lastMessageIndex = newMessages.length - 1;
-                if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
-                  newMessages[lastMessageIndex] = {
-                    ...newMessages[lastMessageIndex],
-                    content: `**Document Summary**\n\n${data.summary}\n\n*Generated using ${data.model} • ${data.tokens_used} tokens used*`
-                  };
-                }
-                return newMessages;
-              });
+              const newMessages = [...messages];
+              const lastMessageIndex = newMessages.length - 1;
+              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
+                newMessages[lastMessageIndex] = {
+                  ...newMessages[lastMessageIndex],
+                  content: `**Document Summary**\n\n${data.summary}\n\n*Generated using ${data.model} • ${data.tokens_used} tokens used*`
+                };
+              }
+              setMessages(newMessages);
             } else {
               throw new Error('Failed to generate summary');
             }
@@ -166,17 +161,15 @@ export function ChatInterface() {
       } catch (error: any) {
         console.error('❌ Summarization error:', error);
         // Replace loading message with error
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMessageIndex = newMessages.length - 1;
-          if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
-            newMessages[lastMessageIndex] = {
-              ...newMessages[lastMessageIndex],
-              content: `Sorry, I encountered an error while generating the summary: ${error.message}. Please try again.`
-            };
-          }
-          return newMessages;
-        });
+        const newMessages = [...messages];
+        const lastMessageIndex = newMessages.length - 1;
+        if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
+          newMessages[lastMessageIndex] = {
+            ...newMessages[lastMessageIndex],
+            content: `Sorry, I encountered an error while generating the summary: ${error.message}. Please try again.`
+          };
+        }
+        setMessages(newMessages);
       }
       return;
     }
@@ -206,61 +199,53 @@ export function ChatInterface() {
 
           if (result) {
             // Replace the loading message with the flashcard results
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessageIndex = newMessages.length - 1;
-              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
-                newMessages[lastMessageIndex] = {
-                  ...newMessages[lastMessageIndex],
-                  content: `**Flashcards Generated!**\n\nI've created ${result.flashcards.length} flashcards from your document "${result.metadata.title}".\n\n**Sample Cards:**\n\n${result.flashcards.slice(0, 3).map((card, index) => 
-                    `**Card ${index + 1}:**\n**Q:** ${card.front}\n**A:** ${card.back}\n`
-                  ).join('\n')}\n\n*Generated using ${result.metadata.model} • ${result.metadata.tokensUsed} tokens used*\n\nYou can view and study all flashcards in the Flashcards tab!`
-                };
-              }
-              return newMessages;
-            });
-          } else {
-            // Replace loading message with error
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessageIndex = newMessages.length - 1;
-              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
-                newMessages[lastMessageIndex] = {
-                  ...newMessages[lastMessageIndex],
-                  content: 'Sorry, I encountered an error while generating flashcards. Please try again.'
-                };
-              }
-              return newMessages;
-            });
-          }
-        } else {
-          // For sample documents, show error
-          setMessages(prev => {
-            const newMessages = [...prev];
+            const newMessages = [...messages];
             const lastMessageIndex = newMessages.length - 1;
             if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
               newMessages[lastMessageIndex] = {
                 ...newMessages[lastMessageIndex],
-                content: 'Flashcard generation requires a properly uploaded document. Please upload your document first.'
+                content: `**Flashcards Generated!**\n\nI've created ${result.flashcards.length} flashcards from your document "${result.metadata.title}".\n\n**Sample Cards:**\n\n${result.flashcards.slice(0, 3).map((card, index) => 
+                  `**Card ${index + 1}:**\n**Q:** ${card.front}\n**A:** ${card.back}\n`
+                ).join('\n')}\n\n*Generated using ${result.metadata.model} • ${result.metadata.tokensUsed} tokens used*\n\nYou can view and study all flashcards in the Flashcards tab!`
               };
             }
-            return newMessages;
-          });
-        }
-      } catch (error: any) {
-        console.error('❌ Flashcard generation error:', error);
-        // Replace loading message with error
-        setMessages(prev => {
-          const newMessages = [...prev];
+            setMessages(newMessages);
+          } else {
+            // Replace loading message with error
+            const newMessages = [...messages];
+            const lastMessageIndex = newMessages.length - 1;
+            if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
+              newMessages[lastMessageIndex] = {
+                ...newMessages[lastMessageIndex],
+                content: 'Sorry, I encountered an error while generating flashcards. Please try again.'
+              };
+            }
+            setMessages(newMessages);
+          }
+        } else {
+          // For sample documents, show error
+          const newMessages = [...messages];
           const lastMessageIndex = newMessages.length - 1;
           if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
             newMessages[lastMessageIndex] = {
               ...newMessages[lastMessageIndex],
-              content: `Sorry, I encountered an error while generating flashcards: ${error.message}. Please try again.`
+              content: 'Flashcard generation requires a properly uploaded document. Please upload your document first.'
             };
           }
-          return newMessages;
-        });
+          setMessages(newMessages);
+        }
+      } catch (error: any) {
+        console.error('❌ Flashcard generation error:', error);
+        // Replace loading message with error
+        const newMessages = [...messages];
+        const lastMessageIndex = newMessages.length - 1;
+        if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
+          newMessages[lastMessageIndex] = {
+            ...newMessages[lastMessageIndex],
+            content: `Sorry, I encountered an error while generating flashcards: ${error.message}. Please try again.`
+          };
+        }
+        setMessages(newMessages);
       }
       return;
     }
@@ -420,7 +405,7 @@ export function ChatInterface() {
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-6`}
           >
             <div className="max-w-[95%]">
-              <ChatMessage 
+              <ChatMessageComponent 
                 content={message.content}
                 role={message.role}
               />
