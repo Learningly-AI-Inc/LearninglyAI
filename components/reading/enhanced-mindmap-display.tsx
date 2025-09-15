@@ -24,12 +24,13 @@ import {
   Target,
   Network,
   Plus,
-  Minus,
-  Maximize,
-  X
+  Minus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ClickSpark } from '@/components/react-bits/click-spark';
 import { FadeContent } from '@/components/react-bits/fade-content';
 
@@ -171,7 +172,7 @@ function MindNode({ id, data, selected }) {
           onPointerDown={(e) => { e.stopPropagation(); }}
           onMouseDown={(e) => { e.stopPropagation(); }}
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); data.onToggle(id); }}
-          className={`absolute -right-4 top-1/2 -translate-y-1/2 h-9 w-9 z-20 rounded-full shadow hover:scale-105 active:scale-95 grid place-items-center ${data?.isDark ? 'bg-slate-800 text-slate-100 ring-1 ring-slate-700' : 'bg-white text-slate-900 ring-1 ring-slate-200'}`}
+          className={`absolute -right-4 top-1/2 -translate-y-1/2 h-9 w-9 z-20 rounded-full shadow-lg hover:scale-105 active:scale-95 grid place-items-center transition-all duration-200 ${data?.isDark ? 'bg-slate-800 text-slate-100 border-2 border-slate-600/60 hover:border-slate-500 hover:shadow-xl' : 'bg-white text-slate-900 border-2 border-slate-300/60 hover:border-slate-400 hover:shadow-xl'}`}
           style={{ pointerEvents: 'auto' }}
           title={data.isCollapsed ? "Expand" : "Collapse"}
         >
@@ -180,8 +181,13 @@ function MindNode({ id, data, selected }) {
       )}
 
       <div
-        className={`${isRoot ? (data?.isDark ? 'rounded-2xl bg-slate-800 text-slate-100 shadow-[0_10px_30px_rgba(0,0,0,0.6)] border border-slate-700' : 'rounded-2xl bg-white text-slate-900 shadow-[0_10px_30px_rgba(0,0,0,0.12)] border border-slate-200') : (data?.isDark ? 'rounded-full bg-slate-800 text-slate-100 shadow border border-slate-700' : 'rounded-full bg-white text-slate-800 shadow border border-slate-200')} px-4 py-3`}
-        style={{ filter: isRoot ? "none" : `drop-shadow(0 6px 18px ${data.stroke || "#8B5CF6"}${data?.isDark ? "66" : "44"})` }}
+        className={`${isRoot ? (data?.isDark ? 'rounded-2xl bg-slate-800 text-slate-100 shadow-xl border-2 border-slate-600/60' : 'rounded-2xl bg-white text-slate-900 shadow-xl border-2 border-slate-300/60') : (data?.isDark ? 'rounded-full bg-slate-800 text-slate-100 shadow-lg border border-slate-600/50' : 'rounded-full bg-white text-slate-800 shadow-lg border border-slate-400/40')} px-4 py-3 hover:shadow-2xl transition-shadow duration-300`}
+        style={{ 
+          filter: isRoot ? "none" : `drop-shadow(0 6px 18px ${data.stroke || "#8B5CF6"}${data?.isDark ? "44" : "30"})`,
+          boxShadow: isRoot 
+            ? (data?.isDark ? '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(148, 163, 184, 0.3)' : '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(148, 163, 184, 0.4)')
+            : (data?.isDark ? '0 10px 25px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -2px rgba(0, 0, 0, 0.3)' : '0 10px 25px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.1)')
+        }}
         onClick={(e) => { if (!data?.isEdit && data.hasChildren) { e.stopPropagation(); data.onToggle(id); } }}
       >
         {editing ? (
@@ -296,7 +302,6 @@ export function EnhancedMindmapDisplay({
   const [collapsed, setCollapsed] = useState(convertedData.collapsed);
   const [selected, setSelected] = useState(null);
   const [isDark, setIsDark] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Store latest arrays without triggering renders
   const nodesRef = useRef(nodes);
@@ -373,16 +378,42 @@ export function EnhancedMindmapDisplay({
     },
   })), [collapsed, setNodes, applyVisibility, getEdgesNow, isDark]);
 
-  // Control functions
+  // Control functions - improved expand behavior
+  const expandOneLevel = useCallback(() => {
+    const currentEdges = getEdgesNow() || [];
+    const currentNodes = getNodesNow() || [];
+    
+    // Find all currently visible nodes
+    const visibleNodes = new Set(currentNodes.filter(n => !n.hidden).map(n => n.id));
+    
+    // Find nodes that are one level deeper from visible nodes
+    const nextLevelNodes = new Set();
+    currentEdges.forEach(edge => {
+      if (visibleNodes.has(edge.source) && collapsed.has(edge.source)) {
+        nextLevelNodes.add(edge.source);
+      }
+    });
+    
+    if (nextLevelNodes.size === 0) {
+      // If no single level to expand, expand all
+      applyVisibility(new Set());
+      return;
+    }
+    
+    // Expand only the next level
+    const newCollapsed = new Set(collapsed);
+    nextLevelNodes.forEach(nodeId => newCollapsed.delete(nodeId));
+    applyVisibility(newCollapsed);
+  }, [collapsed, applyVisibility, getEdgesNow, getNodesNow]);
+
   const expandAll = useCallback(() => { applyVisibility(new Set()); }, [applyVisibility]);
+  
   const collapseAll = useCallback(() => {
     const parents = new Set((getEdgesNow() || []).map((e) => e.source));
     const rootNode = getNodesNow().find(n => n.data.level === 0 || n.data.category === 'central');
     if (rootNode) parents.delete(rootNode.id);
     applyVisibility(parents);
   }, [applyVisibility, getEdgesNow, getNodesNow]);
-
-  const toggleFullscreen = () => setIsFullscreen(!isFullscreen);
 
   const exportMindmap = useCallback(() => {
     const payload = { 
@@ -400,110 +431,6 @@ export function EnhancedMindmapDisplay({
     URL.revokeObjectURL(url);
   }, [nodes, edges, metadata, collapsed]);
 
-  // Handle ESC key for fullscreen
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isFullscreen) {
-        setIsFullscreen(false);
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isFullscreen]);
-
-  // Fullscreen Canvas
-  const FullscreenCanvas = () => (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex flex-col">
-      <div className="bg-black bg-opacity-80 p-4 flex items-center justify-between text-white">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
-            <Brain className="h-4 w-4 text-white" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-lg">Knowledge Canvas</h2>
-            <div className="flex items-center gap-2 text-sm text-gray-300">
-              <Badge variant="outline" className="border-gray-400 text-gray-300">
-                {metadata?.nodeCount} concepts
-              </Badge>
-              <Badge variant="outline" className="border-gray-400 text-gray-300">
-                {metadata?.edgeCount} connections
-              </Badge>
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <ClickSpark>
-            <Button onClick={expandAll} size="sm" variant="outline" className="text-xs border-gray-400 text-gray-300 hover:bg-gray-800">
-              <Plus className="h-4 w-4" />
-              <span className="ml-1 hidden sm:inline">Expand</span>
-            </Button>
-          </ClickSpark>
-          <ClickSpark>
-            <Button onClick={collapseAll} size="sm" variant="outline" className="text-xs border-gray-400 text-gray-300 hover:bg-gray-800">
-              <Minus className="h-4 w-4" />
-              <span className="ml-1 hidden sm:inline">Collapse</span>
-            </Button>
-          </ClickSpark>
-          <ClickSpark>
-            <Button onClick={exportMindmap} size="sm" variant="outline" className="text-xs border-gray-400 text-gray-300 hover:bg-gray-800">
-              <Download className="h-4 w-4" />
-              <span className="ml-1 hidden sm:inline">Export</span>
-            </Button>
-          </ClickSpark>
-          <ClickSpark>
-            <Button onClick={toggleFullscreen} size="sm" variant="outline" className="text-xs border-red-400 text-red-300 hover:bg-red-900">
-              <X className="h-4 w-4" />
-              <span className="ml-1 hidden sm:inline">Exit</span>
-            </Button>
-          </ClickSpark>
-        </div>
-      </div>
-
-      <div className="flex-1 relative">
-        <ReactFlow
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={false}
-          nodesFocusable={false}
-          selectNodesOnDrag={false}
-          panOnDrag={true}
-          edgeTypes={edgeTypes}
-          defaultEdgeOptions={{ type: "mind" }}
-          connectionLineType="bezier"
-          nodeTypes={nodeTypes}
-          nodes={withUIData(nodes.filter(n => !n.hidden))}
-          edges={edges.filter(e => !e.hidden)}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          fitView
-          className="bg-gradient-to-br from-gray-900 to-black"
-        >
-          <Background variant={BackgroundVariant.Dots} gap={30} size={2} color="#374151" />
-          <MiniMap nodeColor={(n) => n.data?.stroke || "#8B5CF6"} pannable zoomable className="!bg-gray-800 !border-2 !border-gray-600 !rounded-lg" />
-          <Controls className="!bg-gray-800 !border-2 !border-gray-600 !rounded-lg [&>button]:!border-gray-600 [&>button]:hover:!bg-gray-700 [&>button]:!text-gray-300" />
-        </ReactFlow>
-
-        <div className="absolute bottom-6 left-6 bg-black bg-opacity-60 backdrop-blur-sm rounded-lg p-3 text-white">
-          <div className="text-xs space-y-1">
-            <div className="flex items-center gap-2">
-              <Target className="h-3 w-3" />
-              <span>{metadata?.style} layout</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Network className="h-3 w-3" />
-              <span>{metadata?.complexity} complexity</span>
-            </div>
-            <div className="text-gray-400">"{metadata?.title}"</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (isFullscreen) {
-    return <FullscreenCanvas />;
-  }
 
   if (!nodes.length) {
     return (
@@ -520,146 +447,251 @@ export function EnhancedMindmapDisplay({
   }
 
   return (
-    <FadeContent className="h-full flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
-              <Brain className="h-5 w-5 text-white" />
+    <TooltipProvider>
+      <Card className="h-full flex flex-col bg-gradient-to-br from-slate-50 via-white to-purple-50/30 border-0 shadow-lg">
+        {/* Enhanced Header */}
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 via-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <Brain className="h-6 w-6 text-white" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                </div>
+              </div>
+              
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-slate-900">Enhanced Mindmap</h3>
+                  <Badge variant="secondary" className="text-xs font-medium px-2 py-0.5">
+                    {metadata?.style || 'Interactive'}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span className="text-sm text-slate-600 font-medium">{metadata?.nodeCount || 0} concepts</span>
+                  </div>
+                  <Separator orientation="vertical" className="h-4" />
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    <span className="text-sm text-slate-600 font-medium">{metadata?.edgeCount || 0} connections</span>
+                  </div>
+                  {metadata?.complexity && (
+                    <>
+                      <Separator orientation="vertical" className="h-4" />
+                      <Badge variant="outline" className="text-xs bg-purple-50 border-purple-200 text-purple-700">
+                        {metadata.complexity}
+                      </Badge>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Enhanced Mindmap</h3>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline" className="text-xs">{metadata?.nodeCount} concepts</Badge>
-                <Badge variant="outline" className="text-xs">{metadata?.edgeCount} connections</Badge>
-                {metadata?.complexity && (
-                  <Badge className="text-xs bg-purple-100 text-purple-700">{metadata.complexity}</Badge>
-                )}
+            
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    onClick={expandOneLevel} 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-9 w-9 p-0 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Expand one level</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    onClick={expandAll} 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-9 w-9 p-0 hover:bg-green-50 hover:text-green-600 transition-colors"
+                  >
+                    <Network className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Expand all levels</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    onClick={collapseAll} 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-9 w-9 p-0 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Collapse all</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Separator orientation="vertical" className="h-6 mx-1" />
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    onClick={exportMindmap} 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-9 w-9 p-0 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Export mindmap</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              {onRegenerate && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      onClick={onRegenerate} 
+                      disabled={isRegenerating}
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-9 w-9 p-0 hover:bg-purple-50 hover:text-purple-600 transition-colors disabled:opacity-50"
+                    >
+                      {isRegenerating ? (
+                        <Sparkles className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Regenerate mindmap</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              
+              <Separator orientation="vertical" className="h-6 mx-1" />
+              
+              <Button 
+                onClick={() => setIsDark(!isDark)}
+                size="sm" 
+                variant="ghost" 
+                className="h-9 px-3 hover:bg-amber-50 hover:text-amber-600 transition-colors"
+              >
+                <span className="text-sm font-medium">
+                  {isDark ? '☀️ Light' : '🌙 Dark'}
+                </span>
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+
+        {/* Enhanced Mindmap Canvas */}
+        <CardContent className="flex-1 p-0 relative overflow-hidden">
+          <div 
+            className={`h-full relative ${isDark ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' : 'bg-gradient-to-br from-slate-50 via-white to-slate-100'}`}
+          >
+            <ReactFlow
+              nodesDraggable={false}
+              nodesConnectable={false}
+              elementsSelectable={false}
+              nodesFocusable={false}
+              selectNodesOnDrag={false}
+              panOnDrag={true}
+              edgeTypes={edgeTypes}
+              defaultEdgeOptions={{ type: "mind" }}
+              connectionLineType="bezier"
+              nodeTypes={nodeTypes}
+              nodes={withUIData(nodes.filter(n => !n.hidden))}
+              edges={edges.filter(e => !e.hidden)}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              fitView
+              proOptions={{ hideAttribution: true }}
+              className="h-full w-full"
+            >
+              <MiniMap 
+                nodeColor={(n) => n.data?.stroke || "#8B5CF6"} 
+                pannable 
+                zoomable 
+                className={`${isDark ? "!bg-slate-800 !border-slate-600" : "!bg-white !border-slate-200"} !rounded-lg !shadow-lg`}
+              />
+              <Controls 
+                position="bottom-right" 
+                className={`${isDark ? "!bg-slate-800 !border-slate-600 [&>button]:!text-slate-300" : "!bg-white !border-slate-200"} !rounded-lg !shadow-lg`}
+              />
+              <Background 
+                variant={BackgroundVariant.Dots} 
+                gap={28} 
+                size={1} 
+                color={isDark ? '#334155' : '#cbd5e1'} 
+              />
+            </ReactFlow>
+
+            {/* Interactive Tips */}
+            <div className={`absolute left-4 bottom-4 ${isDark ? 'bg-slate-800/90' : 'bg-white/90'} backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+              <div className="flex items-center gap-2 text-xs">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
+                <span className={`font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  Click +/− bubbles to expand • Drag to explore • Hover for details
+                </span>
               </div>
             </div>
           </div>
-          
-          <div className="flex items-center gap-2">
-            <ClickSpark>
-              <Button onClick={expandAll} size="sm" variant="outline" className="text-xs" title="Expand All">
-                <Plus className="h-3 w-3" />
-              </Button>
-            </ClickSpark>
-            <ClickSpark>
-              <Button onClick={collapseAll} size="sm" variant="outline" className="text-xs" title="Collapse All">
-                <Minus className="h-3 w-3" />
-              </Button>
-            </ClickSpark>
-            <ClickSpark>
-              <Button onClick={exportMindmap} size="sm" variant="outline" className="text-xs" title="Export">
-                <Download className="h-3 w-3" />
-              </Button>
-            </ClickSpark>
-            <ClickSpark>
-              <Button onClick={toggleFullscreen} size="sm" variant="outline" className="text-xs" title="Fullscreen">
-                <Maximize className="h-3 w-3" />
-              </Button>
-            </ClickSpark>
-            {onRegenerate && (
-              <ClickSpark>
-                <Button onClick={onRegenerate} disabled={isRegenerating} size="sm" variant="outline" className="text-xs">
-                  {isRegenerating ? <Sparkles className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
-                </Button>
-              </ClickSpark>
-            )}
-          </div>
-        </div>
-      </div>
+        </CardContent>
 
-      {/* Enhanced Mindmap */}
-      <div 
-        className={`flex-1 rounded-xl overflow-hidden relative ${isDark ? 'bg-gradient-to-b from-slate-900 to-slate-800' : 'bg-gradient-to-b from-slate-50 to-slate-100'}`}
-        tabIndex={0}
-      >
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{ 
-            backgroundImage: `radial-gradient(${isDark ? '#47556980' : '#cbd5e180'} 1px, transparent 1px)`, 
-            backgroundSize: '20px 20px', 
-            opacity: isDark ? 0.6 : 0.4 
-          }}
-        />
-
-        {/* Theme toggle */}
-        <div className={`absolute z-10 right-4 top-4 rounded-xl border shadow backdrop-blur-sm ${isDark ? 'border-slate-600 bg-slate-900/70' : 'border-slate-200 bg-white/80'}`}>
-          <button 
-            className={`px-3 py-1.5 text-sm ${isDark ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`} 
-            onClick={() => setIsDark((d) => !d)}
-          >
-            {isDark ? '☀️ Light' : '🌙 Dark'}
-          </button>
-        </div>
-
-        <ReactFlow
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={false}
-          nodesFocusable={false}
-          selectNodesOnDrag={false}
-          panOnDrag={true}
-          edgeTypes={edgeTypes}
-          defaultEdgeOptions={{ type: "mind" }}
-          connectionLineType="bezier"
-          nodeTypes={nodeTypes}
-          nodes={withUIData(nodes.filter(n => !n.hidden))}
-          edges={edges.filter(e => !e.hidden)}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          fitView
-          proOptions={{ hideAttribution: true }}
-          className="rounded-xl"
-        >
-          <MiniMap 
-            nodeColor={(n) => n.data?.stroke || "#8B5CF6"} 
-            pannable 
-            zoomable 
-            className={isDark ? "!bg-slate-800 !border-slate-600" : "!bg-white !border-slate-200"}
-          />
-          <Controls 
-            position="bottom-right" 
-            className={isDark ? "!bg-slate-800 !border-slate-600 [&>button]:!text-slate-300" : "!bg-white !border-slate-200"}
-          />
-          <Background 
-            variant={BackgroundVariant.Dots} 
-            gap={28} 
-            size={1} 
-            color={isDark ? '#334155' : '#cbd5e1'} 
-          />
-        </ReactFlow>
-
-        <div className={`absolute right-4 bottom-4 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-          Tips: +/− bubble expands/collapses • Click nodes to explore • Smooth animations
-        </div>
-      </div>
-
-      {/* Footer */}
-      {metadata && (
-        <div className="p-3 border-t border-gray-200 bg-white">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-4 text-xs text-gray-600">
-              <span className="flex items-center gap-1">
-                <Target className="h-3 w-3" />
-                {metadata.style}
-              </span>
-              <span className="flex items-center gap-1">
-                <Network className="h-3 w-3" />
-                {metadata.complexity}
-              </span>
-              <span className="flex items-center gap-1">
-                <Sparkles className="h-3 w-3" />
-                {metadata.tokensUsed} tokens
-              </span>
+        {/* Enhanced Footer */}
+        {metadata && (
+          <div className={`border-t ${isDark ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50/50'} backdrop-blur-sm`}>
+            <div className="px-6 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Target className="h-3.5 w-3.5 text-slate-500" />
+                    <span className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      {metadata.style}
+                    </span>
+                  </div>
+                  <Separator orientation="vertical" className="h-4" />
+                  <div className="flex items-center gap-2">
+                    <Network className="h-3.5 w-3.5 text-slate-500" />
+                    <span className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      {metadata.complexity}
+                    </span>
+                  </div>
+                  <Separator orientation="vertical" className="h-4" />
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-3.5 w-3.5 text-slate-500" />
+                    <span className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      {metadata.tokensUsed} tokens
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="text-right">
+                  <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Generated from{' '}
+                    <span className={`font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      "{metadata.title}"
+                    </span>
+                  </p>
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-gray-500 mt-1">Generated from "{metadata.title}"</p>
           </div>
-        </div>
-      )}
-    </FadeContent>
+        )}
+      </Card>
+    </TooltipProvider>
   );
 }

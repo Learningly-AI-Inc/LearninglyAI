@@ -251,9 +251,9 @@ Create a comprehensive mindmap that captures the key concepts, relationships, an
     // Save mindmap to database (optional - for future features)
     try {
       const { error: saveError } = await supabase
-        .from('exam_prep_flashcards') // Reusing existing table for now
+        .from('exam_prep_flashcards')
         .insert({
-          document_id: documentId,
+          id: documentId, // Use document ID as the primary key
           user_id: user.id,
           flashcards: { 
             type: 'mindmap',
