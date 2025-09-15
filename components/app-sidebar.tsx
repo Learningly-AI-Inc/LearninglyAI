@@ -28,7 +28,7 @@ function SidebarSection({ title, children, collapsed }: { title: string; childre
   return (
     <div>
       {!collapsed && (
-        <div className="px-4 pt-6 pb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">{title}</div>
+        <div className="px-4 pt-6 pb-3 text-xs font-semibold uppercase tracking-wider text-slate-600">{title}</div>
       )}
       <div className={`px-2 ${collapsed ? "space-y-2" : "space-y-1"}`}>{children}</div>
     </div>
@@ -50,8 +50,8 @@ function SidebarItem({ icon, label, active, collapsed, href, onClick, comingSoon
       onClick={onClick}
       className={`w-full ${collapsed ? "justify-center" : "justify-start"} flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
         active 
-          ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary border border-primary/20 shadow-sm" 
-          : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+          ? "bg-gradient-to-r from-primary/15 to-primary/10 text-primary border border-primary/30 shadow-md backdrop-blur-sm" 
+          : "text-slate-700 hover:text-primary hover:bg-gradient-to-r hover:from-white/60 hover:to-indigo-50/80 hover:shadow-sm hover:backdrop-blur-sm"
       } ${comingSoon ? "opacity-75" : ""}`}
     >
       {icon}
@@ -104,8 +104,8 @@ export default function AppSidebar({
   }
 
   return (
-    <aside
-      className={`${sidebarCollapsed ? "w-16" : "w-[240px] lg:w-[280px]"} ${isMobile ? 'flex' : 'hidden md:flex'} flex-col border-r border-border/50 bg-white/95 backdrop-blur-xl supports-[backdrop-filter]:bg-white/80 transition-[width] duration-300 z-40 h-screen fixed modern-shadow-lg`}
+      <aside
+       className={`${sidebarCollapsed ? "w-16" : "w-[240px] lg:w-[280px]"} ${isMobile ? 'flex' : 'hidden md:flex'} flex-col border-r border-border/50 bg-gradient-to-br from-blue-50 via-indigo-50/80 to-purple-50/90 backdrop-blur-xl supports-[backdrop-filter]:bg-gradient-to-br supports-[backdrop-filter]:from-blue-50/90 supports-[backdrop-filter]:via-indigo-50/70 supports-[backdrop-filter]:to-purple-50/80 transition-[width] duration-300 z-40 h-screen fixed modern-shadow-lg`}
     >
       <div className="flex items-center gap-3 px-4 h-16 border-b border-border/50">
         <div className="h-10 w-10 rounded-2xl grid place-content-center bg-gradient-to-br from-primary to-primary/80 text-white font-bold shadow-lg">
@@ -171,7 +171,7 @@ export default function AppSidebar({
       </div>
 
       <div className="p-4 border-t border-border/50 space-y-4">
-        <div className={`rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-white ${sidebarCollapsed ? "p-3 text-center" : "p-4"} modern-shadow`}>
+        <div className={`rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-white ${sidebarCollapsed ? "p-2 flex justify-center" : "p-4"} modern-shadow`}>
           {!sidebarCollapsed && (
             <>
               <div className="flex items-center gap-2 text-sm font-semibold mb-1">
@@ -183,8 +183,8 @@ export default function AppSidebar({
               </div>
             </>
           )}
-          <button className={`${sidebarCollapsed ? "w-8 h-8 grid place-content-center bg-white/20 rounded-lg" : "w-full px-3 py-2"} text-xs font-medium bg-white text-primary rounded-full hover:bg-white/90 transition-colors duration-200 shadow-sm`}>
-            {sidebarCollapsed ? <Zap className="h-4 w-4" /> : (
+          <button className={`${sidebarCollapsed ? "w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200" : "w-full px-3 py-2"} text-xs font-medium bg-white text-primary rounded-full hover:bg-white/90 transition-colors duration-200 shadow-sm`}>
+            {sidebarCollapsed ? <Crown className="h-5 w-5 text-white" /> : (
               <div className="flex items-center justify-center gap-1">
                 <Zap className="h-3 w-3" />
                 Upgrade
@@ -193,11 +193,11 @@ export default function AppSidebar({
           </button>
         </div>
         <div className="flex items-center justify-between">
-          <Link href="/settings" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
+          <Link href="/settings" className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-primary transition-colors duration-200">
             <Settings className="h-4 w-4"/>
             {!sidebarCollapsed && "Settings"}
           </Link>
-          <button onClick={handleLogout} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors duration-200">
+          <button onClick={handleLogout} className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-red-600 transition-colors duration-200">
             <LogOut className="h-4 w-4"/>
             {!sidebarCollapsed && "Logout"}
           </button>
