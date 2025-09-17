@@ -4,12 +4,11 @@ import * as React from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Upload, Bot, History, Settings, Sparkles } from "lucide-react"
+import { FileText, Upload, Bot, History, Sparkles } from "lucide-react"
 import { SampleQuestionsUpload } from "@/components/exam-prep/sample-questions-upload"
 import { LearningMaterialsUpload } from "@/components/exam-prep/learning-materials-upload"
 import { QuestionGenerationPanel } from "@/components/exam-prep/question-generation-panel"
 import { GeneratedPDFsHistory } from "@/components/exam-prep/generated-pdfs-history"
-import { FileManagement } from "@/components/exam-prep/file-management"
 
 // Shared interfaces for file management
 interface UploadedFile {
@@ -198,13 +197,6 @@ export default function FullLengthExamPrepPage() {
                   <History className="h-4 w-4 transition-transform duration-300" />
                   <span className="font-medium text-sm">History</span>
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="manage" 
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-muted/50 data-[state=active]:bg-background data-[state=active]:shadow-lg data-[state=active]:scale-105"
-                >
-                  <Settings className="h-4 w-4 transition-transform duration-300" />
-                  <span className="font-medium text-sm">Manage</span>
-                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -278,17 +270,6 @@ export default function FullLengthExamPrepPage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="manage" className="mt-0 data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:duration-300">
-                <div className="space-y-6 animate-in fade-in-0 duration-300">
-                  <div>
-                    <h2 className="text-2xl font-semibold tracking-tight">File Management</h2>
-                    <p className="text-muted-foreground mt-1">
-                      View and manage all your uploaded files and materials
-                    </p>
-                  </div>
-                  <FileManagement />
-                </div>
-              </TabsContent>
             </div>
           </Tabs>
         </div>
