@@ -7,6 +7,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const type = formData.get('type') as string;
+    const category = formData.get('category') as string;
 
     if (!file) {
       return NextResponse.json(
@@ -102,7 +103,9 @@ export async function POST(request: NextRequest) {
         file_size: file.size,
         content_type: file.type,
         upload_type: type,
-        public_url: urlData.publicUrl
+        public_url: urlData.publicUrl,
+        file_category: category || 'learning_materials', // Default to learning_materials if not specified
+        processing_status: 'processing' // Set initial status to processing
       })
       .select()
       .single();
@@ -126,8 +129,8 @@ export async function POST(request: NextRequest) {
       webhookResult = await uploadKnowledgeBaseAs(file, {
         filename: file.name,
         userId: user.id,
-        agentId: type, // Using upload type as agent ID
-        description: `Exam prep file upload: ${file.name}`
+        agentId: `${type}-${category}`, // Include category in agent ID for better processing
+        description: `Exam prep file upload: ${file.name} (${category})`
       });
 
       if (webhookResult.success) {
@@ -135,12 +138,68 @@ export async function POST(request: NextRequest) {
           filename: file.name,
           webhookData: webhookResult.data
         });
+
+        // Extract the text content from webhook response
+        let extractedText = '';
+        console.log('Webhook result data structure:', JSON.stringify(webhookResult.data, null, 2));
+        
+        if (webhookResult.data && Array.isArray(webhookResult.data) && webhookResult.data.length > 0) {
+          extractedText = webhookResult.data[0].extracted_text || '';
+          console.log('Extracted text length:', extractedText.length);
+        } else if (webhookResult.data && typeof webhookResult.data === 'object') {
+          // Handle case where data is not an array
+          extractedText = webhookResult.data.extracted_text || '';
+          console.log('Extracted text from object:', extractedText.length);
+        }
+
+        // Update the database with extracted content and processing status
+        console.log('File record ID:', fileRecord?.id);
+        console.log('Extracted text available:', !!extractedText);
+        console.log('Extracted text length:', extractedText ? extractedText.length : 0);
+        console.log('Extracted text preview:', extractedText ? extractedText.substring(0, 100) : 'No content');
+        
+        // Always try to update the status, even if no content
+        if (fileRecord?.id) {
+          console.log('Updating database with extracted content...');
+          const { error: updateError } = await supabase
+            .from('exam_files')
+            .update({
+              extracted_content: extractedText || null,
+              processing_status: extractedText ? 'completed' : 'failed',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', fileRecord.id);
+
+          if (updateError) {
+            console.error('Failed to update extracted content:', updateError);
+          } else {
+            console.log('Successfully updated database with extracted content');
+            webhookDebugger.info('EXAM_PREP_UPLOAD', 'Updated database with extracted content', {
+              filename: file.name,
+              contentLength: extractedText ? extractedText.length : 0,
+              status: extractedText ? 'completed' : 'failed'
+            });
+          }
+        } else {
+          console.log('Skipping database update - missing fileRecord ID');
+        }
       } else {
         webhookDebugger.error('EXAM_PREP_UPLOAD', 'Webhook processing failed', {
           filename: file.name,
           error: webhookResult.error,
           debugInfo: webhookResult.debugInfo
         });
+
+        // Update processing status to failed
+        if (fileRecord?.id) {
+          await supabase
+            .from('exam_files')
+            .update({
+              processing_status: 'failed',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', fileRecord.id);
+        }
       }
     } catch (webhookError) {
       webhookDebugger.error('EXAM_PREP_UPLOAD', 'Webhook request failed', {

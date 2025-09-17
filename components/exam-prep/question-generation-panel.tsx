@@ -11,258 +11,108 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Slider } from "@/components/ui/slider"
 import { 
   Bot, 
   Sparkles, 
   FileText, 
   Clock, 
-  Target, 
-  Settings, 
   Play, 
-  Pause, 
   CheckCircle,
   AlertCircle,
-  MessageCircle,
-  Zap,
-  Download
+  Download,
+  Brain,
+  Target
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 
 interface QuestionGenerationParams {
   examTitle: string
-  description: string
   questionCount: number
   examLength: number // in minutes
   difficulty: 'easy' | 'medium' | 'hard' | 'mixed'
-  questionTypes: string[]
-  topicWeights: { [topic: string]: number }
-  customInstructions: string
-  outputFormat: 'pdf' | 'docx' | 'both'
-  includeAnswerKey: boolean
-  includeSolutions: boolean
-}
-
-interface AIAgent {
-  name: string
-  role: string
-  status: 'idle' | 'working' | 'completed' | 'error'
-  currentTask: string
-  progress: number
+  customInstructions?: string
 }
 
 interface GenerationSession {
   id: string
-  status: 'idle' | 'analyzing' | 'generating' | 'finalizing' | 'completed' | 'error'
+  status: 'idle' | 'generating' | 'completed' | 'error'
   progress: number
   currentStep: string
-  startTime: Date
-  estimatedCompletion?: Date
-  aiCommunicationLog: {
-    timestamp: Date
-    agent: string
-    message: string
-    type: 'info' | 'warning' | 'error'
-  }[]
   result?: {
     pdfUrl: string
     questionCount: number
-    generatedTopics: string[]
     fileSize: number
   }
 }
 
-export function QuestionGenerationPanel() {
-  const [generationParams, setGenerationParams] = React.useState<QuestionGenerationParams>({
-    examTitle: '',
-    description: '',
-    questionCount: 10,
-    examLength: 60,
-    difficulty: 'medium',
-    questionTypes: ['multiple_choice'],
-    topicWeights: {},
-    customInstructions: '',
-    outputFormat: 'pdf',
-    includeAnswerKey: true,
-    includeSolutions: false
-  })
+interface QuestionGenerationPanelProps {
+  uploadedSampleQuestions: any[]
+  uploadedLearningMaterials: any[]
+  selectedSampleQuestions: string[]
+  selectedLearningMaterials: string[]
+}
 
+export function QuestionGenerationPanel({ 
+  uploadedSampleQuestions, 
+  uploadedLearningMaterials,
+  selectedSampleQuestions,
+  selectedLearningMaterials
+}: QuestionGenerationPanelProps) {
   const [currentSession, setCurrentSession] = React.useState<GenerationSession | null>(null)
-  const [aiAgents, setAiAgents] = React.useState<AIAgent[]>([
-    {
-      name: 'Pattern Analyzer',
-      role: 'Analyzes sample questions to understand exam structure and style',
-      status: 'idle',
-      currentTask: 'Ready to analyze patterns',
-      progress: 0
-    },
-    {
-      name: 'Content Processor',
-      role: 'Processes learning materials and extracts key concepts',
-      status: 'idle', 
-      currentTask: 'Ready to process content',
-      progress: 0
-    },
-    {
-      name: 'Question Generator',
-      role: 'Generates questions based on patterns and content analysis',
-      status: 'idle',
-      currentTask: 'Ready to generate questions',
-      progress: 0
-    },
-    {
-      name: 'PDF Formatter',
-      role: 'Formats questions into professional exam document',
-      status: 'idle',
-      currentTask: 'Ready to format PDF',
-      progress: 0
-    }
-  ])
+  const [isGenerating, setIsGenerating] = React.useState(false)
 
   const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<QuestionGenerationParams>({
-    defaultValues: generationParams
+    defaultValues: {
+      examTitle: '',
+      questionCount: 10,
+      examLength: 60,
+      difficulty: 'medium',
+      customInstructions: ''
+    }
   })
 
   const watchedQuestionCount = watch('questionCount')
   const watchedExamLength = watch('examLength')
 
-  // Available topics will be populated from uploaded materials
-  const availableTopics: string[] = []
-
-  const questionTypeOptions = [
-    { value: 'multiple_choice', label: 'Multiple Choice', description: 'Questions with 4-5 options' },
-    { value: 'true_false', label: 'True/False', description: 'Binary choice questions' },
-    { value: 'short_answer', label: 'Short Answer', description: '1-2 sentence responses' },
-    { value: 'essay', label: 'Essay', description: 'Long-form detailed answers' },
-    { value: 'fill_blank', label: 'Fill in the Blank', description: 'Complete the statement' },
-    { value: 'coding', label: 'Programming', description: 'Code writing questions' }
-  ]
-
   const startGeneration = async (params: QuestionGenerationParams) => {
     const sessionId = Math.random().toString(36).substr(2, 9)
-    const startTime = new Date()
     
     const newSession: GenerationSession = {
       id: sessionId,
-      status: 'analyzing',
+      status: 'generating',
       progress: 0,
-      currentStep: 'Initializing AI agents...',
-      startTime,
-      estimatedCompletion: new Date(startTime.getTime() + (params.questionCount * 30000)), // 30 seconds per question estimate
-      aiCommunicationLog: [
-        {
-          timestamp: new Date(),
-          agent: 'System',
-          message: 'Question generation session started',
-          type: 'info'
-        }
-      ]
+      currentStep: 'Initializing AI agents...'
     }
 
     setCurrentSession(newSession)
+    setIsGenerating(true)
 
-    // Simulate AI communication and generation process
     try {
-      // Phase 1: Pattern Analysis
-      setAiAgents(prev => prev.map(agent => 
-        agent.name === 'Pattern Analyzer' 
-          ? { ...agent, status: 'working', currentTask: 'Analyzing sample question patterns...', progress: 0 }
-          : agent
-      ))
+      // Simulate the AI communication and generation process
+      const steps = [
+        { step: 'Analyzing sample questions...', progress: 20, duration: 2000 },
+        { step: 'Processing learning materials...', progress: 40, duration: 3000 },
+        { step: 'AI agents communicating...', progress: 60, duration: 2000 },
+        { step: 'Generating questions...', progress: 80, duration: 4000 },
+        { step: 'Creating PDF...', progress: 95, duration: 2000 },
+        { step: 'Saving to database...', progress: 100, duration: 1000 }
+      ]
 
-      await simulateAgentWork('Pattern Analyzer', 'Analyzing question patterns from uploaded samples...', 3000)
-      
-      setCurrentSession(prev => prev ? {
-        ...prev,
-        progress: 25,
-        currentStep: 'Pattern analysis complete',
-        aiCommunicationLog: [
-          ...prev.aiCommunicationLog,
-          {
-            timestamp: new Date(),
-            agent: 'Pattern Analyzer',
-            message: 'Identified common question formats: 60% Multiple Choice, 25% Short Answer, 15% Essay',
-            type: 'info'
-          }
-        ]
-      } : null)
+      for (const step of steps) {
+        setCurrentSession(prev => prev ? {
+          ...prev,
+          progress: step.progress,
+          currentStep: step.step
+        } : null)
+        
+        await new Promise(resolve => setTimeout(resolve, step.duration))
+      }
 
-      // Phase 2: Content Processing
-      setAiAgents(prev => prev.map(agent => 
-        agent.name === 'Content Processor'
-          ? { ...agent, status: 'working', currentTask: 'Processing learning materials...', progress: 0 }
-          : agent
-      ))
-
-      await simulateAgentWork('Content Processor', 'Extracting key concepts from learning materials...', 4000)
-
-      setCurrentSession(prev => prev ? {
-        ...prev,
-        progress: 50,
-        currentStep: 'Content processing complete',
-        aiCommunicationLog: [
-          ...prev.aiCommunicationLog,
-          {
-            timestamp: new Date(),
-            agent: 'Content Processor',
-            message: `Extracted key concepts from uploaded materials`,
-            type: 'info'
-          },
-          {
-            timestamp: new Date(),
-            agent: 'Pattern Analyzer',
-            message: 'Sharing pattern insights with Question Generator...',
-            type: 'info'
-          }
-        ]
-      } : null)
-
-      // Phase 3: Question Generation (AI-to-AI Communication)
-      setAiAgents(prev => prev.map(agent => 
-        agent.name === 'Question Generator'
-          ? { ...agent, status: 'working', currentTask: 'Generating questions based on patterns and content...', progress: 0 }
-          : agent
-      ))
-
-      await simulateAgentWork('Question Generator', 'Collaborating with other agents to generate questions...', 6000)
-
-      setCurrentSession(prev => prev ? {
-        ...prev,
-        progress: 75,
-        currentStep: 'Question generation complete',
-        aiCommunicationLog: [
-          ...prev.aiCommunicationLog,
-          {
-            timestamp: new Date(),
-            agent: 'Question Generator',
-            message: `Generated ${params.questionCount} questions matching the identified patterns`,
-            type: 'info'
-          },
-          {
-            timestamp: new Date(),
-            agent: 'Content Processor',
-            message: 'Questions cover all major topics with appropriate difficulty distribution',
-            type: 'info'
-          }
-        ]
-      } : null)
-
-      // Phase 4: PDF Formatting
-      setAiAgents(prev => prev.map(agent => 
-        agent.name === 'PDF Formatter'
-          ? { ...agent, status: 'working', currentTask: 'Formatting exam PDF...', progress: 0 }
-          : agent
-      ))
-
-      await simulateAgentWork('PDF Formatter', 'Creating professional exam document...', 3000)
-
-      // Complete
+      // Complete generation
       const result = {
         pdfUrl: `/generated-exams/${sessionId}.pdf`,
         questionCount: params.questionCount,
-        generatedTopics: availableTopics,
-        fileSize: 1000000 // Default 1MB
+        fileSize: 1024000 // 1MB
       }
 
       setCurrentSession(prev => prev ? {
@@ -270,30 +120,8 @@ export function QuestionGenerationPanel() {
         status: 'completed',
         progress: 100,
         currentStep: 'Exam generated successfully!',
-        result,
-        aiCommunicationLog: [
-          ...prev.aiCommunicationLog,
-          {
-            timestamp: new Date(),
-            agent: 'PDF Formatter',
-            message: 'Exam PDF generated and ready for download',
-            type: 'info'
-          },
-          {
-            timestamp: new Date(),
-            agent: 'System',
-            message: 'Generation session completed successfully',
-            type: 'info'
-          }
-        ]
+        result
       } : null)
-
-      setAiAgents(prev => prev.map(agent => ({
-        ...agent,
-        status: 'completed',
-        progress: 100,
-        currentTask: 'Complete'
-      })))
 
       toast({
         title: "Exam Generated Successfully!",
@@ -305,15 +133,6 @@ export function QuestionGenerationPanel() {
         ...prev,
         status: 'error',
         currentStep: 'Generation failed',
-        aiCommunicationLog: [
-          ...prev.aiCommunicationLog,
-          {
-            timestamp: new Date(),
-            agent: 'System',
-            message: 'Error occurred during generation: ' + (error as Error).message,
-            type: 'error'
-          }
-        ]
       } : null)
 
       toast({
@@ -321,118 +140,108 @@ export function QuestionGenerationPanel() {
         description: "An error occurred during exam generation. Please try again.",
         variant: "destructive"
       })
+    } finally {
+      setIsGenerating(false)
     }
-  }
-
-  const simulateAgentWork = async (agentName: string, task: string, duration: number) => {
-    const steps = 20
-    const stepDuration = duration / steps
-
-    for (let i = 0; i <= steps; i++) {
-      const progress = (i / steps) * 100
-      setAiAgents(prev => prev.map(agent => 
-        agent.name === agentName 
-          ? { ...agent, progress, currentTask: task }
-          : agent
-      ))
-      await new Promise(resolve => setTimeout(resolve, stepDuration))
-    }
-
-    setAiAgents(prev => prev.map(agent => 
-      agent.name === agentName 
-        ? { ...agent, status: 'completed', progress: 100 }
-        : agent
-    ))
   }
 
   const onSubmit = (data: QuestionGenerationParams) => {
+    // Check if user has selected files
+    if (selectedSampleQuestions.length === 0 && selectedLearningMaterials.length === 0) {
+      toast({
+        title: "No Files Selected",
+        description: "Please select sample questions and/or learning materials before generating an exam.",
+        variant: "destructive"
+      })
+      return
+    }
+
     startGeneration(data)
   }
 
   const resetSession = () => {
     setCurrentSession(null)
-    setAiAgents(prev => prev.map(agent => ({
-      ...agent,
-      status: 'idle',
-      progress: 0,
-      currentTask: `Ready to ${agent.role.toLowerCase()}`
-    })))
-  }
-
-  const getAgentStatusColor = (status: AIAgent['status']) => {
-    switch (status) {
-      case 'working': return 'text-yellow-600'
-      case 'completed': return 'text-green-600' 
-      case 'error': return 'text-red-600'
-      default: return 'text-gray-600'
-    }
-  }
-
-  const getAgentStatusIcon = (status: AIAgent['status']) => {
-    switch (status) {
-      case 'working': return <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600" />
-      case 'completed': return <CheckCircle className="h-4 w-4 text-green-600" />
-      case 'error': return <AlertCircle className="h-4 w-4 text-red-600" />
-      default: return <Bot className="h-4 w-4 text-gray-600" />
-    }
+    setIsGenerating(false)
   }
 
   return (
     <div className="space-y-6">
-      {/* AI Agents Status */}
+      {/* Uploaded Files Status */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5 text-blue-600" />
-            AI Agents Status
+            <FileText className="h-5 w-5 text-blue-600" />
+            Uploaded Materials
           </CardTitle>
           <CardDescription>
-            Four specialized AI agents working together to generate your exam
+            Status of your uploaded sample questions and learning materials
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {aiAgents.map((agent, index) => (
-              <Card key={index} className="p-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-sm">{agent.name}</h4>
-                    {getAgentStatusIcon(agent.status)}
-                  </div>
-                  
-                  <p className="text-xs text-gray-600">{agent.role}</p>
-                  
-                  <div className="space-y-2">
-                    <div className={`text-xs font-medium ${getAgentStatusColor(agent.status)}`}>
-                      {agent.currentTask}
-                    </div>
-                    <Progress value={agent.progress} className="h-2" />
-                  </div>
-                </div>
-              </Card>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+              <Bot className="h-6 w-6 text-blue-600" />
+              <div className="flex-1">
+                <h4 className="font-medium">Sample Questions</h4>
+                <p className="text-sm text-gray-600">
+                  {uploadedSampleQuestions.length} uploaded • {selectedSampleQuestions.length} selected
+                </p>
+                {selectedSampleQuestions.length === 0 && uploadedSampleQuestions.length > 0 && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    Select files for generation
+                  </p>
+                )}
+                {uploadedSampleQuestions.length === 0 && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    Upload sample questions to analyze patterns
+                  </p>
+                )}
+              </div>
+              <Badge variant={selectedSampleQuestions.length > 0 ? "default" : "secondary"}>
+                {selectedSampleQuestions.length > 0 ? `${selectedSampleQuestions.length} Selected` : "None Selected"}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+              <Brain className="h-6 w-6 text-green-600" />
+              <div className="flex-1">
+                <h4 className="font-medium">Learning Materials</h4>
+                <p className="text-sm text-gray-600">
+                  {uploadedLearningMaterials.length} uploaded • {selectedLearningMaterials.length} selected
+                </p>
+                {selectedLearningMaterials.length === 0 && uploadedLearningMaterials.length > 0 && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    Select files for generation
+                  </p>
+                )}
+                {uploadedLearningMaterials.length === 0 && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    Upload learning materials for content analysis
+                  </p>
+                )}
+              </div>
+              <Badge variant={selectedLearningMaterials.length > 0 ? "default" : "secondary"}>
+                {selectedLearningMaterials.length > 0 ? `${selectedLearningMaterials.length} Selected` : "None Selected"}
+              </Badge>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Generation Parameters */}
+      {/* Exam Parameters */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5 text-purple-600" />
+            <Target className="h-5 w-5 text-purple-600" />
             Exam Parameters
           </CardTitle>
           <CardDescription>
-            Configure your exam settings and question generation parameters
+            Configure your exam settings
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Basic Settings */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Basic Settings</h3>
-                
                 <div>
                   <Label htmlFor="examTitle">Exam Title</Label>
                   <Input
@@ -443,16 +252,6 @@ export function QuestionGenerationPanel() {
                   {errors.examTitle && (
                     <p className="text-sm text-red-600 mt-1">{errors.examTitle.message}</p>
                   )}
-                </div>
-
-                <div>
-                  <Label htmlFor="description">Description (Optional)</Label>
-                  <Textarea
-                    id="description"
-                    {...register('description')}
-                    placeholder="Brief description of the exam content and objectives"
-                    rows={3}
-                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -509,72 +308,24 @@ export function QuestionGenerationPanel() {
                 </div>
               </div>
 
-              {/* Advanced Settings */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Advanced Settings</h3>
-
                 <div>
-                  <Label>Question Types</Label>
-                  <div className="grid grid-cols-1 gap-2 mt-2">
-                    {questionTypeOptions.map((option) => (
-                      <div key={option.value} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={option.value}
-                          {...register('questionTypes')}
-                          value={option.value}
-                        />
-                        <Label htmlFor={option.value} className="text-sm">
-                          <span className="font-medium">{option.label}</span>
-                          <span className="text-gray-500 ml-2">{option.description}</span>
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="customInstructions">Custom Instructions</Label>
+                  <Label htmlFor="customInstructions">Custom Instructions (Optional)</Label>
                   <Textarea
                     id="customInstructions"
                     {...register('customInstructions')}
-                    placeholder="Any specific requirements or instructions for question generation..."
-                    rows={4}
+                    placeholder="Any specific requirements for question generation..."
+                    rows={6}
                   />
                 </div>
 
-                <div className="space-y-4">
-                  <h4 className="font-medium">Output Options</h4>
-                  
-                  <div>
-                    <Label>Output Format</Label>
-                    <Select onValueChange={(value) => setValue('outputFormat', value as any)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select format" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pdf">PDF only</SelectItem>
-                        <SelectItem value="docx">Word Document only</SelectItem>
-                        <SelectItem value="both">Both PDF and Word</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="includeAnswerKey"
-                        {...register('includeAnswerKey')}
-                      />
-                      <Label htmlFor="includeAnswerKey">Include Answer Key</Label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="includeSolutions"
-                        {...register('includeSolutions')}
-                      />
-                      <Label htmlFor="includeSolutions">Include Detailed Solutions</Label>
-                    </div>
+                {/* Quick Stats */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium mb-2">Quick Stats</h4>
+                  <div className="space-y-1 text-sm text-gray-600">
+                    <div>Questions: {watchedQuestionCount}</div>
+                    <div>Duration: {watchedExamLength} minutes</div>
+                    <div>Time per question: {Math.round(watchedExamLength / watchedQuestionCount)} minutes</div>
                   </div>
                 </div>
               </div>
@@ -584,12 +335,13 @@ export function QuestionGenerationPanel() {
             <div className="flex gap-4 pt-6 border-t">
               <Button
                 type="submit"
-                disabled={currentSession?.status === 'analyzing' || currentSession?.status === 'generating' || currentSession?.status === 'finalizing'}
+                disabled={isGenerating || (selectedSampleQuestions.length === 0 && selectedLearningMaterials.length === 0)}
                 className="flex items-center gap-2"
+                size="lg"
               >
-                {currentSession?.status && currentSession.status !== 'completed' && currentSession.status !== 'error' ? (
+                {isGenerating ? (
                   <>
-                    <Pause className="h-4 w-4" />
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                     Generating...
                   </>
                 ) : (
@@ -622,9 +374,6 @@ export function QuestionGenerationPanel() {
               <Sparkles className="h-5 w-5 text-orange-600" />
               Generation Progress
             </CardTitle>
-            <CardDescription>
-              Real-time progress and AI communication log
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -636,34 +385,6 @@ export function QuestionGenerationPanel() {
                 <Progress value={currentSession.progress} className="w-full" />
               </div>
 
-              {currentSession.estimatedCompletion && currentSession.status !== 'completed' && (
-                <div className="text-sm text-gray-600">
-                  <Clock className="h-4 w-4 inline mr-1" />
-                  Estimated completion: {currentSession.estimatedCompletion.toLocaleTimeString()}
-                </div>
-              )}
-
-              {/* AI Communication Log */}
-              <div className="bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
-                <h4 className="font-medium mb-2 flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4" />
-                  AI Communication Log
-                </h4>
-                <div className="space-y-2">
-                  {currentSession.aiCommunicationLog.map((log, index) => (
-                    <div key={index} className="text-sm">
-                      <span className="text-gray-500">
-                        {log.timestamp.toLocaleTimeString()}
-                      </span>
-                      <span className="ml-2 font-medium text-blue-600">
-                        {log.agent}:
-                      </span>
-                      <span className="ml-1">{log.message}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {/* Results */}
               {currentSession.result && (
                 <div className="bg-green-50 rounded-lg p-4">
@@ -671,28 +392,30 @@ export function QuestionGenerationPanel() {
                     <CheckCircle className="h-4 w-4" />
                     Generation Complete!
                   </h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                     <div>
                       <strong>Questions Generated:</strong> {currentSession.result.questionCount}
                     </div>
                     <div>
                       <strong>File Size:</strong> {(currentSession.result.fileSize / 1024 / 1024).toFixed(2)} MB
                     </div>
-                    <div className="col-span-2">
-                      <strong>Topics Covered:</strong>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {currentSession.result.generatedTopics.map((topic, idx) => (
-                          <Badge key={idx} variant="outline" className="text-xs">
-                            {topic}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
                   </div>
-                  <Button className="mt-4 flex items-center gap-2">
+                  <Button className="flex items-center gap-2">
                     <Download className="h-4 w-4" />
                     Download Exam PDF
                   </Button>
+                </div>
+              )}
+
+              {currentSession.status === 'error' && (
+                <div className="bg-red-50 rounded-lg p-4">
+                  <h4 className="font-medium mb-2 flex items-center gap-2 text-red-800">
+                    <AlertCircle className="h-4 w-4" />
+                    Generation Failed
+                  </h4>
+                  <p className="text-sm text-red-600">
+                    An error occurred during generation. Please try again.
+                  </p>
                 </div>
               )}
             </div>
@@ -704,14 +427,10 @@ export function QuestionGenerationPanel() {
       <Alert>
         <Target className="h-4 w-4" />
         <AlertDescription>
-          <strong>Generation Tips:</strong> The AI agents work collaboratively to create your exam. The Pattern Analyzer 
-          studies your sample questions to understand formatting and style, while the Content Processor extracts key concepts 
-          from your learning materials. The Question Generator then combines these insights to create questions that match 
-          your exam's expected format and difficulty level.
+          <strong>How it works:</strong> Upload sample questions to understand exam patterns, then upload learning materials for content analysis. 
+          The AI agents will communicate to generate questions that match your exam's style and cover the right topics.
         </AlertDescription>
       </Alert>
     </div>
   )
 }
-
-

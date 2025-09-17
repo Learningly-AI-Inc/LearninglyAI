@@ -176,8 +176,8 @@ export function FileManagement() {
     toast({
       title: file?.isArchived ? "File Unarchived" : "File Archived",
       description: file?.isArchived 
-        ? `"${file.originalName}" has been moved back to active files.`
-        : `"${file.originalName}" has been archived.`,
+        ? `"${file?.originalName}" has been moved back to active files.`
+        : `"${file?.originalName}" has been archived.`,
     })
   }
 

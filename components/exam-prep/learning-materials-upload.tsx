@@ -18,8 +18,12 @@ import {
   Eye,
   Download,
   BookOpen,
-  Zap
+  Zap,
+  Loader2,
+  RefreshCw
 } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { toast } from "@/hooks/use-toast"
 
 interface LearningMaterial {
@@ -29,7 +33,9 @@ interface LearningMaterial {
   type: string
   uploadDate: string
   status: 'uploading' | 'processing' | 'analyzed' | 'failed'
-  category: 'textbook' | 'notes' | 'presentation' | 'research' | 'other'
+  category: string
+  extracted_content?: string
+  processing_status?: string
   contentAnalysis?: {
     topicCoverage: string[]
     keyConceptsCount: number
@@ -54,16 +60,42 @@ interface UploadStats {
   totalConcepts: number
 }
 
-export function LearningMaterialsUpload() {
-  const [uploadedMaterials, setUploadedMaterials] = React.useState<LearningMaterial[]>([])
-  const [uploading, setUploading] = React.useState(false)
+interface LearningMaterialsUploadProps {
+  uploadedMaterials: LearningMaterial[]
+  setUploadedMaterials: React.Dispatch<React.SetStateAction<LearningMaterial[]>>
+  uploading: boolean
+  setUploading: React.Dispatch<React.SetStateAction<boolean>>
+  selectedFiles: string[]
+  setSelectedFiles: React.Dispatch<React.SetStateAction<string[]>>
+  isLoading: boolean
+}
+
+export function LearningMaterialsUpload({ 
+  uploadedMaterials, 
+  setUploadedMaterials, 
+  uploading, 
+  setUploading,
+  selectedFiles,
+  setSelectedFiles,
+  isLoading
+}: LearningMaterialsUploadProps) {
   const [dragActive, setDragActive] = React.useState(false)
   const [uploadStats, setUploadStats] = React.useState<UploadStats>({
-    totalFiles: 0,
-    totalSizeMB: 0,
-    analyzedFiles: 0,
-    totalConcepts: 0
+    totalFiles: uploadedMaterials.length,
+    totalSizeMB: uploadedMaterials.reduce((acc, material) => acc + (material.size / (1024 * 1024)), 0),
+    analyzedFiles: uploadedMaterials.filter(m => m.status === 'analyzed').length,
+    totalConcepts: uploadedMaterials.reduce((acc, material) => acc + (material.contentAnalysis?.keyConceptsCount || 0), 0)
   })
+
+  // Update stats when uploadedMaterials changes
+  React.useEffect(() => {
+    setUploadStats({
+      totalFiles: uploadedMaterials.length,
+      totalSizeMB: uploadedMaterials.reduce((acc, material) => acc + (material.size / (1024 * 1024)), 0),
+      analyzedFiles: uploadedMaterials.filter(m => m.status === 'analyzed').length,
+      totalConcepts: uploadedMaterials.reduce((acc, material) => acc + (material.contentAnalysis?.keyConceptsCount || 0), 0)
+    })
+  }, [uploadedMaterials])
 
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -166,16 +198,31 @@ export function LearningMaterialsUpload() {
       setUploadedMaterials(prev => [...prev, newMaterial])
 
       try {
-        // Simulate file upload
-        await new Promise(resolve => setTimeout(resolve, 2000))
+        // Upload to real API with learning_materials category
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('type', 'exam-prep')
+        formData.append('category', 'learning_materials')
+
+        const response = await fetch('/api/exam-prep/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.details || errorData.error || `Upload failed: ${response.statusText}`)
+        }
+
+        const result = await response.json()
         
         // Update to processing
         setUploadedMaterials(prev => 
           prev.map(m => m.id === fileId ? { ...m, status: 'processing' } : m)
         )
 
-        // Simulate content analysis (longer for learning materials)
-        await new Promise(resolve => setTimeout(resolve, 5000))
+        // Simulate content analysis (in real implementation, this would be handled by webhook)
+        await new Promise(resolve => setTimeout(resolve, 3000))
 
         // Mock content analysis results
         const mockAnalysis = {
@@ -210,8 +257,8 @@ export function LearningMaterialsUpload() {
         )
 
         toast({
-          title: "Analysis Complete",
-          description: `Content analysis completed for ${file.name}`,
+          title: "Upload & Analysis Complete",
+          description: `Learning material uploaded and analyzed: ${file.name}`,
         })
 
       } catch (error) {
@@ -220,23 +267,13 @@ export function LearningMaterialsUpload() {
         )
         toast({
           title: "Upload Failed",
-          description: `Failed to process ${file.name}`,
+          description: `Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
           variant: "destructive"
         })
       }
     }
 
     setUploading(false)
-    
-    // Update stats
-    const newStats = uploadedMaterials.reduce((acc, material) => ({
-      totalFiles: acc.totalFiles + 1,
-      totalSizeMB: acc.totalSizeMB + (material.size / (1024 * 1024)),
-      analyzedFiles: acc.analyzedFiles + (material.status === 'analyzed' ? 1 : 0),
-      totalConcepts: acc.totalConcepts + (material.contentAnalysis?.keyConceptsCount || 0)
-    }), uploadStats)
-    
-    setUploadStats(newStats)
   }
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -258,8 +295,85 @@ export function LearningMaterialsUpload() {
     setDragActive(false)
   }
 
-  const removeMaterial = (materialId: string) => {
-    setUploadedMaterials(prev => prev.filter(m => m.id !== materialId))
+  const [deletingMaterials, setDeletingMaterials] = React.useState<Set<string>>(new Set())
+  const [refreshing, setRefreshing] = React.useState(false)
+
+  const refreshMaterials = async () => {
+    setRefreshing(true)
+    try {
+      const response = await fetch('/api/exam-prep/files')
+      if (response.ok) {
+        const data = await response.json()
+        const files = data.files || []
+        const learningMaterials = files.filter((file: any) => file.file_category === 'learning_materials')
+        setUploadedMaterials(learningMaterials)
+        toast({
+          title: "Files Refreshed",
+          description: "File list has been updated.",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Refresh Failed",
+        description: "Failed to refresh file list.",
+        variant: "destructive"
+      })
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  const removeMaterial = async (materialId: string) => {
+    setDeletingMaterials(prev => new Set(prev).add(materialId))
+    
+    try {
+      const response = await fetch(`/api/exam-prep/files/${materialId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        // Remove from local state
+        setUploadedMaterials(prev => prev.filter(m => m.id !== materialId))
+        setSelectedFiles(prev => prev.filter(id => id !== materialId))
+        
+        toast({
+          title: "File Deleted",
+          description: "File has been successfully deleted.",
+        })
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Delete failed: ${response.statusText}`)
+      }
+    } catch (error) {
+      toast({
+        title: "Delete Failed",
+        description: `Failed to delete file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive"
+      })
+    } finally {
+      setDeletingMaterials(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(materialId)
+        return newSet
+      })
+    }
+  }
+
+  const toggleFileSelection = (materialId: string) => {
+    setSelectedFiles(prev => {
+      if (prev.includes(materialId)) {
+        return prev.filter(id => id !== materialId)
+      } else if (prev.length < 10) {
+        return [...prev, materialId]
+      } else {
+        toast({
+          title: "Selection Limit Reached",
+          description: "You can select up to 10 files for generation.",
+          variant: "destructive"
+        })
+        return prev
+      }
+    })
   }
 
   const getStatusIcon = (status: LearningMaterial['status']) => {
@@ -284,6 +398,17 @@ export function LearningMaterialsUpload() {
       case 'advanced': return 'bg-red-100 text-red-800'
       default: return 'bg-gray-100 text-gray-800'
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+          <span className="ml-3 text-gray-600">Loading uploaded files...</span>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -387,11 +512,33 @@ export function LearningMaterialsUpload() {
       {/* Uploaded Materials List */}
       {uploadedMaterials.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Learning Materials</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Learning Materials</h3>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={refreshMaterials}
+                disabled={refreshing}
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              </Button>
+              <Badge variant="outline">
+                {selectedFiles.length}/10 selected
+              </Badge>
+            </div>
+          </div>
           <div className="grid gap-4">
             {uploadedMaterials.map((material) => (
-              <Card key={material.id} className="p-4">
+              <Card key={material.id} className={`p-4 ${selectedFiles.includes(material.id) ? 'ring-2 ring-green-500 bg-green-50' : ''}`}>
                 <div className="flex items-start gap-4">
+                  <Checkbox
+                    checked={selectedFiles.includes(material.id)}
+                    onCheckedChange={() => toggleFileSelection(material.id)}
+                    disabled={material.status !== 'analyzed'}
+                    className="mt-1"
+                  />
+                  
                   <div className="text-blue-600 mt-1">
                     {getCategoryIcon(material.category)}
                   </div>
@@ -409,16 +556,96 @@ export function LearningMaterialsUpload() {
                       {formatFileSize(material.size)} • Uploaded {material.uploadDate}
                     </div>
 
+                    {material.status === 'analyzed' && material.contentAnalysis && (
+                      <div className="text-xs text-gray-500">
+                        {material.contentAnalysis.keyConceptsCount} concepts • {material.contentAnalysis.difficultyLevel} level
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => removeMaterial(material.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-600" />
-                    </Button>
+                    {/* View Content Button */}
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                        >
+                          <Eye className="h-4 w-4 text-blue-600" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>Extracted Content: {material.name}</DialogTitle>
+                          <DialogDescription>
+                            {material.extracted_content ? 
+                              `Content extracted from PDF (${material.extracted_content.length} characters)` :
+                              'Content not yet extracted or available'
+                            }
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="mt-4">
+                          {material.extracted_content ? (
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <pre className="whitespace-pre-wrap text-sm font-mono">
+                                {material.extracted_content}
+                              </pre>
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-gray-500">
+                              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                              <p>Content extraction is still in progress or failed.</p>
+                              <p className="text-sm mt-2">Status: {material.processing_status || 'Unknown'}</p>
+                            </div>
+                          )}
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline">Close</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+
+                    {/* Delete Button */}
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          disabled={deletingMaterials.has(material.id)}
+                        >
+                          {deletingMaterials.has(material.id) ? (
+                            <Loader2 className="h-4 w-4 text-red-600 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          )}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Delete File</DialogTitle>
+                          <DialogDescription>
+                            Are you sure you want to delete "{material.name}"? This action cannot be undone.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                          <Button variant="outline">Cancel</Button>
+                          <Button
+                            onClick={() => removeMaterial(material.id)}
+                            className="bg-red-600 hover:bg-red-700"
+                            disabled={deletingMaterials.has(material.id)}
+                          >
+                            {deletingMaterials.has(material.id) ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Deleting...
+                              </>
+                            ) : (
+                              "Delete"
+                            )}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </div>
               </Card>

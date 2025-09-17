@@ -11,8 +11,99 @@ import { QuestionGenerationPanel } from "@/components/exam-prep/question-generat
 import { GeneratedPDFsHistory } from "@/components/exam-prep/generated-pdfs-history"
 import { FileManagement } from "@/components/exam-prep/file-management"
 
+// Shared interfaces for file management
+interface UploadedFile {
+  id: string
+  name: string
+  size: number
+  type: string
+  uploadDate: string
+  status: 'uploading' | 'processing' | 'analyzed' | 'failed'
+  category?: string
+  extracted_content?: string
+  processing_status?: string
+  patternAnalysis?: {
+    questionTypes: string[]
+    difficultyDistribution: { easy: number; medium: number; hard: number }
+    topicAreas: string[]
+    questionCount: number
+    averageWordCount: number
+    insights: string[]
+  }
+}
+
+interface LearningMaterial {
+  id: string
+  name: string
+  size: number
+  type: string
+  uploadDate: string
+  status: 'uploading' | 'processing' | 'analyzed' | 'failed'
+  category: string
+  extracted_content?: string
+  processing_status?: string
+  contentAnalysis?: {
+    topicCoverage: string[]
+    keyConceptsCount: number
+    difficultyLevel: 'beginner' | 'intermediate' | 'advanced'
+    contentType: 'theoretical' | 'practical' | 'mixed'
+    readabilityScore: number
+    textLength: number
+    isOptimized: boolean
+    optimizationSummary?: string
+    chapterSummary: {
+      title: string
+      keyPoints: string[]
+      questionPotential: number
+    }[]
+  }
+}
+
 export default function FullLengthExamPrepPage() {
   const [activeTab, setActiveTab] = React.useState("sample-questions")
+  
+  // Shared state for uploaded files
+  const [uploadedSampleQuestions, setUploadedSampleQuestions] = React.useState<UploadedFile[]>([])
+  const [uploadedLearningMaterials, setUploadedLearningMaterials] = React.useState<LearningMaterial[]>([])
+  
+  // Shared state for upload status
+  const [uploadingSampleQuestions, setUploadingSampleQuestions] = React.useState(false)
+  const [uploadingLearningMaterials, setUploadingLearningMaterials] = React.useState(false)
+  
+  // Shared state for file selection
+  const [selectedSampleQuestions, setSelectedSampleQuestions] = React.useState<string[]>([])
+  const [selectedLearningMaterials, setSelectedLearningMaterials] = React.useState<string[]>([])
+  
+  // Loading state
+  const [isLoadingFiles, setIsLoadingFiles] = React.useState(true)
+
+  // Load files from database on component mount
+  React.useEffect(() => {
+    const loadFiles = async () => {
+      try {
+        const response = await fetch('/api/exam-prep/files')
+        if (response.ok) {
+          const data = await response.json()
+          const files = data.files || []
+          
+          // Separate files by category
+          const sampleQuestions = files.filter((file: any) => file.category === 'sample_questions')
+          const learningMaterials = files.filter((file: any) => file.category === 'learning_materials')
+          
+          setUploadedSampleQuestions(sampleQuestions)
+          setUploadedLearningMaterials(learningMaterials)
+        } else {
+          console.error('Failed to load files:', response.status, response.statusText)
+        }
+      } catch (error) {
+        console.error('Error loading files:', error)
+      } finally {
+        setIsLoadingFiles(false)
+      }
+    }
+
+    loadFiles()
+  }, [])
 
   return (
     <div className="min-h-screen bg-background">
@@ -114,7 +205,15 @@ export default function FullLengthExamPrepPage() {
                       Upload past exam papers and sample questions for AI pattern analysis
                     </p>
                   </div>
-                  <SampleQuestionsUpload />
+                  <SampleQuestionsUpload 
+                    uploadedFiles={uploadedSampleQuestions}
+                    setUploadedFiles={setUploadedSampleQuestions}
+                    uploading={uploadingSampleQuestions}
+                    setUploading={setUploadingSampleQuestions}
+                    selectedFiles={selectedSampleQuestions}
+                    setSelectedFiles={setSelectedSampleQuestions}
+                    isLoading={isLoadingFiles}
+                  />
                 </div>
               </TabsContent>
 
@@ -126,7 +225,15 @@ export default function FullLengthExamPrepPage() {
                       Upload textbooks, notes, and study materials for content analysis
                     </p>
                   </div>
-                  <LearningMaterialsUpload />
+                  <LearningMaterialsUpload 
+                    uploadedMaterials={uploadedLearningMaterials}
+                    setUploadedMaterials={setUploadedLearningMaterials}
+                    uploading={uploadingLearningMaterials}
+                    setUploading={setUploadingLearningMaterials}
+                    selectedFiles={selectedLearningMaterials}
+                    setSelectedFiles={setSelectedLearningMaterials}
+                    isLoading={isLoadingFiles}
+                  />
                 </div>
               </TabsContent>
 
@@ -138,7 +245,12 @@ export default function FullLengthExamPrepPage() {
                       Create custom exams using AI-powered question generation
                     </p>
                   </div>
-                  <QuestionGenerationPanel />
+                  <QuestionGenerationPanel 
+                    uploadedSampleQuestions={uploadedSampleQuestions}
+                    uploadedLearningMaterials={uploadedLearningMaterials}
+                    selectedSampleQuestions={selectedSampleQuestions}
+                    selectedLearningMaterials={selectedLearningMaterials}
+                  />
                 </div>
               </TabsContent>
 

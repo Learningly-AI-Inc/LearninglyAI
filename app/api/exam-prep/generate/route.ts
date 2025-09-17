@@ -19,6 +19,7 @@ interface ExamConfig {
 interface FileData {
   url: string;
   name: string;
+  category?: string;
 }
 
 // Content extraction functions
@@ -255,43 +256,78 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract text content from PDFs
+    // Separate files by category for better processing
+    const sampleQuestions = files.filter(f => f.category === 'sample_questions');
+    const learningMaterials = files.filter(f => f.category === 'learning_materials');
+    
+    console.log(`Processing ${sampleQuestions.length} sample questions and ${learningMaterials.length} learning materials`);
+    
+    // Extract text content from files
     let combinedContent = '';
+    let sampleQuestionsContent = '';
+    let learningMaterialsContent = '';
     const fileContents: string[] = [];
 
-    for (const file of files) {
+    // Process sample questions first
+    for (const file of sampleQuestions) {
       try {
-        console.log(`Processing file: ${file.name} from URL: ${file.url}`);
+        console.log(`Processing sample question file: ${file.name} from URL: ${file.url}`);
         
-        // Extract content based on file type
         let extractedContent = '';
         
         if (file.name.toLowerCase().endsWith('.pdf')) {
-          // For PDF files, we'll use a more sophisticated approach
           extractedContent = await extractPDFContent(file.url, file.name);
         } else if (file.name.toLowerCase().endsWith('.docx') || file.name.toLowerCase().endsWith('.doc')) {
-          // For DOCX files, extract text content
           extractedContent = await extractDOCXContent(file.url, file.name);
         } else if (file.name.toLowerCase().endsWith('.txt')) {
-          // For TXT files, fetch directly
           extractedContent = await extractTXTContent(file.url, file.name);
         } else {
-          // Fallback for other file types
           extractedContent = await generateContentFromFilename(file.name);
         }
         
         fileContents.push(extractedContent);
-        combinedContent += `\n\n=== ${file.name} ===\n${extractedContent}`;
-        console.log(`Successfully processed ${file.name} - extracted ${extractedContent.length} characters`);
+        sampleQuestionsContent += `\n\n=== SAMPLE QUESTION: ${file.name} ===\n${extractedContent}`;
+        console.log(`Successfully processed sample question ${file.name} - extracted ${extractedContent.length} characters`);
         
       } catch (error) {
-        console.error(`Error processing ${file.name}:`, error);
-        // Fallback content for failed processing
+        console.error(`Error processing sample question ${file.name}:`, error);
         const fallbackContent = await generateContentFromFilename(file.name);
         fileContents.push(fallbackContent);
-        combinedContent += `\n\n=== ${file.name} ===\n${fallbackContent}`;
+        sampleQuestionsContent += `\n\n=== SAMPLE QUESTION: ${file.name} ===\n${fallbackContent}`;
       }
     }
+
+    // Process learning materials
+    for (const file of learningMaterials) {
+      try {
+        console.log(`Processing learning material file: ${file.name} from URL: ${file.url}`);
+        
+        let extractedContent = '';
+        
+        if (file.name.toLowerCase().endsWith('.pdf')) {
+          extractedContent = await extractPDFContent(file.url, file.name);
+        } else if (file.name.toLowerCase().endsWith('.docx') || file.name.toLowerCase().endsWith('.doc')) {
+          extractedContent = await extractDOCXContent(file.url, file.name);
+        } else if (file.name.toLowerCase().endsWith('.txt')) {
+          extractedContent = await extractTXTContent(file.url, file.name);
+        } else {
+          extractedContent = await generateContentFromFilename(file.name);
+        }
+        
+        fileContents.push(extractedContent);
+        learningMaterialsContent += `\n\n=== LEARNING MATERIAL: ${file.name} ===\n${extractedContent}`;
+        console.log(`Successfully processed learning material ${file.name} - extracted ${extractedContent.length} characters`);
+        
+      } catch (error) {
+        console.error(`Error processing learning material ${file.name}:`, error);
+        const fallbackContent = await generateContentFromFilename(file.name);
+        fileContents.push(fallbackContent);
+        learningMaterialsContent += `\n\n=== LEARNING MATERIAL: ${file.name} ===\n${fallbackContent}`;
+      }
+    }
+
+    // Combine all content with clear separation
+    combinedContent = `SAMPLE QUESTIONS AND PAST EXAMS:\n${sampleQuestionsContent}\n\nLEARNING MATERIALS AND STUDY CONTENT:\n${learningMaterialsContent}`;
 
     if (!combinedContent.trim()) {
       return NextResponse.json(
@@ -311,7 +347,7 @@ export async function POST(request: NextRequest) {
         const duration = isRapidFire ? Math.min(config.examDuration, 30) : config.examDuration; // Rapid-fire is shorter
         
         const examPrompt = `
-You are an expert exam creator. Based on the following study materials, create a comprehensive ${config.difficulty} level ${examType} exam.
+You are an expert exam creator with advanced AI pattern analysis capabilities. Based on the following categorized study materials, create a comprehensive ${config.difficulty} level ${examType} exam.
 
 EXAM REQUIREMENTS:
 - Number of questions: ${questionsPerExam}
@@ -321,8 +357,29 @@ EXAM REQUIREMENTS:
 - Title: ${config.examTitle || `Comprehensive ${examType === 'rapid-fire' ? 'Rapid-Fire Quiz' : 'Exam'} ${examIndex + 1}`}
 ${config.additionalInstructions ? `- Additional instructions: ${config.additionalInstructions}` : ''}
 
-STUDY MATERIALS:
+CATEGORIZED STUDY MATERIALS:
 ${combinedContent}
+
+AI PATTERN ANALYSIS INSTRUCTIONS:
+1. Analyze the SAMPLE QUESTIONS section to understand:
+   - Question formats and structures
+   - Difficulty progression patterns
+   - Common question types and styles
+   - Answer choice patterns
+   - Explanation styles
+
+2. Use the LEARNING MATERIALS section to:
+   - Extract key concepts and topics
+   - Understand the depth of knowledge required
+   - Identify important facts, formulas, and principles
+   - Note the complexity level of the subject matter
+
+3. Generate questions that:
+   - Match the format and style of the sample questions
+   - Test knowledge from the learning materials
+   - Follow the same difficulty progression
+   - Use similar language and terminology
+   - Maintain consistency with the original exam structure
 
 Please generate a JSON response with the following structure:
 {
