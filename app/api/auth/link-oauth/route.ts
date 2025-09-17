@@ -38,30 +38,39 @@ export async function POST(request: NextRequest) {
       )
     }
     
+    // Get the updated user after linking
+    const { data: { user: updatedUser }, error: userError } = await supabase.auth.getUser()
+    
+    if (userError || !updatedUser) {
+      console.error('Error getting updated user:', userError)
+      return NextResponse.json(
+        { error: 'Failed to get updated user information' },
+        { status: 500 }
+      )
+    }
+    
     // Update the user profile in public.users if needed
-    if (data.user) {
-      const { error: updateError } = await supabase
-        .from('users')
-        .upsert({
-          id: data.user.id,
-          email: data.user.email,
-          full_name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || 'User',
-          username: `user_${data.user.id.substring(0, 8)}`,
-          role: 'self-learner',
-          last_login: new Date().toISOString()
-        }, {
-          onConflict: 'email'
-        })
-      
-      if (updateError) {
-        console.error('Error updating user profile:', updateError)
-      }
+    const { error: updateError } = await supabase
+      .from('users')
+      .upsert({
+        id: updatedUser.id,
+        email: updatedUser.email,
+        full_name: updatedUser.user_metadata?.full_name || updatedUser.user_metadata?.name || 'User',
+        username: `user_${updatedUser.id.substring(0, 8)}`,
+        role: 'self-learner',
+        last_login: new Date().toISOString()
+      }, {
+        onConflict: 'email'
+      })
+    
+    if (updateError) {
+      console.error('Error updating user profile:', updateError)
     }
     
     return NextResponse.json({
       success: true,
       message: `${provider} successfully linked to your account`,
-      user: data.user
+      user: updatedUser
     })
     
   } catch (error: any) {
