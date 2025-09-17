@@ -282,12 +282,12 @@ export default function FullLengthExamPrepPage() {
         <div className="w-full">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="sticky top-14 z-10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90 rounded-2xl border border-gray-200 shadow-xl">
-              <TabsList className="grid w-full grid-cols-4 h-16 p-2 rounded-2xl bg-gradient-to-r from-gray-900 to-black shadow-2xl">
+              <TabsList className="grid w-full grid-cols-4 h-16 p-2 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 shadow-2xl">
                 <TabsTrigger 
                   value="sample-questions" 
-                  className="flex items-center gap-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 data-[state=active]:border data-[state=active]:border-blue-400 data-[state=active]:text-white data-[state=inactive]:text-gray-300 data-[state=inactive]:hover:text-white data-[state=inactive]:hover:bg-gray-800/50 transition-all duration-300 ease-in-out"
+                  className="relative overflow-hidden flex items-center gap-3 rounded-xl data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 data-[state=active]:border data-[state=active]:border-blue-400 data-[state=active]:text-foreground data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-gray-100 transition-all duration-300 ease-in-out data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:inset-y-0 data-[state=active]:after:right-0 data-[state=active]:after:w-20 sm:data-[state=active]:after:w-24 lg:data-[state=active]:after:w-28 data-[state=active]:after:rounded-xl data-[state=active]:after:bg-gradient-to-r data-[state=active]:after:from-blue-600 data-[state=active]:after:to-blue-700 data-[state=active]:after:-z-10"
                 >
-                  <Upload className="h-5 w-5 text-blue-400 data-[state=active]:text-white" />
+                  <Upload className="h-5 w-5 text-blue-500" />
                   <span className="font-semibold text-sm">Sample</span>
                   {uploadedSampleQuestions.length > 0 && (
                     <Badge variant="secondary" className="ml-1 bg-blue-500 text-white border-blue-400 shadow-sm">{uploadedSampleQuestions.length}</Badge>
@@ -295,9 +295,9 @@ export default function FullLengthExamPrepPage() {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="learning-materials" 
-                  className="flex items-center gap-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-green-700 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:border data-[state=active]:border-green-400 data-[state=active]:text-white data-[state=inactive]:text-gray-300 data-[state=inactive]:hover:text-white data-[state=inactive]:hover:bg-gray-800/50 transition-all duration-300 ease-in-out"
+                  className="relative overflow-hidden flex items-center gap-3 rounded-xl data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:border data-[state=active]:border-green-400 data-[state=active]:text-foreground data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-gray-100 transition-all duration-300 ease-in-out data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:inset-y-0 data-[state=active]:after:right-0 data-[state=active]:after:w-20 sm:data-[state=active]:after:w-24 lg:data-[state=active]:after:w-28 data-[state=active]:after:rounded-xl data-[state=active]:after:bg-gradient-to-r data-[state=active]:after:from-green-600 data-[state=active]:after:to-green-700 data-[state=active]:after:-z-10"
                 >
-                  <FileText className="h-5 w-5 text-green-400 data-[state=active]:text-white" />
+                  <FileText className="h-5 w-5 text-green-600" />
                   <span className="font-semibold text-sm">Materials</span>
                   {uploadedLearningMaterials.length > 0 && (
                     <Badge variant="secondary" className="ml-1 bg-green-500 text-white border-green-400 shadow-sm">{uploadedLearningMaterials.length}</Badge>
@@ -305,16 +305,16 @@ export default function FullLengthExamPrepPage() {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="generate" 
-                  className="flex items-center gap-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-purple-700 data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/25 data-[state=active]:border data-[state=active]:border-purple-400 data-[state=active]:text-white data-[state=inactive]:text-gray-300 data-[state=inactive]:hover:text-white data-[state=inactive]:hover:bg-gray-800/50 transition-all duration-300 ease-in-out"
+                  className="relative overflow-hidden flex items-center gap-3 rounded-xl data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/25 data-[state=active]:border data-[state=active]:border-purple-400 data-[state=active]:text-foreground data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-gray-100 transition-all duration-300 ease-in-out data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:inset-y-0 data-[state=active]:after:right-0 data-[state=active]:after:w-20 sm:data-[state=active]:after:w-24 lg:data-[state=active]:after:w-28 data-[state=active]:after:rounded-xl data-[state=active]:after:bg-gradient-to-r data-[state=active]:after:from-purple-600 data-[state=active]:after:to-purple-700 data-[state=active]:after:-z-10"
                 >
-                  <Bot className="h-5 w-5 text-purple-400 data-[state=active]:text-white" />
+                  <Bot className="h-5 w-5 text-purple-600" />
                   <span className="font-semibold text-sm">Generate</span>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="history" 
-                  className="flex items-center gap-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-600 data-[state=active]:to-orange-700 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/25 data-[state=active]:border data-[state=active]:border-orange-400 data-[state=active]:text-white data-[state=inactive]:text-gray-300 data-[state=inactive]:hover:text-white data-[state=inactive]:hover:bg-gray-800/50 transition-all duration-300 ease-in-out"
+                  className="relative overflow-hidden flex items-center gap-3 rounded-xl data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/25 data-[state=active]:border data-[state=active]:border-orange-400 data-[state=active]:text-foreground data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-gray-100 transition-all duration-300 ease-in-out data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:inset-y-0 data-[state=active]:after:right-0 data-[state=active]:after:w-20 sm:data-[state=active]:after:w-24 lg:data-[state=active]:after:w-28 data-[state=active]:after:rounded-xl data-[state=active]:after:bg-gradient-to-r data-[state=active]:after:from-orange-600 data-[state=active]:after:to-orange-700 data-[state=active]:after:-z-10"
                 >
-                  <History className="h-5 w-5 text-orange-400 data-[state=active]:text-white" />
+                  <History className="h-5 w-5 text-orange-600" />
                   <span className="font-semibold text-sm">History</span>
                 </TabsTrigger>
               </TabsList>
