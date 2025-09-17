@@ -24,6 +24,12 @@ interface StudyMode {
   gradient: string;
 }
 
+interface StudyModeCardProps {
+  mode: StudyMode;
+  isSelected: boolean;
+  onSelect: (modeId: StudyMode["id"]) => void;
+}
+
 // Study modes configuration
 const studyModes: StudyMode[] = [
   {
@@ -68,7 +74,7 @@ const cardVariants = {
   },
 };
 
-const StudyModeCard = ({ mode, isSelected, onSelect }) => {
+const StudyModeCard = ({ mode, isSelected, onSelect }: StudyModeCardProps) => {
   const Icon = mode.icon;
   return (
     <motion.div
