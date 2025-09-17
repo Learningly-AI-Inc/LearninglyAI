@@ -24,6 +24,20 @@ import {
   Target
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+import jsPDF from 'jspdf'
+
+// Unicode-safe base64 encoding function
+const encodeUnicodeToBase64 = (str: string): string => {
+  try {
+    // First encode to UTF-8 bytes, then to base64
+    return btoa(unescape(encodeURIComponent(str)))
+  } catch (error) {
+    console.error('Error encoding to base64:', error)
+    // Fallback: remove non-ASCII characters and try again
+    const asciiStr = str.replace(/[^\x00-\x7F]/g, '')
+    return btoa(asciiStr)
+  }
+}
 
 interface QuestionGenerationParams {
   examTitle: string
@@ -102,7 +116,7 @@ export function QuestionGenerationPanel({
       ]
 
       const filesForAPI = selectedFiles.map(file => ({
-        url: file.extracted_content ? `data:text/plain;base64,${btoa(file.extracted_content)}` : '',
+        url: file.extracted_content ? `data:text/plain;base64,${encodeUnicodeToBase64(file.extracted_content)}` : '',
         name: file.name,
         category: file.category || (uploadedSampleQuestions.includes(file) ? 'sample_questions' : 'learning_materials')
       }))
@@ -212,94 +226,134 @@ export function QuestionGenerationPanel({
   }
 
   const generatePDFFromExam = async (examData: any): Promise<Blob> => {
-    // Create a simple HTML document for the exam
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${examData.examTitle}</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-          .instructions { background: #f5f5f5; padding: 15px; margin-bottom: 30px; border-radius: 5px; }
-          .question { margin-bottom: 25px; page-break-inside: avoid; }
-          .question-number { font-weight: bold; margin-bottom: 10px; }
-          .options { margin-left: 20px; }
-          .option { margin-bottom: 5px; }
-          .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>${examData.examTitle}</h1>
-          <p>Duration: ${examData.duration} minutes | Questions: ${examData.questions.length}</p>
-        </div>
-        
-        <div class="instructions">
-          <h3>Instructions:</h3>
-          <p>${examData.instructions || 'Please read each question carefully and select the best answer. Choose only one answer per question.'}</p>
-        </div>
-        
-        ${examData.questions.map((q: any, index: number) => `
-          <div class="question">
-            <div class="question-number">Question ${index + 1}:</div>
-            <p>${q.question}</p>
-            <div class="options">
-              ${q.options.map((option: string, optIndex: number) => `
-                <div class="option">${String.fromCharCode(65 + optIndex)}. ${option}</div>
-              `).join('')}
-            </div>
-          </div>
-        `).join('')}
-        
-        <div class="footer">
-          <p>End of Exam - Good luck!</p>
-        </div>
-      </body>
-      </html>
-    `
-
-    // Convert HTML to PDF using browser's print functionality
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(htmlContent)
-      printWindow.document.close()
+    // Create a new PDF document
+    const doc = new jsPDF()
+    
+    // Set document properties
+    doc.setProperties({
+      title: examData.examTitle || 'Generated Exam',
+      subject: 'AI-Generated Exam',
+      author: 'Learningly AI',
+      creator: 'Learningly AI Exam Generator'
+    })
+    
+    // Set font and initial position
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    
+    // Add title
+    doc.text(examData.examTitle || 'Generated Exam', 20, 30)
+    
+    // Add exam info
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Duration: ${examData.duration} minutes`, 20, 45)
+    doc.text(`Questions: ${examData.questions.length}`, 20, 55)
+    
+    // Add instructions
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Instructions:', 20, 75)
+    doc.setFont('helvetica', 'normal')
+    
+    const instructions = examData.instructions || 'Please read each question carefully and select the best answer. Choose only one answer per question.'
+    const instructionLines = doc.splitTextToSize(instructions, 170)
+    doc.text(instructionLines, 20, 85)
+    
+    // Add questions
+    let yPosition = 105
+    const questions = examData.questions || []
+    
+    for (let i = 0; i < questions.length; i++) {
+      const question = questions[i]
       
-      // Wait for content to load, then trigger print
-      printWindow.onload = () => {
-        printWindow.print()
-        printWindow.close()
+      // Check if we need a new page
+      if (yPosition > 250) {
+        doc.addPage()
+        yPosition = 20
       }
+      
+      // Add question number and type
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Question ${i + 1} (${question.type?.toUpperCase() || 'MCQ'}):`, 20, yPosition)
+      yPosition += 10
+      
+      // Add question text
+      doc.setFont('helvetica', 'normal')
+      const questionLines = doc.splitTextToSize(question.question, 170)
+      doc.text(questionLines, 20, yPosition)
+      yPosition += questionLines.length * 5 + 5
+      
+      // Add options for MCQ
+      if (question.type === 'mcq' && question.options) {
+        question.options.forEach((option: string, optIndex: number) => {
+          if (yPosition > 250) {
+            doc.addPage()
+            yPosition = 20
+          }
+          doc.text(`${String.fromCharCode(65 + optIndex)}. ${option}`, 30, yPosition)
+          yPosition += 6
+        })
+      }
+      
+      // Add options for true/false
+      if (question.type === 'true_false') {
+        if (yPosition > 250) {
+          doc.addPage()
+          yPosition = 20
+        }
+        doc.text('A. True', 30, yPosition)
+        yPosition += 6
+        doc.text('B. False', 30, yPosition)
+        yPosition += 6
+      }
+      
+      // Add answer space for written questions
+      if (['short_answer', 'essay', 'fill_blank', 'code_writing', 'numerical'].includes(question.type)) {
+        if (yPosition > 250) {
+          doc.addPage()
+          yPosition = 20
+        }
+        
+        let answerLabel = 'Answer:'
+        if (question.type === 'fill_blank') answerLabel = 'Fill in the blank:'
+        if (question.type === 'code_writing') answerLabel = `Write your code (${question.codeLanguage || 'any language'}):`
+        if (question.type === 'numerical') answerLabel = 'Numerical Answer:'
+        
+        doc.setFont('helvetica', 'bold')
+        doc.text(answerLabel, 20, yPosition)
+        yPosition += 10
+        
+        // Add answer space
+        const answerSpaceHeight = question.type === 'essay' ? 40 : question.type === 'code_writing' ? 30 : 15
+        doc.rect(20, yPosition, 170, answerSpaceHeight)
+        yPosition += answerSpaceHeight + 10
+      }
+      
+      yPosition += 5 // Space between questions
     }
-
-    // For now, return a simple text blob as PDF
-    // In a real implementation, you'd use a library like jsPDF or Puppeteer
-    const textContent = `
-${examData.examTitle}
-Duration: ${examData.duration} minutes
-Questions: ${examData.questions.length}
-
-Instructions:
-${examData.instructions || 'Please read each question carefully and select the best answer.'}
-
-${examData.questions.map((q: any, index: number) => `
-Question ${index + 1}: ${q.question}
-${q.options.map((option: string, optIndex: number) => 
-  `${String.fromCharCode(65 + optIndex)}. ${option}`
-).join('\n')}
-
-`).join('')}
-End of Exam
-    `
-
-    return new Blob([textContent], { type: 'text/plain' })
+    
+    // Add footer
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Generated by Learningly AI', 20, 290)
+      doc.text(`Page ${i} of ${pageCount}`, 170, 290)
+    }
+    
+    // Return the PDF as a blob
+    return doc.output('blob')
   }
 
   const handleDownload = () => {
     if (currentSession?.result?.pdfUrl) {
       const link = document.createElement('a')
       link.href = currentSession.result.pdfUrl
-      link.download = `${currentSession.result.examData?.examTitle || 'Generated Exam'}.pdf`
+      const filename = `${currentSession.result.examData?.examTitle || 'Generated Exam'}.pdf`
+      link.download = filename
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)

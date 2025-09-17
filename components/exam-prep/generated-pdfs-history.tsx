@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { 
   FileText, 
   Download, 
@@ -20,9 +21,11 @@ import {
   Clock,
   Users,
   Star,
-  Copy
+  Copy,
+  X
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+import jsPDF from 'jspdf'
 
 interface GeneratedPDF {
   id: string
@@ -56,6 +59,10 @@ export function GeneratedPDFsHistory() {
   const [sortBy, setSortBy] = React.useState<'date' | 'title' | 'downloads'>('date')
   const [filterBy, setFilterBy] = React.useState<'all' | 'starred' | 'public'>('all')
   const [loading, setLoading] = React.useState(false)
+  const [viewingPdf, setViewingPdf] = React.useState<GeneratedPDF | null>(null)
+  const [pdfContent, setPdfContent] = React.useState<string>('')
+  const [loadingPdf, setLoadingPdf] = React.useState(false)
+  const [deletingPdf, setDeletingPdf] = React.useState<GeneratedPDF | null>(null)
 
   // Fetch generated exams from database
   React.useEffect(() => {
@@ -86,7 +93,7 @@ export function GeneratedPDFsHistory() {
               isStarred: false, // Default to not starred
               topics: questions.map((q: any) => q.topic).filter(Boolean).slice(0, 3) || ['General'],
               generationParameters: {
-                questionTypes: ['multiple_choice'],
+                questionTypes: [...new Set(questions.map((q: any) => q.type || 'mcq'))] || ['multiple_choice'],
                 aiAgentsUsed: ['GPT-4'],
                 sourceFiles: {
                   sampleQuestions: 0,
@@ -187,16 +194,13 @@ export function GeneratedPDFsHistory() {
         throw new Error('No exam data found')
       }
 
-      // Generate PDF content
-      const pdfContent = generatePDFContent(examData)
-      
-      // Create and download the PDF
-      const blob = new Blob([pdfContent], { type: 'text/plain' })
-      const url = URL.createObjectURL(blob)
+      // Generate proper PDF using jsPDF
+      const pdfBlob = await generatePDFFromExam(examData)
+      const url = URL.createObjectURL(pdfBlob)
       
       const link = document.createElement('a')
       link.href = url
-      link.download = `${pdf.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`
+      link.download = `${pdf.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -223,6 +227,129 @@ export function GeneratedPDFsHistory() {
     }
   }
 
+  const generatePDFFromExam = async (examData: any): Promise<Blob> => {
+    // Create a new PDF document
+    const doc = new jsPDF()
+    
+    // Set document properties
+    doc.setProperties({
+      title: examData.examTitle || 'Generated Exam',
+      subject: 'AI-Generated Exam',
+      author: 'Learningly AI',
+      creator: 'Learningly AI Exam Generator'
+    })
+    
+    // Set font and initial position
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    
+    // Add title
+    doc.text(examData.examTitle || 'Generated Exam', 20, 30)
+    
+    // Add exam info
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Duration: ${examData.duration} minutes`, 20, 45)
+    doc.text(`Questions: ${examData.questions.length}`, 20, 55)
+    
+    // Add instructions
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Instructions:', 20, 75)
+    doc.setFont('helvetica', 'normal')
+    
+    const instructions = examData.instructions || 'Please read each question carefully and select the best answer. Choose only one answer per question.'
+    const instructionLines = doc.splitTextToSize(instructions, 170)
+    doc.text(instructionLines, 20, 85)
+    
+    // Add questions
+    let yPosition = 105
+    const questions = examData.questions || []
+    
+    for (let i = 0; i < questions.length; i++) {
+      const question = questions[i]
+      
+      // Check if we need a new page
+      if (yPosition > 250) {
+        doc.addPage()
+        yPosition = 20
+      }
+      
+      // Add question number and type
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Question ${i + 1} (${question.type?.toUpperCase() || 'MCQ'}):`, 20, yPosition)
+      yPosition += 10
+      
+      // Add question text
+      doc.setFont('helvetica', 'normal')
+      const questionLines = doc.splitTextToSize(question.question, 170)
+      doc.text(questionLines, 20, yPosition)
+      yPosition += questionLines.length * 5 + 5
+      
+      // Add options for MCQ
+      if (question.type === 'mcq' && question.options) {
+        question.options.forEach((option: string, optIndex: number) => {
+          if (yPosition > 250) {
+            doc.addPage()
+            yPosition = 20
+          }
+          doc.text(`${String.fromCharCode(65 + optIndex)}. ${option}`, 30, yPosition)
+          yPosition += 6
+        })
+      }
+      
+      // Add options for true/false
+      if (question.type === 'true_false') {
+        if (yPosition > 250) {
+          doc.addPage()
+          yPosition = 20
+        }
+        doc.text('A. True', 30, yPosition)
+        yPosition += 6
+        doc.text('B. False', 30, yPosition)
+        yPosition += 6
+      }
+      
+      // Add answer space for written questions
+      if (['short_answer', 'essay', 'fill_blank', 'code_writing', 'numerical'].includes(question.type)) {
+        if (yPosition > 250) {
+          doc.addPage()
+          yPosition = 20
+        }
+        
+        let answerLabel = 'Answer:'
+        if (question.type === 'fill_blank') answerLabel = 'Fill in the blank:'
+        if (question.type === 'code_writing') answerLabel = `Write your code (${question.codeLanguage || 'any language'}):`
+        if (question.type === 'numerical') answerLabel = 'Numerical Answer:'
+        
+        doc.setFont('helvetica', 'bold')
+        doc.text(answerLabel, 20, yPosition)
+        yPosition += 10
+        
+        // Add answer space
+        const answerSpaceHeight = question.type === 'essay' ? 40 : question.type === 'code_writing' ? 30 : 15
+        doc.rect(20, yPosition, 170, answerSpaceHeight)
+        yPosition += answerSpaceHeight + 10
+      }
+      
+      yPosition += 5 // Space between questions
+    }
+    
+    // Add footer
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Generated by Learningly AI', 20, 290)
+      doc.text(`Page ${i} of ${pageCount}`, 170, 290)
+    }
+    
+    // Return the PDF as a blob
+    return doc.output('blob')
+  }
+
   const generatePDFContent = (examData: any): string => {
     const questions = examData.questions || []
     
@@ -235,10 +362,15 @@ Instructions:
 ${examData.instructions || 'Please read each question carefully and select the best answer. Choose only one answer per question.'}
 
 ${questions.map((q: any, index: number) => `
-Question ${index + 1}: ${q.question}
-${q.options.map((option: string, optIndex: number) => 
+Question ${index + 1} (${q.type?.toUpperCase() || 'MCQ'}): ${q.question}
+${q.type === 'mcq' && q.options ? q.options.map((option: string, optIndex: number) => 
   `${String.fromCharCode(65 + optIndex)}. ${option}`
-).join('\n')}
+).join('\n') : ''}
+${q.type === 'true_false' ? 'A. True\nB. False' : ''}
+${q.type === 'short_answer' || q.type === 'essay' ? 'Answer: _____________________________' : ''}
+${q.type === 'fill_blank' ? 'Fill in the blank: _____________________________' : ''}
+${q.type === 'code_writing' ? `Write your code (${q.codeLanguage || 'any language'}):\n\n\n\n\n` : ''}
+${q.type === 'numerical' ? 'Numerical Answer: _____________________________' : ''}
 
 `).join('')}
 
@@ -273,12 +405,39 @@ End of Exam
 
   const handleDelete = (pdfId: string) => {
     const pdf = pdfs.find(p => p.id === pdfId)
-    if (pdf && window.confirm(`Are you sure you want to delete "${pdf.title}"? This action cannot be undone.`)) {
-      setPdfs(prev => prev.filter(p => p.id !== pdfId))
-      toast({
-        title: "Exam Deleted",
-        description: `"${pdf.title}" has been permanently deleted.`,
+    if (pdf) {
+      setDeletingPdf(pdf)
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!deletingPdf) return
+
+    try {
+      // Call API to delete from database
+      const response = await fetch(`/api/exam-prep/sessions/${deletingPdf.id}`, {
+        method: 'DELETE'
       })
+
+      if (response.ok) {
+        // Remove from local state
+        setPdfs(prev => prev.filter(p => p.id !== deletingPdf.id))
+        toast({
+          title: "Exam Deleted",
+          description: `"${deletingPdf.title}" has been permanently deleted.`,
+        })
+      } else {
+        throw new Error('Failed to delete exam')
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete exam. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setDeletingPdf(null)
     }
   }
 
@@ -298,6 +457,72 @@ End of Exam
       title: "Link Copied",
       description: "Public exam link copied to clipboard!",
     })
+  }
+
+  const handleViewPdf = async (pdf: GeneratedPDF) => {
+    setViewingPdf(pdf)
+    setLoadingPdf(true)
+    
+    try {
+      // Fetch the full exam data from the API
+      const response = await fetch(`/api/exam-prep/sessions/${pdf.id}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch exam data')
+      }
+      
+      const data = await response.json()
+      const examData = data.session.exam_parameters?.exam_data
+      
+      if (!examData) {
+        throw new Error('No exam data found')
+      }
+
+      // Generate formatted content for viewing
+      const content = generateViewableContent(examData)
+      setPdfContent(content)
+    } catch (error) {
+      console.error('Error loading PDF:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load exam content. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingPdf(false)
+    }
+  }
+
+  const generateViewableContent = (examData: any): string => {
+    const questions = examData.questions || []
+    
+    return `
+${examData.examTitle || 'Generated Exam'}
+Duration: ${examData.duration || 60} minutes
+Questions: ${questions.length}
+
+Instructions:
+${examData.instructions || 'Please read each question carefully and select the best answer. Choose only one answer per question.'}
+
+${questions.map((q: any, index: number) => `
+Question ${index + 1} (${q.type?.toUpperCase() || 'MCQ'}): ${q.question}
+${q.type === 'mcq' && q.options ? q.options.map((option: string, optIndex: number) => 
+  `${String.fromCharCode(65 + optIndex)}. ${option}`
+).join('\n') : ''}
+${q.type === 'true_false' ? 'A. True\nB. False' : ''}
+${q.type === 'short_answer' || q.type === 'essay' ? 'Answer: _____________________________' : ''}
+${q.type === 'fill_blank' ? 'Fill in the blank: _____________________________' : ''}
+${q.type === 'code_writing' ? `Write your code (${q.codeLanguage || 'any language'}):\n\n\n\n\n` : ''}
+${q.type === 'numerical' ? 'Numerical Answer: _____________________________' : ''}
+
+`).join('')}
+
+Answer Key:
+${questions.map((q: any, index: number) => 
+  `Question ${index + 1}: ${q.correctAnswer} - ${q.explanation}`
+).join('\n')}
+
+End of Exam
+    `.trim()
   }
 
   return (
@@ -429,27 +654,32 @@ End of Exam
                       )}
                     </div>
                     
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" title="Preview">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleDownload(pdf)}
-                        title="Download"
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleDelete(pdf.id)}
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </div>
+                     <div className="flex gap-2">
+                       <Button 
+                         variant="ghost" 
+                         size="sm" 
+                         onClick={() => handleViewPdf(pdf)}
+                         title="Preview"
+                       >
+                         <Eye className="h-4 w-4" />
+                       </Button>
+                       <Button 
+                         variant="ghost" 
+                         size="sm" 
+                         onClick={() => handleDownload(pdf)}
+                         title="Download"
+                       >
+                         <Download className="h-4 w-4" />
+                       </Button>
+                       <Button 
+                         variant="ghost" 
+                         size="sm"
+                         onClick={() => handleDelete(pdf.id)}
+                         title="Delete"
+                       >
+                         <Trash2 className="h-4 w-4 text-red-600" />
+                       </Button>
+                     </div>
                   </div>
                   
                   <p className="text-gray-600 mb-3">{pdf.description}</p>
@@ -495,17 +725,112 @@ End of Exam
         )}
       </div>
 
-      {/* Guidelines */}
-      <Alert>
-        <FileText className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Management Tips:</strong> Star important exams for quick access, make exams public to share with 
-          colleagues or students, and use the search function to quickly find specific topics or exam types. 
-          Downloaded exams are automatically saved to your device.
-        </AlertDescription>
-      </Alert>
-    </div>
-  )
-}
+       {/* Guidelines */}
+       <Alert>
+         <FileText className="h-4 w-4" />
+         <AlertDescription>
+           <strong>Management Tips:</strong> Star important exams for quick access, make exams public to share with 
+           colleagues or students, and use the search function to quickly find specific topics or exam types. 
+           Downloaded exams are automatically saved to your device.
+         </AlertDescription>
+       </Alert>
+
+       {/* PDF Viewer Dialog */}
+       <Dialog open={!!viewingPdf} onOpenChange={() => setViewingPdf(null)}>
+         <DialogContent className="max-w-4xl h-[85vh] flex flex-col">
+           <DialogHeader className="flex flex-row items-center justify-between flex-shrink-0">
+             <DialogTitle className="text-lg font-semibold">
+               {viewingPdf?.title || 'Exam Preview'}
+             </DialogTitle>
+             <Button
+               variant="ghost"
+               size="sm"
+               onClick={() => setViewingPdf(null)}
+               className="h-6 w-6 p-0"
+             >
+               <X className="h-4 w-4" />
+             </Button>
+           </DialogHeader>
+           
+           <div className="flex-1 min-h-0 overflow-hidden">
+             {loadingPdf ? (
+               <div className="flex items-center justify-center h-full">
+                 <div className="text-center">
+                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                   <p className="text-gray-600">Loading exam content...</p>
+                 </div>
+               </div>
+             ) : (
+               <div className="h-full overflow-y-auto bg-gray-50 rounded-lg p-6">
+                 <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-gray-800">
+                   {pdfContent}
+                 </pre>
+               </div>
+             )}
+           </div>
+           
+           <div className="flex justify-end gap-2 pt-4 border-t flex-shrink-0">
+             <Button
+               variant="outline"
+               onClick={() => setViewingPdf(null)}
+             >
+               Close
+             </Button>
+             {viewingPdf && (
+               <Button
+                 onClick={() => {
+                   setViewingPdf(null)
+                   handleDownload(viewingPdf)
+                 }}
+                 className="flex items-center gap-2"
+               >
+                 <Download className="h-4 w-4" />
+                 Download
+               </Button>
+             )}
+           </div>
+         </DialogContent>
+       </Dialog>
+
+       {/* Delete Confirmation Dialog */}
+       <Dialog open={!!deletingPdf} onOpenChange={() => setDeletingPdf(null)}>
+         <DialogContent className="max-w-md">
+           <DialogHeader>
+             <DialogTitle className="flex items-center gap-2 text-red-600">
+               <Trash2 className="h-5 w-5" />
+               Delete Exam
+             </DialogTitle>
+           </DialogHeader>
+           
+           <div className="py-4">
+             <p className="text-gray-700 mb-4">
+               Are you sure you want to delete <strong>"{deletingPdf?.title}"</strong>?
+             </p>
+             <p className="text-sm text-gray-500">
+               This action cannot be undone. The exam and all its data will be permanently removed.
+             </p>
+           </div>
+           
+           <div className="flex justify-end gap-3">
+             <Button
+               variant="outline"
+               onClick={() => setDeletingPdf(null)}
+             >
+               Cancel
+             </Button>
+             <Button
+               variant="destructive"
+               onClick={confirmDelete}
+               className="flex items-center gap-2"
+             >
+               <Trash2 className="h-4 w-4" />
+               Delete
+             </Button>
+           </div>
+         </DialogContent>
+       </Dialog>
+     </div>
+   )
+ }
 
 

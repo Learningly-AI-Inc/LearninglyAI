@@ -271,11 +271,15 @@ export async function POST(request: NextRequest) {
     // Process sample questions first
     for (const file of sampleQuestions) {
       try {
-        console.log(`Processing sample question file: ${file.name} from URL: ${file.url}`);
+        console.log(`Processing sample question file: ${file.name}`);
         
         let extractedContent = '';
         
-        if (file.name.toLowerCase().endsWith('.pdf')) {
+        // Check if it's a base64 data URL (from frontend)
+        if (file.url.startsWith('data:text/plain;base64,')) {
+          const base64Data = file.url.split(',')[1];
+          extractedContent = Buffer.from(base64Data, 'base64').toString('utf-8');
+        } else if (file.name.toLowerCase().endsWith('.pdf')) {
           extractedContent = await extractPDFContent(file.url, file.name);
         } else if (file.name.toLowerCase().endsWith('.docx') || file.name.toLowerCase().endsWith('.doc')) {
           extractedContent = await extractDOCXContent(file.url, file.name);
@@ -300,11 +304,15 @@ export async function POST(request: NextRequest) {
     // Process learning materials
     for (const file of learningMaterials) {
       try {
-        console.log(`Processing learning material file: ${file.name} from URL: ${file.url}`);
+        console.log(`Processing learning material file: ${file.name}`);
         
         let extractedContent = '';
         
-        if (file.name.toLowerCase().endsWith('.pdf')) {
+        // Check if it's a base64 data URL (from frontend)
+        if (file.url.startsWith('data:text/plain;base64,')) {
+          const base64Data = file.url.split(',')[1];
+          extractedContent = Buffer.from(base64Data, 'base64').toString('utf-8');
+        } else if (file.name.toLowerCase().endsWith('.pdf')) {
           extractedContent = await extractPDFContent(file.url, file.name);
         } else if (file.name.toLowerCase().endsWith('.docx') || file.name.toLowerCase().endsWith('.doc')) {
           extractedContent = await extractDOCXContent(file.url, file.name);
@@ -361,12 +369,14 @@ CATEGORIZED STUDY MATERIALS:
 ${combinedContent}
 
 AI PATTERN ANALYSIS INSTRUCTIONS:
-1. Analyze the SAMPLE QUESTIONS section to understand:
-   - Question formats and structures
+1. CRITICAL: Analyze the SAMPLE QUESTIONS section to identify and understand:
+   - Question formats and structures (MCQ, short answer, essay, true/false, fill-in-blank, code writing, etc.)
    - Difficulty progression patterns
    - Common question types and styles
-   - Answer choice patterns
+   - Answer choice patterns (if MCQ)
    - Explanation styles
+   - Question length and complexity
+   - Language and terminology used
 
 2. Use the LEARNING MATERIALS section to:
    - Extract key concepts and topics
@@ -375,6 +385,7 @@ AI PATTERN ANALYSIS INSTRUCTIONS:
    - Note the complexity level of the subject matter
 
 3. Generate questions that:
+   - REPLICATE the exact question types found in sample questions
    - Match the format and style of the sample questions
    - Test knowledge from the learning materials
    - Follow the same difficulty progression
@@ -390,25 +401,40 @@ Please generate a JSON response with the following structure:
   "questions": [
     {
       "id": "string",
+      "type": "mcq|short_answer|essay|true_false|fill_blank|code_writing|matching|numerical",
       "question": "string",
-      "options": ["A", "B", "C", "D"],
-      "correctAnswer": "A|B|C|D",
+      "options": ["A", "B", "C", "D"] (only for MCQ),
+      "correctAnswer": "string (answer text, or A|B|C|D for MCQ, or true|false for true/false)",
       "explanation": "string",
       "difficulty": "easy|medium|hard",
-      "topic": "string"
+      "topic": "string",
+      "points": number (optional, default 1),
+      "expectedLength": "short|medium|long" (for essay/short answer),
+      "codeLanguage": "string" (for code writing questions)
     }
   ]
 }
 
-GUIDELINES:
-1. Create exactly ${questionsPerExam} multiple choice questions
-2. Questions should be ${config.difficulty} difficulty level
-3. Cover different topics and concepts from the materials
-4. Ensure questions test understanding, not just memorization
-5. Provide clear explanations for correct answers
-6. Make sure all options are plausible
-7. Questions should be appropriate for the ${duration}-minute duration
-8. ${isRapidFire ? 'For rapid-fire: Focus on quick recall and fundamental concepts' : 'For full-length: Include complex analytical questions'}
+QUESTION TYPE GUIDELINES:
+- MCQ: Multiple choice with 4 options (A, B, C, D)
+- short_answer: Brief written response (1-3 sentences)
+- essay: Longer written response (paragraph or more)
+- true_false: True or False questions
+- fill_blank: Fill in the blank questions
+- code_writing: Write code solutions
+- matching: Match items from two lists
+- numerical: Numerical answer questions
+
+DYNAMIC GENERATION RULES:
+1. Analyze sample questions to determine what question types to use
+2. Replicate the same mix of question types found in samples
+3. If samples show 70% MCQ, 20% short answer, 10% essay - replicate this ratio
+4. If samples show only MCQ, generate only MCQ
+5. If samples show mixed types, generate the same mix
+6. Maintain the same question complexity and style as samples
+7. Use the same terminology and language patterns
+8. Questions should be appropriate for the ${duration}-minute duration
+9. ${isRapidFire ? 'For rapid-fire: Focus on quick recall and fundamental concepts' : 'For full-length: Include complex analytical questions'}
 
 Generate the exam now:`;
 
@@ -466,14 +492,20 @@ Generate the exam now:`;
     const examRecords = [];
     for (const examData of generatedExams) {
       const { data: examRecord, error: examError } = await supabase
-        .from('generated_exams')
+        .from('exam_prep_sessions')
         .insert({
           user_id: user.id,
-          exam_title: examData.examTitle || config.examTitle || `Generated ${examData.examType === 'rapid-fire' ? 'Rapid-Fire Quiz' : 'Exam'} ${examData.examIndex}`,
-          exam_config: config,
-          exam_data: examData,
-          source_files: files.map(f => f.name),
-          content_hash: Buffer.from(combinedContent).toString('base64').slice(0, 50) // First 50 chars of hash
+          title: examData.examTitle || config.examTitle || `Generated ${examData.examType === 'rapid-fire' ? 'Rapid-Fire Quiz' : 'Exam'} ${examData.examIndex}`,
+          description: `AI-generated ${examData.examType} with ${examData.questions.length} questions`,
+          session_type: 'full_exam',
+          document_ids: [], // No document IDs for generated exams
+          exam_parameters: {
+            exam_data: examData,
+            exam_config: config,
+            source_files: files.map(f => f.name),
+            content_hash: Buffer.from(combinedContent).toString('base64').slice(0, 50)
+          },
+          status: 'active'
         })
         .select()
         .single();
