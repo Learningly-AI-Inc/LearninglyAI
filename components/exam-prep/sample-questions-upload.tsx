@@ -239,7 +239,16 @@ export function SampleQuestionsUpload({
               const data = await response.json()
               const files = data.files || []
               const sampleQuestions = files.filter((file: any) => file.category === 'sample_questions')
-              setUploadedFiles(sampleQuestions)
+              
+              // Ensure all files have proper status mapping
+              const properlyMappedFiles = sampleQuestions.map((file: any) => ({
+                ...file,
+                status: file.processing_status === 'completed' ? 'analyzed' : 
+                        file.processing_status === 'processing' ? 'processing' :
+                        file.processing_status === 'failed' ? 'failed' : 'analyzed'
+              }))
+              
+              setUploadedFiles(properlyMappedFiles)
             }
           } catch (error) {
             console.error('Failed to refresh files after upload:', error)
@@ -303,7 +312,17 @@ export function SampleQuestionsUpload({
         const data = await response.json()
         const files = data.files || []
         const sampleQuestions = files.filter((file: any) => file.category === 'sample_questions')
-        setUploadedFiles(sampleQuestions)
+        
+        // Ensure all files have proper status mapping
+        const properlyMappedFiles = sampleQuestions.map((file: any) => ({
+          ...file,
+          status: file.processing_status === 'completed' ? 'analyzed' : 
+                  file.processing_status === 'processing' ? 'processing' :
+                  file.processing_status === 'failed' ? 'failed' : 'analyzed'
+        }))
+        
+        console.log('Files refreshed:', properlyMappedFiles.map((f: any) => ({ id: f.id, name: f.name, status: f.status, processing_status: f.processing_status })))
+        setUploadedFiles(properlyMappedFiles)
         toast({
           title: "Files Refreshed",
           description: "File list has been updated.",
@@ -401,15 +420,15 @@ export function SampleQuestionsUpload({
 
   return (
     <div className="space-y-6">
-      {/* Upload Limits Display */}
+      {/* Upload Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {uploadedFiles.filter(f => f.status === 'analyzed').length}/{uploadLimits.maxFiles}
+                {uploadedFiles.length}
               </div>
-              <div className="text-sm text-gray-600">Files Uploaded</div>
+              <div className="text-sm text-gray-600">Total Files</div>
             </div>
           </CardContent>
         </Card>
@@ -418,9 +437,9 @@ export function SampleQuestionsUpload({
           <CardContent className="pt-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
-                {uploadLimits.maxSizePerFile}MB
+                {(uploadedFiles.reduce((acc, file) => acc + (file.size / (1024 * 1024)), 0)).toFixed(1)}MB
               </div>
-              <div className="text-sm text-gray-600">Per File Limit</div>
+              <div className="text-sm text-gray-600">Total Size</div>
             </div>
           </CardContent>
         </Card>
@@ -522,7 +541,30 @@ export function SampleQuestionsUpload({
       {uploadedFiles.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Uploaded Files</h3>
+            <div className="flex items-center gap-4">
+              <h3 className="text-lg font-semibold">Uploaded Files</h3>
+              {/* Select All Checkbox */}
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={uploadedFiles.length > 0 && selectedFiles.length === uploadedFiles.length}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      // Select all analyzed files
+                      const analyzedFileIds = uploadedFiles
+                        .filter(file => file.status === 'analyzed')
+                        .map(file => file.id)
+                        .slice(0, 10) // Limit to 10 files
+                      setSelectedFiles(analyzedFileIds)
+                    } else {
+                      // Deselect all
+                      setSelectedFiles([])
+                    }
+                  }}
+                  className="h-5 w-5 border-2 border-gray-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 data-[state=checked]:text-white"
+                />
+                <span className="text-sm text-gray-600">Select All</span>
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
@@ -543,9 +585,12 @@ export function SampleQuestionsUpload({
                 <div className="flex items-start gap-4">
                   <Checkbox
                     checked={selectedFiles.includes(file.id)}
-                    onCheckedChange={() => toggleFileSelection(file.id)}
+                    onCheckedChange={() => {
+                      console.log('File status:', file.status, 'File ID:', file.id)
+                      toggleFileSelection(file.id)
+                    }}
                     disabled={file.status !== 'analyzed'}
-                    className="mt-1"
+                    className="h-6 w-6 border-2 border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 data-[state=checked]:text-white mt-1"
                   />
                   
                   <FileText className="h-6 w-6 text-blue-600 mt-1" />

@@ -56,8 +56,6 @@ interface LearningMaterial {
 interface UploadStats {
   totalFiles: number
   totalSizeMB: number
-  analyzedFiles: number
-  totalConcepts: number
 }
 
 interface LearningMaterialsUploadProps {
@@ -82,18 +80,14 @@ export function LearningMaterialsUpload({
   const [dragActive, setDragActive] = React.useState(false)
   const [uploadStats, setUploadStats] = React.useState<UploadStats>({
     totalFiles: uploadedMaterials.length,
-    totalSizeMB: uploadedMaterials.reduce((acc, material) => acc + (material.size / (1024 * 1024)), 0),
-    analyzedFiles: uploadedMaterials.filter(m => m.status === 'analyzed').length,
-    totalConcepts: uploadedMaterials.reduce((acc, material) => acc + (material.contentAnalysis?.keyConceptsCount || 0), 0)
+    totalSizeMB: uploadedMaterials.reduce((acc, material) => acc + (material.size / (1024 * 1024)), 0)
   })
 
   // Update stats when uploadedMaterials changes
   React.useEffect(() => {
     setUploadStats({
       totalFiles: uploadedMaterials.length,
-      totalSizeMB: uploadedMaterials.reduce((acc, material) => acc + (material.size / (1024 * 1024)), 0),
-      analyzedFiles: uploadedMaterials.filter(m => m.status === 'analyzed').length,
-      totalConcepts: uploadedMaterials.reduce((acc, material) => acc + (material.contentAnalysis?.keyConceptsCount || 0), 0)
+      totalSizeMB: uploadedMaterials.reduce((acc, material) => acc + (material.size / (1024 * 1024)), 0)
     })
   }, [uploadedMaterials])
 
@@ -256,6 +250,30 @@ export function LearningMaterialsUpload({
           } : m)
         )
 
+        // Refresh files from database to get the actual extracted content
+        setTimeout(async () => {
+          try {
+            const response = await fetch('/api/exam-prep/files')
+            if (response.ok) {
+              const data = await response.json()
+              const files = data.files || []
+              const learningMaterials = files.filter((file: any) => file.category === 'learning_materials')
+              
+              // Ensure all files have proper status mapping
+              const properlyMappedFiles = learningMaterials.map((file: any) => ({
+                ...file,
+                status: file.processing_status === 'completed' ? 'analyzed' : 
+                        file.processing_status === 'processing' ? 'processing' :
+                        file.processing_status === 'failed' ? 'failed' : 'analyzed'
+              }))
+              
+              setUploadedMaterials(properlyMappedFiles)
+            }
+          } catch (error) {
+            console.error('Failed to refresh files after upload:', error)
+          }
+        }, 1000)
+
         toast({
           title: "Upload & Analysis Complete",
           description: `Learning material uploaded and analyzed: ${file.name}`,
@@ -305,8 +323,17 @@ export function LearningMaterialsUpload({
       if (response.ok) {
         const data = await response.json()
         const files = data.files || []
-        const learningMaterials = files.filter((file: any) => file.file_category === 'learning_materials')
-        setUploadedMaterials(learningMaterials)
+        const learningMaterials = files.filter((file: any) => file.category === 'learning_materials')
+        
+        // Ensure all files have proper status mapping
+        const properlyMappedFiles = learningMaterials.map((file: any) => ({
+          ...file,
+          status: file.processing_status === 'completed' ? 'analyzed' : 
+                  file.processing_status === 'processing' ? 'processing' :
+                  file.processing_status === 'failed' ? 'failed' : 'analyzed'
+        }))
+        
+        setUploadedMaterials(properlyMappedFiles)
         toast({
           title: "Files Refreshed",
           description: "File list has been updated.",
@@ -414,7 +441,7 @@ export function LearningMaterialsUpload({
   return (
     <div className="space-y-6">
       {/* Upload Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
@@ -433,28 +460,6 @@ export function LearningMaterialsUpload({
                 {uploadStats.totalSizeMB.toFixed(1)}MB
               </div>
               <div className="text-sm text-gray-600">Total Size</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {uploadStats.analyzedFiles}
-              </div>
-              <div className="text-sm text-gray-600">Analyzed</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">
-                {uploadStats.totalConcepts}
-              </div>
-              <div className="text-sm text-gray-600">Key Concepts</div>
             </div>
           </CardContent>
         </Card>
@@ -513,7 +518,30 @@ export function LearningMaterialsUpload({
       {uploadedMaterials.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Learning Materials</h3>
+            <div className="flex items-center gap-4">
+              <h3 className="text-lg font-semibold">Learning Materials</h3>
+              {/* Select All Checkbox */}
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={uploadedMaterials.length > 0 && selectedFiles.length === uploadedMaterials.length}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      // Select all analyzed files
+                      const analyzedFileIds = uploadedMaterials
+                        .filter(material => material.status === 'analyzed')
+                        .map(material => material.id)
+                        .slice(0, 10) // Limit to 10 files
+                      setSelectedFiles(analyzedFileIds)
+                    } else {
+                      // Deselect all
+                      setSelectedFiles([])
+                    }
+                  }}
+                  className="h-5 w-5 border-2 border-gray-400 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 data-[state=checked]:text-white"
+                />
+                <span className="text-sm text-gray-600">Select All</span>
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
@@ -536,7 +564,7 @@ export function LearningMaterialsUpload({
                     checked={selectedFiles.includes(material.id)}
                     onCheckedChange={() => toggleFileSelection(material.id)}
                     disabled={material.status !== 'analyzed'}
-                    className="mt-1"
+                    className="h-6 w-6 border-2 border-gray-300 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 data-[state=checked]:text-white mt-1"
                   />
                   
                   <div className="text-blue-600 mt-1">
@@ -600,7 +628,9 @@ export function LearningMaterialsUpload({
                           )}
                         </div>
                         <DialogFooter>
-                          <Button variant="outline">Close</Button>
+                          <DialogTrigger asChild>
+                            <Button variant="outline">Close</Button>
+                          </DialogTrigger>
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
@@ -628,7 +658,9 @@ export function LearningMaterialsUpload({
                           </DialogDescription>
                         </DialogHeader>
                         <DialogFooter>
-                          <Button variant="outline">Cancel</Button>
+                          <DialogTrigger asChild>
+                            <Button variant="outline">Cancel</Button>
+                          </DialogTrigger>
                           <Button
                             onClick={() => removeMaterial(material.id)}
                             className="bg-red-600 hover:bg-red-700"

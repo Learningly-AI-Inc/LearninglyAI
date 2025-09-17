@@ -86,10 +86,22 @@ export default function FullLengthExamPrepPage() {
           const data = await response.json()
           const files = data.files || []
           
-          // Separate files by category
-          const sampleQuestions = files.filter((file: any) => file.category === 'sample_questions')
-          const learningMaterials = files.filter((file: any) => file.category === 'learning_materials')
+          // Separate files by category and ensure proper status mapping
+          const sampleQuestions = files.filter((file: any) => file.category === 'sample_questions').map((file: any) => ({
+            ...file,
+            status: file.processing_status === 'completed' ? 'analyzed' : 
+                    file.processing_status === 'processing' ? 'processing' :
+                    file.processing_status === 'failed' ? 'failed' : 'analyzed'
+          }))
           
+          const learningMaterials = files.filter((file: any) => file.category === 'learning_materials').map((file: any) => ({
+            ...file,
+            status: file.processing_status === 'completed' ? 'analyzed' : 
+                    file.processing_status === 'processing' ? 'processing' :
+                    file.processing_status === 'failed' ? 'failed' : 'analyzed'
+          }))
+          
+          console.log('Sample questions loaded:', sampleQuestions.map((f: any) => ({ id: f.id, name: f.name, status: f.status, processing_status: f.processing_status })))
           setUploadedSampleQuestions(sampleQuestions)
           setUploadedLearningMaterials(learningMaterials)
         } else {

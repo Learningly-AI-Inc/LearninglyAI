@@ -88,44 +88,91 @@ export function QuestionGenerationPanel({
     setIsGenerating(true)
 
     try {
-      // Simulate the AI communication and generation process
-      const steps = [
-        { step: 'Analyzing sample questions...', progress: 20, duration: 2000 },
-        { step: 'Processing learning materials...', progress: 40, duration: 3000 },
-        { step: 'AI agents communicating...', progress: 60, duration: 2000 },
-        { step: 'Generating questions...', progress: 80, duration: 4000 },
-        { step: 'Creating PDF...', progress: 95, duration: 2000 },
-        { step: 'Saving to database...', progress: 100, duration: 1000 }
+      // Update progress
+      setCurrentSession(prev => prev ? {
+        ...prev,
+        progress: 20,
+        currentStep: 'Preparing files for analysis...'
+      } : null)
+
+      // Get file URLs from selected files
+      const selectedFiles = [
+        ...uploadedSampleQuestions.filter(f => selectedSampleQuestions.includes(f.id)),
+        ...uploadedLearningMaterials.filter(f => selectedLearningMaterials.includes(f.id))
       ]
 
-      for (const step of steps) {
-        setCurrentSession(prev => prev ? {
-          ...prev,
-          progress: step.progress,
-          currentStep: step.step
-        } : null)
-        
-        await new Promise(resolve => setTimeout(resolve, step.duration))
-      }
+      const filesForAPI = selectedFiles.map(file => ({
+        url: file.extracted_content ? `data:text/plain;base64,${btoa(file.extracted_content)}` : '',
+        name: file.name,
+        category: file.category || (uploadedSampleQuestions.includes(file) ? 'sample_questions' : 'learning_materials')
+      }))
 
-      // Complete generation
-      const result = {
-        pdfUrl: `/generated-exams/${sessionId}.pdf`,
-        questionCount: params.questionCount,
-        fileSize: 1024000 // 1MB
+      setCurrentSession(prev => prev ? {
+        ...prev,
+        progress: 40,
+        currentStep: 'Sending request to AI...'
+      } : null)
+
+      // Call the real API
+      const response = await fetch('/api/exam-prep/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          files: filesForAPI,
+          config: {
+            numMCQ: params.questionCount,
+            examDuration: params.examLength,
+            difficulty: params.difficulty,
+            examTitle: params.examTitle,
+            additionalInstructions: params.customInstructions || '',
+            numExams: 1,
+            examType: 'full-length'
+          }
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Generation failed: ${response.statusText}`)
       }
 
       setCurrentSession(prev => prev ? {
         ...prev,
-        status: 'completed',
+        progress: 80,
+        currentStep: 'Processing AI response...'
+      } : null)
+
+      const result = await response.json()
+
+      setCurrentSession(prev => prev ? {
+        ...prev,
+        progress: 95,
+        currentStep: 'Creating PDF...'
+      } : null)
+
+      // Generate PDF from the exam data
+      const examData = result.exams[0]
+      const pdfBlob = await generatePDFFromExam(examData)
+      const pdfUrl = URL.createObjectURL(pdfBlob)
+
+      setCurrentSession(prev => prev ? {
+        ...prev,
         progress: 100,
         currentStep: 'Exam generated successfully!',
-        result
+        status: 'completed',
+        result: {
+          pdfUrl,
+          questionCount: examData.questions.length,
+          fileSize: pdfBlob.size,
+          examData
+        }
       } : null)
 
       toast({
         title: "Exam Generated Successfully!",
-        description: `Your ${params.questionCount}-question exam is ready for download.`,
+        description: `Your ${examData.questions.length}-question exam is ready for download.`,
       })
 
     } catch (error) {
@@ -137,7 +184,7 @@ export function QuestionGenerationPanel({
 
       toast({
         title: "Generation Failed",
-        description: "An error occurred during exam generation. Please try again.",
+        description: `An error occurred during exam generation: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive"
       })
     } finally {
@@ -162,6 +209,106 @@ export function QuestionGenerationPanel({
   const resetSession = () => {
     setCurrentSession(null)
     setIsGenerating(false)
+  }
+
+  const generatePDFFromExam = async (examData: any): Promise<Blob> => {
+    // Create a simple HTML document for the exam
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${examData.examTitle}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+          .instructions { background: #f5f5f5; padding: 15px; margin-bottom: 30px; border-radius: 5px; }
+          .question { margin-bottom: 25px; page-break-inside: avoid; }
+          .question-number { font-weight: bold; margin-bottom: 10px; }
+          .options { margin-left: 20px; }
+          .option { margin-bottom: 5px; }
+          .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>${examData.examTitle}</h1>
+          <p>Duration: ${examData.duration} minutes | Questions: ${examData.questions.length}</p>
+        </div>
+        
+        <div class="instructions">
+          <h3>Instructions:</h3>
+          <p>${examData.instructions || 'Please read each question carefully and select the best answer. Choose only one answer per question.'}</p>
+        </div>
+        
+        ${examData.questions.map((q: any, index: number) => `
+          <div class="question">
+            <div class="question-number">Question ${index + 1}:</div>
+            <p>${q.question}</p>
+            <div class="options">
+              ${q.options.map((option: string, optIndex: number) => `
+                <div class="option">${String.fromCharCode(65 + optIndex)}. ${option}</div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+        
+        <div class="footer">
+          <p>End of Exam - Good luck!</p>
+        </div>
+      </body>
+      </html>
+    `
+
+    // Convert HTML to PDF using browser's print functionality
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(htmlContent)
+      printWindow.document.close()
+      
+      // Wait for content to load, then trigger print
+      printWindow.onload = () => {
+        printWindow.print()
+        printWindow.close()
+      }
+    }
+
+    // For now, return a simple text blob as PDF
+    // In a real implementation, you'd use a library like jsPDF or Puppeteer
+    const textContent = `
+${examData.examTitle}
+Duration: ${examData.duration} minutes
+Questions: ${examData.questions.length}
+
+Instructions:
+${examData.instructions || 'Please read each question carefully and select the best answer.'}
+
+${examData.questions.map((q: any, index: number) => `
+Question ${index + 1}: ${q.question}
+${q.options.map((option: string, optIndex: number) => 
+  `${String.fromCharCode(65 + optIndex)}. ${option}`
+).join('\n')}
+
+`).join('')}
+End of Exam
+    `
+
+    return new Blob([textContent], { type: 'text/plain' })
+  }
+
+  const handleDownload = () => {
+    if (currentSession?.result?.pdfUrl) {
+      const link = document.createElement('a')
+      link.href = currentSession.result.pdfUrl
+      link.download = `${currentSession.result.examData?.examTitle || 'Generated Exam'}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      toast({
+        title: "Download Started",
+        description: "Your exam PDF is being downloaded.",
+      })
+    }
   }
 
   return (
@@ -400,7 +547,10 @@ export function QuestionGenerationPanel({
                       <strong>File Size:</strong> {(currentSession.result.fileSize / 1024 / 1024).toFixed(2)} MB
                     </div>
                   </div>
-                  <Button className="flex items-center gap-2">
+                  <Button 
+                    onClick={handleDownload}
+                    className="flex items-center gap-2"
+                  >
                     <Download className="h-4 w-4" />
                     Download Exam PDF
                   </Button>

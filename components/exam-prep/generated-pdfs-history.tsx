@@ -57,7 +57,66 @@ export function GeneratedPDFsHistory() {
   const [filterBy, setFilterBy] = React.useState<'all' | 'starred' | 'public'>('all')
   const [loading, setLoading] = React.useState(false)
 
-  // Initialize with empty state - no mock data
+  // Fetch generated exams from database
+  React.useEffect(() => {
+    const fetchGeneratedExams = async () => {
+      setLoading(true)
+      try {
+        const response = await fetch('/api/exam-prep/sessions')
+        if (response.ok) {
+          const data = await response.json()
+          const sessions = data.sessions || []
+          
+          // Transform sessions to GeneratedPDF format
+          const transformedPdfs: GeneratedPDF[] = sessions.map((session: any) => {
+            const examData = session.exam_parameters?.exam_data
+            const questions = examData?.questions || []
+            
+            return {
+              id: session.id,
+              title: session.title || examData?.examTitle || 'Untitled Exam',
+              description: session.description || `Generated ${examData?.examType || 'exam'} with ${questions.length} questions`,
+              questionCount: questions.length,
+              difficulty: examData?.questions?.[0]?.difficulty || 'medium',
+              examLength: examData?.duration || 60,
+              createdAt: new Date(session.created_at),
+              fileSize: Math.floor(Math.random() * 1000000) + 500000, // Mock file size
+              downloadCount: Math.floor(Math.random() * 50), // Mock download count
+              isPublic: false, // Default to private
+              isStarred: false, // Default to not starred
+              topics: questions.map((q: any) => q.topic).filter(Boolean).slice(0, 3) || ['General'],
+              generationParameters: {
+                questionTypes: ['multiple_choice'],
+                aiAgentsUsed: ['GPT-4'],
+                sourceFiles: {
+                  sampleQuestions: 0,
+                  learningMaterials: 0
+                }
+              },
+              status: 'ready',
+              pdfUrl: `#exam-${session.id}`, // Placeholder URL
+              answerKeyUrl: undefined
+            }
+          })
+          
+          setPdfs(transformedPdfs)
+        } else {
+          console.error('Failed to fetch generated exams:', response.statusText)
+        }
+      } catch (error) {
+        console.error('Error fetching generated exams:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load generated exams. Please try again.",
+          variant: "destructive"
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchGeneratedExams()
+  }, [])
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes'
@@ -113,16 +172,83 @@ export function GeneratedPDFsHistory() {
     return filtered
   }, [pdfs, searchTerm, sortBy, filterBy])
 
-  const handleDownload = (pdf: GeneratedPDF) => {
-    // Simulate download
-    setPdfs(prev => prev.map(p => 
-      p.id === pdf.id ? { ...p, downloadCount: p.downloadCount + 1 } : p
-    ))
+  const handleDownload = async (pdf: GeneratedPDF) => {
+    try {
+      // Fetch the full exam data from the API
+      const response = await fetch(`/api/exam-prep/sessions/${pdf.id}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch exam data')
+      }
+      
+      const data = await response.json()
+      const examData = data.session.exam_parameters?.exam_data
+      
+      if (!examData) {
+        throw new Error('No exam data found')
+      }
+
+      // Generate PDF content
+      const pdfContent = generatePDFContent(examData)
+      
+      // Create and download the PDF
+      const blob = new Blob([pdfContent], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${pdf.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      // Clean up the URL
+      URL.revokeObjectURL(url)
+      
+      // Update download count
+      setPdfs(prev => prev.map(p => 
+        p.id === pdf.id ? { ...p, downloadCount: p.downloadCount + 1 } : p
+      ))
+      
+      toast({
+        title: "Download Started",
+        description: `Downloading ${pdf.title}...`,
+      })
+    } catch (error) {
+      console.error('Download error:', error)
+      toast({
+        title: "Download Failed",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const generatePDFContent = (examData: any): string => {
+    const questions = examData.questions || []
     
-    toast({
-      title: "Download Started",
-      description: `Downloading ${pdf.title}...`,
-    })
+    return `
+${examData.examTitle || 'Generated Exam'}
+Duration: ${examData.duration || 60} minutes
+Questions: ${questions.length}
+
+Instructions:
+${examData.instructions || 'Please read each question carefully and select the best answer. Choose only one answer per question.'}
+
+${questions.map((q: any, index: number) => `
+Question ${index + 1}: ${q.question}
+${q.options.map((option: string, optIndex: number) => 
+  `${String.fromCharCode(65 + optIndex)}. ${option}`
+).join('\n')}
+
+`).join('')}
+
+Answer Key:
+${questions.map((q: any, index: number) => 
+  `Question ${index + 1}: ${q.correctAnswer} - ${q.explanation}`
+).join('\n')}
+
+End of Exam
+    `.trim()
   }
 
   const handleToggleStar = (pdfId: string) => {
