@@ -46,14 +46,7 @@ const SearchPage = () => {
   // Removed useChat hook dependency - using direct API calls instead
 
   // Local state for UI
-  const [messages, setMessages] = React.useState<Message[]>([
-    {
-      id: '1',
-      type: 'assistant',
-      content: 'Hello! I\'m your study assistant. I can help you search through your uploaded documents and answer questions about them. What would you like to know?',
-      timestamp: new Date(),
-    }
-  ])
+  const [messages, setMessages] = React.useState<Message[]>([])
   const [currentMessage, setCurrentMessage] = React.useState('')
   const [isTyping, setIsTyping] = React.useState(false)
   const [selectedModel, setSelectedModel] = React.useState<'gemini-2.5-flash' | 'gpt-5-mini' | 'gpt-5' | 'gpt-5-nano' | 'gemini-2.5-pro' | 'gemini-2.5-flash-lite' | 'gpt-5-thinking-pro'>('gemini-2.5-flash')
@@ -477,18 +470,12 @@ const SearchPage = () => {
     })
 
     setSelectedConversationId(null)
-    const welcomeMessage = {
-      id: '1',
-      type: 'assistant' as const,
-      content: 'Hello! I\'m your AI research assistant. I can help you search through your uploaded documents and answer questions about them. What would you like to know?',
-      timestamp: new Date(),
-    }
-    setMessages([welcomeMessage])
+    setMessages([]) // Start with empty messages to show welcome card
 
     console.log('💬 [SEARCH PAGE] New conversation state set:', {
       selectedConversationId: null,
-      messagesCount: 1,
-      welcomeMessage: welcomeMessage.content.substring(0, 50) + '...'
+      messagesCount: 0,
+      welcomeCardWillShow: true
     })
   }
 
@@ -1126,8 +1113,8 @@ const SearchPage = () => {
               )}
             </div>
 
-            {/* Assistant welcome card - only show when no conversation is selected and only the welcome message exists */}
-            {!selectedConversationId && messages.length <= 1 && (
+             {/* Assistant welcome card - only show when no conversation is selected and no messages exist */}
+             {!selectedConversationId && messages.length === 0 && (
               <div className="mt-3 bg-white/90 backdrop-blur border rounded-2xl p-4 shadow-sm">
                 <div className="flex items-start gap-3">
                   <div className="h-8 w-8 rounded-xl bg-slate-900 text-white grid place-content-center text-sm font-bold">AI</div>
