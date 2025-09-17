@@ -281,29 +281,41 @@ export default function FullLengthExamPrepPage() {
         {/* Tabs */}
         <div className="w-full">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="sticky top-14 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-xl border shadow-sm">
-              <TabsList className="grid w-full grid-cols-4 h-14 p-1 rounded-xl">
-                <TabsTrigger value="sample-questions" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background">
-                  <Upload className="h-4 w-4" />
-                  <span className="font-medium text-sm">Sample</span>
+            <div className="sticky top-14 z-10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90 rounded-2xl border border-gray-200 shadow-xl">
+              <TabsList className="grid w-full grid-cols-4 h-16 p-2 rounded-2xl bg-gradient-to-r from-gray-900 to-black shadow-2xl">
+                <TabsTrigger 
+                  value="sample-questions" 
+                  className="flex items-center gap-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 data-[state=active]:border data-[state=active]:border-blue-400 data-[state=active]:text-white data-[state=inactive]:text-gray-300 data-[state=inactive]:hover:text-white data-[state=inactive]:hover:bg-gray-800/50 transition-all duration-300 ease-in-out"
+                >
+                  <Upload className="h-5 w-5 text-blue-400 data-[state=active]:text-white" />
+                  <span className="font-semibold text-sm">Sample</span>
                   {uploadedSampleQuestions.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">{uploadedSampleQuestions.length}</Badge>
+                    <Badge variant="secondary" className="ml-1 bg-blue-500 text-white border-blue-400 shadow-sm">{uploadedSampleQuestions.length}</Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="learning-materials" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background">
-                  <FileText className="h-4 w-4" />
-                  <span className="font-medium text-sm">Materials</span>
+                <TabsTrigger 
+                  value="learning-materials" 
+                  className="flex items-center gap-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-green-700 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:border data-[state=active]:border-green-400 data-[state=active]:text-white data-[state=inactive]:text-gray-300 data-[state=inactive]:hover:text-white data-[state=inactive]:hover:bg-gray-800/50 transition-all duration-300 ease-in-out"
+                >
+                  <FileText className="h-5 w-5 text-green-400 data-[state=active]:text-white" />
+                  <span className="font-semibold text-sm">Materials</span>
                   {uploadedLearningMaterials.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">{uploadedLearningMaterials.length}</Badge>
+                    <Badge variant="secondary" className="ml-1 bg-green-500 text-white border-green-400 shadow-sm">{uploadedLearningMaterials.length}</Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="generate" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background">
-                  <Bot className="h-4 w-4" />
-                  <span className="font-medium text-sm">Generate</span>
+                <TabsTrigger 
+                  value="generate" 
+                  className="flex items-center gap-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-purple-700 data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/25 data-[state=active]:border data-[state=active]:border-purple-400 data-[state=active]:text-white data-[state=inactive]:text-gray-300 data-[state=inactive]:hover:text-white data-[state=inactive]:hover:bg-gray-800/50 transition-all duration-300 ease-in-out"
+                >
+                  <Bot className="h-5 w-5 text-purple-400 data-[state=active]:text-white" />
+                  <span className="font-semibold text-sm">Generate</span>
                 </TabsTrigger>
-                <TabsTrigger value="history" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background">
-                  <History className="h-4 w-4" />
-                  <span className="font-medium text-sm">History</span>
+                <TabsTrigger 
+                  value="history" 
+                  className="flex items-center gap-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-600 data-[state=active]:to-orange-700 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/25 data-[state=active]:border data-[state=active]:border-orange-400 data-[state=active]:text-white data-[state=inactive]:text-gray-300 data-[state=inactive]:hover:text-white data-[state=inactive]:hover:bg-gray-800/50 transition-all duration-300 ease-in-out"
+                >
+                  <History className="h-5 w-5 text-orange-400 data-[state=active]:text-white" />
+                  <span className="font-semibold text-sm">History</span>
                 </TabsTrigger>
               </TabsList>
             </div>

@@ -58,7 +58,7 @@ interface GeneratedPDF {
 export function GeneratedPDFsHistory() {
   const [pdfs, setPdfs] = React.useState<GeneratedPDF[]>([])
   const [searchTerm, setSearchTerm] = React.useState('')
-  const [sortBy, setSortBy] = React.useState<'date' | 'title' | 'downloads'>('date')
+  const [sortBy, setSortBy] = React.useState<'date' | 'title'>('date')
   const [filterBy, setFilterBy] = React.useState<'all' | 'starred' | 'public'>('all')
   const [loading, setLoading] = React.useState(false)
   const [viewingPdf, setViewingPdf] = React.useState<(GeneratedPDF & { type: 'questions' | 'answerKey' }) | null>(null)
@@ -66,6 +66,7 @@ export function GeneratedPDFsHistory() {
   const [loadingPdf, setLoadingPdf] = React.useState(false)
   const [deletingPdf, setDeletingPdf] = React.useState<GeneratedPDF | null>(null)
   const [deletingAll, setDeletingAll] = React.useState(false)
+  const [isDeletingAll, setIsDeletingAll] = React.useState(false)
 
   // Fetch generated exams from database
   React.useEffect(() => {
@@ -174,8 +175,6 @@ export function GeneratedPDFsHistory() {
       switch (sortBy) {
         case 'title':
           return a.title.localeCompare(b.title)
-        case 'downloads':
-          return b.downloadCount - a.downloadCount
         case 'date':
         default:
           return b.createdAt.getTime() - a.createdAt.getTime()
@@ -826,6 +825,55 @@ End of Exam
     }
   }
 
+  const handleDeleteAll = () => {
+    if (pdfs.length === 0) {
+      toast({
+        title: "No Exams to Delete",
+        description: "There are no exams to delete.",
+        variant: "destructive"
+      })
+      return
+    }
+    setDeletingAll(true)
+  }
+
+  const confirmDeleteAll = async () => {
+    setIsDeletingAll(true)
+    try {
+      // Delete all exams from database
+      const deletePromises = pdfs.map(pdf => 
+        fetch(`/api/exam-prep/sessions/${pdf.id}`, {
+          method: 'DELETE'
+        })
+      )
+
+      const results = await Promise.allSettled(deletePromises)
+      const successful = results.filter(result => result.status === 'fulfilled').length
+      const failed = results.length - successful
+
+      if (successful > 0) {
+        // Clear local state
+        setPdfs([])
+        toast({
+          title: "Exams Deleted",
+          description: `Successfully deleted ${successful} exam${successful > 1 ? 's' : ''}.${failed > 0 ? ` ${failed} failed to delete.` : ''}`,
+        })
+      } else {
+        throw new Error('Failed to delete any exams')
+      }
+    } catch (error) {
+      console.error('Delete all error:', error)
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete exams. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsDeletingAll(false)
+      setDeletingAll(false)
+    }
+  }
+
   const handleCopyLink = (pdf: GeneratedPDF) => {
     if (!pdf.isPublic) {
       toast({
@@ -1052,7 +1100,6 @@ End of Exam
               <SelectContent>
                 <SelectItem value="date">Sort by Date</SelectItem>
                 <SelectItem value="title">Sort by Title</SelectItem>
-                <SelectItem value="downloads">Sort by Downloads</SelectItem>
               </SelectContent>
             </Select>
             
@@ -1066,6 +1113,27 @@ End of Exam
                 <SelectItem value="public">Public Only</SelectItem>
               </SelectContent>
             </Select>
+
+            {pdfs.length > 0 && (
+              <Button
+                variant="destructive"
+                onClick={handleDeleteAll}
+                disabled={isDeletingAll}
+                className="w-full sm:w-auto"
+              >
+                {isDeletingAll ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete All
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -1129,8 +1197,8 @@ End of Exam
                   
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 bg-black hover:bg-gray-800 rounded-md">
+                        <MoreHorizontal className="h-4 w-4 text-white" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
@@ -1198,10 +1266,6 @@ End of Exam
                   <div className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
                     Created {formatDate(pdf.createdAt)}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Download className="h-3 w-3" />
-                    {pdf.downloadCount} downloads
                   </div>
                 </div>
               </CardContent>
@@ -1290,6 +1354,54 @@ End of Exam
              >
                <Trash2 className="h-4 w-4" />
                Delete
+             </Button>
+           </div>
+         </DialogContent>
+       </Dialog>
+
+       {/* Delete All Confirmation Dialog */}
+       <Dialog open={deletingAll} onOpenChange={() => setDeletingAll(false)}>
+         <DialogContent className="max-w-md">
+           <DialogHeader>
+             <DialogTitle className="flex items-center gap-2 text-red-600">
+               <Trash2 className="h-5 w-5" />
+               Delete All Exams
+             </DialogTitle>
+           </DialogHeader>
+           
+           <div className="py-4">
+             <p className="text-gray-700 mb-4">
+               Are you sure you want to delete <strong>all {pdfs.length} exam{pdfs.length > 1 ? 's' : ''}</strong>?
+             </p>
+             <p className="text-sm text-gray-500">
+               This action cannot be undone. All exams and their data will be permanently removed from your account.
+             </p>
+           </div>
+           
+           <div className="flex justify-end gap-3">
+             <Button
+               variant="outline"
+               onClick={() => setDeletingAll(false)}
+             >
+               Cancel
+             </Button>
+             <Button
+               variant="destructive"
+               onClick={confirmDeleteAll}
+               disabled={isDeletingAll}
+               className="flex items-center gap-2"
+             >
+               {isDeletingAll ? (
+                 <>
+                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                   Deleting...
+                 </>
+               ) : (
+                 <>
+                   <Trash2 className="h-4 w-4" />
+                   Delete All
+                 </>
+               )}
              </Button>
            </div>
          </DialogContent>

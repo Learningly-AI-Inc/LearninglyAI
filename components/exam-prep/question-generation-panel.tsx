@@ -908,7 +908,8 @@ export function QuestionGenerationPanel({
                     id="examTitle"
                     {...register('examTitle', { required: 'Exam title is required' })}
                     placeholder="e.g., Computer Science Final Exam"
-                className="w-full"
+                    className="w-full"
+                    disabled={isGenerating || (currentSession && currentSession.status === 'generating')}
                   />
                   {errors.examTitle && (
                     <p className="text-sm text-red-600 mt-1">{errors.examTitle.message}</p>
@@ -931,6 +932,7 @@ export function QuestionGenerationPanel({
                         min: { value: 1, message: 'Minimum 1 question' },
                         max: { value: 20, message: 'Maximum 20 questions' }
                       })}
+                      disabled={isGenerating || (currentSession && currentSession.status === 'generating')}
                     />
                     {errors.questionCount && (
                       <p className="text-sm text-red-600 mt-1">{errors.questionCount.message}</p>
@@ -949,6 +951,7 @@ export function QuestionGenerationPanel({
                         min: { value: 15, message: 'Minimum 15 minutes' },
                         max: { value: 300, message: 'Maximum 300 minutes' }
                       })}
+                      disabled={isGenerating || (currentSession && currentSession.status === 'generating')}
                     />
                     {errors.examLength && (
                       <p className="text-sm text-red-600 mt-1">{errors.examLength.message}</p>
@@ -967,6 +970,7 @@ export function QuestionGenerationPanel({
                       min: { value: 1, message: 'Minimum 1 set' },
                       max: { value: 5, message: 'Maximum 5 sets' }
                     })}
+                    disabled={isGenerating || (currentSession && currentSession.status === 'generating')}
                   />
                   {errors.questionSets && (
                     <p className="text-sm text-red-600 mt-1">{errors.questionSets.message}</p>
@@ -980,6 +984,7 @@ export function QuestionGenerationPanel({
                 <Select 
                   onValueChange={(value) => setValue('difficulty', value as any)}
                   defaultValue="medium"
+                  disabled={isGenerating || (currentSession && currentSession.status === 'generating')}
                 >
                   <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select difficulty" />
@@ -1004,7 +1009,8 @@ export function QuestionGenerationPanel({
                     {...register('customInstructions')}
                     placeholder="Any specific requirements for question generation..."
                     rows={6}
-                  className="w-full"
+                    className="w-full"
+                    disabled={isGenerating || (currentSession && currentSession.status === 'generating')}
                   />
                 </div>
 
@@ -1044,6 +1050,7 @@ export function QuestionGenerationPanel({
                 // Show download buttons when exam is completed
                 <>
                   <Button
+                    type="button"
                     onClick={handleDownload}
                     className="flex items-center gap-2 w-full sm:w-auto"
                     size="lg"
@@ -1057,6 +1064,7 @@ export function QuestionGenerationPanel({
                   
                   {currentSession.result?.downloadType === 'single' && (
                     <Button
+                      type="button"
                       onClick={handleDownloadAnswerKey}
                       variant="outline"
                       className="flex items-center gap-2 w-full sm:w-auto"
