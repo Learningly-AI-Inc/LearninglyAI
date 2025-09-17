@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { 
   FileText, 
   Download, 
@@ -22,7 +23,8 @@ import {
   Users,
   Star,
   Copy,
-  X
+  X,
+  ChevronDown
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import jsPDF from 'jspdf'
@@ -59,7 +61,7 @@ export function GeneratedPDFsHistory() {
   const [sortBy, setSortBy] = React.useState<'date' | 'title' | 'downloads'>('date')
   const [filterBy, setFilterBy] = React.useState<'all' | 'starred' | 'public'>('all')
   const [loading, setLoading] = React.useState(false)
-  const [viewingPdf, setViewingPdf] = React.useState<GeneratedPDF | null>(null)
+  const [viewingPdf, setViewingPdf] = React.useState<(GeneratedPDF & { type: 'questions' | 'answerKey' }) | null>(null)
   const [pdfContent, setPdfContent] = React.useState<string>('')
   const [loadingPdf, setLoadingPdf] = React.useState(false)
   const [deletingPdf, setDeletingPdf] = React.useState<GeneratedPDF | null>(null)
@@ -179,7 +181,7 @@ export function GeneratedPDFsHistory() {
     return filtered
   }, [pdfs, searchTerm, sortBy, filterBy])
 
-  const handleDownload = async (pdf: GeneratedPDF) => {
+  const handleDownloadQuestions = async (pdf: GeneratedPDF) => {
     try {
       // Fetch the full exam data from the API
       const response = await fetch(`/api/exam-prep/sessions/${pdf.id}`)
@@ -194,13 +196,28 @@ export function GeneratedPDFsHistory() {
         throw new Error('No exam data found')
       }
 
-      // Generate proper PDF using jsPDF
-      const pdfBlob = await generatePDFFromExam(examData)
-      const url = URL.createObjectURL(pdfBlob)
+      // Check if there are multiple exam sets
+      const allExams = data.session.exam_parameters?.exams || [examData]
+      const isMultipleSets = allExams.length > 1
+
+      // Generate questions PDF using jsPDF
+      const questionsBlob = await generateQuestionsPDF(examData)
+      const url = URL.createObjectURL(questionsBlob)
+      
+      // Generate filename based on whether it's multiple sets or single set
+      let filename: string
+      if (isMultipleSets) {
+        // For multiple sets, we need to determine which set this is
+        // Since we're in history, we'll use the first set (index 0)
+        const baseTitle = examData.examTitle || pdf.title
+        filename = `${baseTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_question_set_1.pdf`
+      } else {
+        filename = `${pdf.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_question.pdf`
+      }
       
       const link = document.createElement('a')
       link.href = url
-      link.download = `${pdf.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`
+      link.download = filename
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -215,16 +232,305 @@ export function GeneratedPDFsHistory() {
       
       toast({
         title: "Download Started",
-        description: `Downloading ${pdf.title}...`,
+        description: `Downloading ${pdf.title} questions...`,
       })
     } catch (error) {
       console.error('Download error:', error)
       toast({
         title: "Download Failed",
-        description: "Failed to generate PDF. Please try again.",
+        description: "Failed to generate questions PDF. Please try again.",
         variant: "destructive"
       })
     }
+  }
+
+  const handleDownloadAnswerKey = async (pdf: GeneratedPDF) => {
+    try {
+      // Fetch the full exam data from the API
+      const response = await fetch(`/api/exam-prep/sessions/${pdf.id}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch exam data')
+      }
+      
+      const data = await response.json()
+      const examData = data.session.exam_parameters?.exam_data
+      
+      if (!examData) {
+        throw new Error('No exam data found')
+      }
+
+      // Check if there are multiple exam sets
+      const allExams = data.session.exam_parameters?.exams || [examData]
+      const isMultipleSets = allExams.length > 1
+
+      // Generate answer key PDF using jsPDF
+      const answerKeyBlob = await generateAnswerKeyPDF(examData)
+      const url = URL.createObjectURL(answerKeyBlob)
+      
+      // Generate filename based on whether it's multiple sets or single set
+      let filename: string
+      if (isMultipleSets) {
+        // For multiple sets, we need to determine which set this is
+        // Since we're in history, we'll use the first set (index 0)
+        const baseTitle = examData.examTitle || pdf.title
+        filename = `${baseTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_answer_set_1.pdf`
+      } else {
+        filename = `${pdf.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_answer.pdf`
+      }
+      
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      // Clean up the URL
+      URL.revokeObjectURL(url)
+      
+      toast({
+        title: "Download Started",
+        description: `Downloading ${pdf.title} answer key...`,
+      })
+    } catch (error) {
+      console.error('Download error:', error)
+      toast({
+        title: "Download Failed",
+        description: "Failed to generate answer key PDF. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const generateQuestionsPDF = async (examData: any): Promise<Blob> => {
+    // Create a new PDF document for questions only
+    const doc = new jsPDF()
+    
+    // Set document properties
+    doc.setProperties({
+      title: `${examData.examTitle || 'Generated Exam'} - Questions`,
+      subject: 'AI-Generated Exam Questions',
+      author: 'Learningly AI',
+      creator: 'Learningly AI Exam Generator'
+    })
+    
+    // Set font and initial position
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    
+    // Add title
+    doc.text(examData.examTitle || 'Generated Exam', 20, 30)
+    
+    // Add exam info
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Duration: ${examData.duration} minutes`, 20, 45)
+    doc.text(`Questions: ${examData.questions.length}`, 20, 55)
+    
+    // Add instructions
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Instructions:', 20, 75)
+    doc.setFont('helvetica', 'normal')
+    
+    const instructions = examData.instructions || 'Please read each question carefully and select the best answer. Choose only one answer per question.'
+    const instructionLines = doc.splitTextToSize(instructions, 170)
+    doc.text(instructionLines, 20, 85)
+    
+    // Add questions
+    let yPosition = 105
+    const questions = examData.questions || []
+    
+    for (let i = 0; i < questions.length; i++) {
+      const question = questions[i]
+      
+      // Check if we need a new page
+      if (yPosition > 250) {
+        doc.addPage()
+        yPosition = 20
+      }
+      
+      // Add question number and type
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Question ${i + 1} (${question.type?.toUpperCase() || 'MCQ'}):`, 20, yPosition)
+      yPosition += 10
+      
+      // Add question text
+      doc.setFont('helvetica', 'normal')
+      const questionLines = doc.splitTextToSize(question.question, 170)
+      doc.text(questionLines, 20, yPosition)
+      yPosition += questionLines.length * 5 + 5
+      
+      // Add options for MCQ
+      if (question.type === 'mcq' && question.options) {
+        question.options.forEach((option: string, optIndex: number) => {
+          if (yPosition > 250) {
+            doc.addPage()
+            yPosition = 20
+          }
+          // Check if option already has A, B, C, D prefix
+          if (option.match(/^[A-D]\.\s/)) {
+            doc.text(option, 30, yPosition)
+          } else {
+            doc.text(`${String.fromCharCode(65 + optIndex)}. ${option}`, 30, yPosition)
+          }
+          yPosition += 6
+        })
+      }
+      
+      // Add options for true/false
+      if (question.type === 'true_false') {
+        if (yPosition > 250) {
+          doc.addPage()
+          yPosition = 20
+        }
+        doc.text('A. True', 30, yPosition)
+        yPosition += 6
+        doc.text('B. False', 30, yPosition)
+        yPosition += 6
+      }
+      
+      // Add answer space for written questions
+      if (['short_answer', 'essay', 'fill_blank', 'code_writing', 'numerical'].includes(question.type)) {
+        if (yPosition > 250) {
+          doc.addPage()
+          yPosition = 20
+        }
+        
+        let answerLabel = 'Answer:'
+        if (question.type === 'fill_blank') answerLabel = 'Fill in the blank:'
+        if (question.type === 'code_writing') answerLabel = `Write your code (${question.codeLanguage || 'any language'}):`
+        if (question.type === 'numerical') answerLabel = 'Numerical Answer:'
+        
+        doc.setFont('helvetica', 'bold')
+        doc.text(answerLabel, 20, yPosition)
+        yPosition += 10
+        
+        // Add answer space
+        const answerSpaceHeight = question.type === 'essay' ? 40 : question.type === 'code_writing' ? 30 : 15
+        doc.rect(20, yPosition, 170, answerSpaceHeight)
+        yPosition += answerSpaceHeight + 10
+      }
+      
+      yPosition += 5 // Space between questions
+    }
+    
+    // Add footer
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Generated by Learningly AI', 20, 290)
+      doc.text(`Page ${i} of ${pageCount}`, 170, 290)
+    }
+    
+    // Return the PDF as a blob
+    return doc.output('blob')
+  }
+
+  const generateAnswerKeyPDF = async (examData: any): Promise<Blob> => {
+    // Create a new PDF document for answer key only
+    const doc = new jsPDF()
+    
+    // Set document properties
+    doc.setProperties({
+      title: `${examData.examTitle || 'Generated Exam'} - Answer Key`,
+      subject: 'AI-Generated Exam Answer Key',
+      author: 'Learningly AI',
+      creator: 'Learningly AI Exam Generator'
+    })
+    
+    // Set font and initial position
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    
+    // Add title
+    doc.text(`${examData.examTitle || 'Generated Exam'} - Answer Key`, 20, 30)
+    
+    // Add exam info
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Duration: ${examData.duration} minutes`, 20, 45)
+    doc.text(`Questions: ${examData.questions.length}`, 20, 55)
+    
+    // Add answer key instructions
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Answer Key:', 20, 75)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Correct answers and explanations for all questions:', 20, 85)
+    
+    // Add answers for each question
+    let yPosition = 105
+    const questions = examData.questions || []
+    
+    for (let i = 0; i < questions.length; i++) {
+      const question = questions[i]
+      
+      // Check if we need a new page
+      if (yPosition > 250) {
+        doc.addPage()
+        yPosition = 20
+      }
+      
+      // Add question number and correct answer
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Question ${i + 1}:`, 20, yPosition)
+      yPosition += 10
+      
+      // Add correct answer
+      doc.setFont('helvetica', 'normal')
+      let correctAnswer = question.correctAnswer || 'Answer not provided'
+      
+      // Format the answer based on question type
+      if (question.type === 'mcq' && question.options) {
+        const answerIndex = question.correctAnswer
+        if (answerIndex && question.options[answerIndex]) {
+          correctAnswer = `${answerIndex}. ${question.options[answerIndex]}`
+        } else if (typeof answerIndex === 'string' && ['A', 'B', 'C', 'D'].includes(answerIndex)) {
+          const index = answerIndex.charCodeAt(0) - 65
+          if (question.options[index]) {
+            correctAnswer = `${answerIndex}. ${question.options[index]}`
+          }
+        }
+      } else if (question.type === 'true_false') {
+        correctAnswer = question.correctAnswer === 'true' ? 'A. True' : 'B. False'
+      }
+      
+      const answerLines = doc.splitTextToSize(`Answer: ${correctAnswer}`, 170)
+      doc.text(answerLines, 30, yPosition)
+      yPosition += answerLines.length * 5 + 5
+      
+      // Add explanation if available
+      if (question.explanation) {
+        doc.setFont('helvetica', 'bold')
+        doc.text('Explanation:', 30, yPosition)
+        yPosition += 8
+        
+        doc.setFont('helvetica', 'normal')
+        const explanationLines = doc.splitTextToSize(question.explanation, 160)
+        doc.text(explanationLines, 30, yPosition)
+        yPosition += explanationLines.length * 5 + 10
+      } else {
+        yPosition += 5
+      }
+    }
+    
+    // Add footer
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Generated by Learningly AI', 20, 290)
+      doc.text(`Page ${i} of ${pageCount}`, 170, 290)
+    }
+    
+    // Return the PDF as a blob
+    return doc.output('blob')
   }
 
   const generatePDFFromExam = async (examData: any): Promise<Blob> => {
@@ -294,7 +600,12 @@ export function GeneratedPDFsHistory() {
             doc.addPage()
             yPosition = 20
           }
-          doc.text(`${String.fromCharCode(65 + optIndex)}. ${option}`, 30, yPosition)
+          // Check if option already has A, B, C, D prefix
+          if (option.match(/^[A-D]\.\s/)) {
+            doc.text(option, 30, yPosition)
+          } else {
+            doc.text(`${String.fromCharCode(65 + optIndex)}. ${option}`, 30, yPosition)
+          }
           yPosition += 6
         })
       }
@@ -336,6 +647,76 @@ export function GeneratedPDFsHistory() {
       yPosition += 5 // Space between questions
     }
     
+    // Add a new page for the answer key
+    doc.addPage()
+    yPosition = 20
+    
+    // Add Answer Key header
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.text('ANSWER KEY', 20, yPosition)
+    yPosition += 20
+    
+    // Add answer key instructions
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Correct answers and explanations for all questions:', 20, yPosition)
+    yPosition += 15
+    
+    // Add answers for each question
+    for (let i = 0; i < questions.length; i++) {
+      const question = questions[i]
+      
+      // Check if we need a new page
+      if (yPosition > 250) {
+        doc.addPage()
+        yPosition = 20
+      }
+      
+      // Add question number and correct answer
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Question ${i + 1}:`, 20, yPosition)
+      yPosition += 10
+      
+      // Add correct answer
+      doc.setFont('helvetica', 'normal')
+      let correctAnswer = question.correctAnswer || 'Answer not provided'
+      
+      // Format the answer based on question type
+      if (question.type === 'mcq' && question.options) {
+        const answerIndex = question.correctAnswer
+        if (answerIndex && question.options[answerIndex]) {
+          correctAnswer = `${answerIndex}. ${question.options[answerIndex]}`
+        } else if (typeof answerIndex === 'string' && ['A', 'B', 'C', 'D'].includes(answerIndex)) {
+          const index = answerIndex.charCodeAt(0) - 65
+          if (question.options[index]) {
+            correctAnswer = `${answerIndex}. ${question.options[index]}`
+          }
+        }
+      } else if (question.type === 'true_false') {
+        correctAnswer = question.correctAnswer === 'true' ? 'A. True' : 'B. False'
+      }
+      
+      const answerLines = doc.splitTextToSize(`Answer: ${correctAnswer}`, 170)
+      doc.text(answerLines, 30, yPosition)
+      yPosition += answerLines.length * 5 + 5
+      
+      // Add explanation if available
+      if (question.explanation) {
+        doc.setFont('helvetica', 'bold')
+        doc.text('Explanation:', 30, yPosition)
+        yPosition += 8
+        
+        doc.setFont('helvetica', 'normal')
+        const explanationLines = doc.splitTextToSize(question.explanation, 160)
+        doc.text(explanationLines, 30, yPosition)
+        yPosition += explanationLines.length * 5 + 10
+      } else {
+        yPosition += 5
+      }
+    }
+    
     // Add footer
     const pageCount = doc.getNumberOfPages()
     for (let i = 1; i <= pageCount; i++) {
@@ -364,7 +745,7 @@ ${examData.instructions || 'Please read each question carefully and select the b
 ${questions.map((q: any, index: number) => `
 Question ${index + 1} (${q.type?.toUpperCase() || 'MCQ'}): ${q.question}
 ${q.type === 'mcq' && q.options ? q.options.map((option: string, optIndex: number) => 
-  `${String.fromCharCode(65 + optIndex)}. ${option}`
+  option.match(/^[A-D]\.\s/) ? option : `${String.fromCharCode(65 + optIndex)}. ${option}`
 ).join('\n') : ''}
 ${q.type === 'true_false' ? 'A. True\nB. False' : ''}
 ${q.type === 'short_answer' || q.type === 'essay' ? 'Answer: _____________________________' : ''}
@@ -459,8 +840,8 @@ End of Exam
     })
   }
 
-  const handleViewPdf = async (pdf: GeneratedPDF) => {
-    setViewingPdf(pdf)
+  const handleViewQuestions = async (pdf: GeneratedPDF) => {
+    setViewingPdf({ ...pdf, type: 'questions' })
     setLoadingPdf(true)
     
     try {
@@ -477,19 +858,122 @@ End of Exam
         throw new Error('No exam data found')
       }
 
-      // Generate formatted content for viewing
-      const content = generateViewableContent(examData)
+      // Generate formatted content for questions viewing
+      const content = generateQuestionsContent(examData)
       setPdfContent(content)
     } catch (error) {
-      console.error('Error loading PDF:', error)
+      console.error('Error loading questions:', error)
       toast({
         title: "Error",
-        description: "Failed to load exam content. Please try again.",
+        description: "Failed to load exam questions. Please try again.",
         variant: "destructive"
       })
     } finally {
       setLoadingPdf(false)
     }
+  }
+
+  const handleViewAnswerKey = async (pdf: GeneratedPDF) => {
+    setViewingPdf({ ...pdf, type: 'answerKey' })
+    setLoadingPdf(true)
+    
+    try {
+      // Fetch the full exam data from the API
+      const response = await fetch(`/api/exam-prep/sessions/${pdf.id}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch exam data')
+      }
+      
+      const data = await response.json()
+      const examData = data.session.exam_parameters?.exam_data
+      
+      if (!examData) {
+        throw new Error('No exam data found')
+      }
+
+      // Generate formatted content for answer key viewing
+      const content = generateAnswerKeyContent(examData)
+      setPdfContent(content)
+    } catch (error) {
+      console.error('Error loading answer key:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load answer key. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingPdf(false)
+    }
+  }
+
+  const generateQuestionsContent = (examData: any): string => {
+    const questions = examData.questions || []
+    
+    return `
+EXAM QUESTIONS: ${examData.examTitle || 'Generated Exam'}
+Duration: ${examData.duration || 60} minutes
+Questions: ${questions.length}
+
+${questions.map((question: any, index: number) => {
+  let content = `Question ${index + 1} (${question.type?.toUpperCase() || 'MCQ'}):\n${question.question}\n`
+  
+  if (question.type === 'mcq' && question.options) {
+    question.options.forEach((option: string, optIndex: number) => {
+      // Check if option already has A, B, C, D prefix
+      if (option.match(/^[A-D]\.\s/)) {
+        content += `${option}\n`
+      } else {
+        content += `${String.fromCharCode(65 + optIndex)}. ${option}\n`
+      }
+    })
+  } else if (question.type === 'true_false') {
+    content += `A. True\nB. False\n`
+  } else if (['short_answer', 'essay', 'fill_blank', 'code_writing', 'numerical'].includes(question.type)) {
+    content += `[Answer space for written response]\n`
+  }
+  
+  return content + '\n'
+}).join('')}
+`.trim()
+  }
+
+  const generateAnswerKeyContent = (examData: any): string => {
+    const questions = examData.questions || []
+    
+    return `
+ANSWER KEY: ${examData.examTitle || 'Generated Exam'}
+Duration: ${examData.duration || 60} minutes
+Questions: ${questions.length}
+
+${questions.map((question: any, index: number) => {
+  let content = `Question ${index + 1}:\n`
+  
+  // Show correct answer
+  let correctAnswer = question.correctAnswer || 'Answer not provided'
+  
+  if (question.type === 'mcq' && question.options) {
+    const answerIndex = question.correctAnswer
+    if (answerIndex && question.options[answerIndex]) {
+      correctAnswer = `${answerIndex}. ${question.options[answerIndex]}`
+    } else if (typeof answerIndex === 'string' && ['A', 'B', 'C', 'D'].includes(answerIndex)) {
+      const index = answerIndex.charCodeAt(0) - 65
+      if (question.options[index]) {
+        correctAnswer = `${answerIndex}. ${question.options[index]}`
+      }
+    }
+  } else if (question.type === 'true_false') {
+    correctAnswer = question.correctAnswer === 'true' ? 'A. True' : 'B. False'
+  }
+  
+  content += `Answer: ${correctAnswer}\n`
+  
+  if (question.explanation) {
+    content += `Explanation: ${question.explanation}\n`
+  }
+  
+  return content + '\n'
+}).join('')}
+`.trim()
   }
 
   const generateViewableContent = (examData: any): string => {
@@ -506,7 +990,7 @@ ${examData.instructions || 'Please read each question carefully and select the b
 ${questions.map((q: any, index: number) => `
 Question ${index + 1} (${q.type?.toUpperCase() || 'MCQ'}): ${q.question}
 ${q.type === 'mcq' && q.options ? q.options.map((option: string, optIndex: number) => 
-  `${String.fromCharCode(65 + optIndex)}. ${option}`
+  option.match(/^[A-D]\.\s/) ? option : `${String.fromCharCode(65 + optIndex)}. ${option}`
 ).join('\n') : ''}
 ${q.type === 'true_false' ? 'A. True\nB. False' : ''}
 ${q.type === 'short_answer' || q.type === 'essay' ? 'Answer: _____________________________' : ''}
@@ -528,7 +1012,7 @@ End of Exam
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
@@ -536,28 +1020,6 @@ End of Exam
                 {pdfs.length}
               </div>
               <div className="text-sm text-gray-600">Total Exams</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">
-                {pdfs.filter(pdf => pdf.isStarred).length}
-              </div>
-              <div className="text-sm text-gray-600">Starred Exams</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">
-                {pdfs.filter(pdf => pdf.isPublic).length}
-              </div>
-              <div className="text-sm text-gray-600">Public Exams</div>
             </div>
           </CardContent>
         </Card>
@@ -630,96 +1092,115 @@ End of Exam
           </Card>
         ) : (
           filteredAndSortedPDFs.map((pdf) => (
-            <Card key={pdf.id} className="p-6">
-              <div className="flex items-start gap-4">
-                <FileText className="h-6 w-6 text-blue-600 mt-1" />
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-semibold truncate">{pdf.title}</h3>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleStar(pdf.id)}
-                        className="p-1"
-                      >
-                        <Star className={`h-4 w-4 ${pdf.isStarred ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
-                      </Button>
-                      {pdf.isPublic && (
-                        <Badge variant="outline" className="text-xs">
-                          <Users className="h-3 w-3 mr-1" />
-                          Public
-                        </Badge>
-                      )}
+            <Card key={pdf.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="bg-blue-50 p-2 rounded-lg">
+                      <FileText className="h-5 w-5 text-blue-600" />
                     </div>
                     
-                     <div className="flex gap-2">
-                       <Button 
-                         variant="ghost" 
-                         size="sm" 
-                         onClick={() => handleViewPdf(pdf)}
-                         title="Preview"
-                       >
-                         <Eye className="h-4 w-4" />
-                       </Button>
-                       <Button 
-                         variant="ghost" 
-                         size="sm" 
-                         onClick={() => handleDownload(pdf)}
-                         title="Download"
-                       >
-                         <Download className="h-4 w-4" />
-                       </Button>
-                       <Button 
-                         variant="ghost" 
-                         size="sm"
-                         onClick={() => handleDelete(pdf.id)}
-                         title="Delete"
-                       >
-                         <Trash2 className="h-4 w-4 text-red-600" />
-                       </Button>
-                     </div>
-                  </div>
-                  
-                  <p className="text-gray-600 mb-3">{pdf.description}</p>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-3">
-                    <div>
-                      <span className="font-medium">Questions:</span> {pdf.questionCount}
-                    </div>
-                    <div>
-                      <span className="font-medium">Duration:</span> {pdf.examLength} min
-                    </div>
-                    <div>
-                      <span className="font-medium">Size:</span> {formatFileSize(pdf.fileSize)}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-lg font-semibold text-gray-900 truncate">{pdf.title}</h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleStar(pdf.id)}
+                          className="p-1 h-6 w-6"
+                        >
+                          <Star className={`h-4 w-4 ${pdf.isStarred ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
+                        </Button>
+                        {pdf.isPublic && (
+                          <Badge variant="outline" className="text-xs">
+                            <Users className="h-3 w-3 mr-1" />
+                            Public
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 mb-3">{pdf.description}</p>
                     </div>
                   </div>
                   
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    <Badge className={getDifficultyColor(pdf.difficulty)}>
-                      {pdf.difficulty}
-                    </Badge>
-                    {pdf.topics.map((topic, idx) => (
-                      <Badge key={idx} variant="outline" className="text-xs">
-                        {topic}
-                      </Badge>
-                    ))}
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem onClick={() => handleViewQuestions(pdf)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Questions
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewAnswerKey(pdf)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Answer Key
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleDownloadQuestions(pdf)}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Questions
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDownloadAnswerKey(pdf)}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Answer Key
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={() => handleDelete(pdf.id)}
+                        className="text-red-600 focus:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
                   
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      Created {formatDate(pdf.createdAt)}
-                    </div>
-                    {pdf.answerKeyUrl && (
-                      <Badge variant="outline" className="text-xs">
-                        Answer Key Available
-                      </Badge>
-                    )}
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <div className="text-lg font-semibold text-gray-900">{pdf.questionCount}</div>
+                    <div className="text-xs text-gray-600">Questions</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <div className="text-lg font-semibold text-gray-900">{pdf.examLength}</div>
+                    <div className="text-xs text-gray-600">Minutes</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <div className="text-lg font-semibold text-gray-900">{formatFileSize(pdf.fileSize)}</div>
+                    <div className="text-xs text-gray-600">Size</div>
                   </div>
                 </div>
-              </div>
+                  
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <Badge className={getDifficultyColor(pdf.difficulty)}>
+                    {pdf.difficulty}
+                  </Badge>
+                  {pdf.topics.slice(0, 3).map((topic, idx) => (
+                    <Badge key={idx} variant="outline" className="text-xs">
+                      {topic}
+                    </Badge>
+                  ))}
+                  {pdf.topics.length > 3 && (
+                    <Badge variant="outline" className="text-xs">
+                      +{pdf.topics.length - 3} more
+                    </Badge>
+                  )}
+                </div>
+                  
+                <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    Created {formatDate(pdf.createdAt)}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Download className="h-3 w-3" />
+                    {pdf.downloadCount} downloads
+                  </div>
+                </div>
+              </CardContent>
             </Card>
           ))
         )}
@@ -738,18 +1219,10 @@ End of Exam
        {/* PDF Viewer Dialog */}
        <Dialog open={!!viewingPdf} onOpenChange={() => setViewingPdf(null)}>
          <DialogContent className="max-w-4xl h-[85vh] flex flex-col">
-           <DialogHeader className="flex flex-row items-center justify-between flex-shrink-0">
+           <DialogHeader className="flex-shrink-0">
              <DialogTitle className="text-lg font-semibold">
-               {viewingPdf?.title || 'Exam Preview'}
+               {viewingPdf?.type === 'questions' ? 'Exam Questions' : 'Answer Key'} - {viewingPdf?.title || 'Generated Exam'}
              </DialogTitle>
-             <Button
-               variant="ghost"
-               size="sm"
-               onClick={() => setViewingPdf(null)}
-               className="h-6 w-6 p-0"
-             >
-               <X className="h-4 w-4" />
-             </Button>
            </DialogHeader>
            
            <div className="flex-1 min-h-0 overflow-hidden">
@@ -769,25 +1242,13 @@ End of Exam
              )}
            </div>
            
-           <div className="flex justify-end gap-2 pt-4 border-t flex-shrink-0">
+           <div className="flex justify-end pt-4 border-t flex-shrink-0">
              <Button
                variant="outline"
                onClick={() => setViewingPdf(null)}
              >
                Close
              </Button>
-             {viewingPdf && (
-               <Button
-                 onClick={() => {
-                   setViewingPdf(null)
-                   handleDownload(viewingPdf)
-                 }}
-                 className="flex items-center gap-2"
-               >
-                 <Download className="h-4 w-4" />
-                 Download
-               </Button>
-             )}
            </div>
          </DialogContent>
        </Dialog>

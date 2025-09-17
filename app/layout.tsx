@@ -4,6 +4,8 @@ import "./globals.css";
 import "@/components/writing/editor-styles.css"; // Import the editor styles
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
+import { GlobalLoadingProvider } from "@/hooks/use-global-loading";
+import { GlobalLoadingIndicator } from "@/components/global-loading-indicator";
 
 const fontSans = Inter({
   subsets: ["latin"],
@@ -88,10 +90,13 @@ export default function RootLayout({
         )}
         suppressHydrationWarning
       >
-        <div className="relative flex min-h-screen flex-col">
-          <div className="flex-1">{children}</div>
-        </div>
-        <Toaster />
+        <GlobalLoadingProvider>
+          <GlobalLoadingIndicator />
+          <div className="relative flex min-h-screen flex-col">
+            <div className="flex-1">{children}</div>
+          </div>
+          <Toaster />
+        </GlobalLoadingProvider>
       </body>
     </html>
   );
