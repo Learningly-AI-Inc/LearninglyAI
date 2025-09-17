@@ -86,42 +86,73 @@ function ExamPrepSelection() {
             </div>
           </FadeContent>
 
-          {/* Full-length Exam Prep Section */}
+          {/* Exam Prep Options */}
           <FadeContent>
-            <Card className="mb-8 border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
-              <CardContent className="p-6">
-                <div className="flex flex-col sm:flex-row items-center gap-4">
-                  <div className="flex-shrink-0">
-                    <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-amber-500 rounded-full flex items-center justify-center">
-                      <GraduationCap className="w-8 h-8 text-white" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              {/* AI-Powered Full-Length Exam Prep */}
+              <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                <CardContent className="p-6">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mb-4">
+                      <Brain className="w-8 h-8 text-white" />
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-900 mb-2">AI-Powered Full-Length Exam Prep</h2>
+                    <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                      Advanced AI system with pattern analysis, content optimization, and intelligent question generation. Upload sample questions + learning materials for smart exam creation.
+                    </p>
+                    <div className="flex flex-col gap-2 w-full">
+                      <Button 
+                        onClick={() => router.push('/exam-prep/full-length')}
+                        className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white w-full"
+                      >
+                        <Brain className="w-4 h-4 mr-2" />
+                        Start AI Exam Prep
+                      </Button>
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span>✨ Pattern Analysis</span>
+                        <span>•</span>
+                        <span>🤖 AI Collaboration</span>
+                        <span>•</span>
+                        <span>📊 Smart Generation</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex-1 text-center sm:text-left">
-                    <h2 className="text-2xl font-bold text-slate-900 mb-2">Full-Length Exam Prep</h2>
-                    <p className="text-slate-600 mb-4">
-                      Upload your study materials (PDFs, DOCX, PPTX) and get 10-20 comprehensive exams tailored to your content
+                </CardContent>
+              </Card>
+
+              {/* Traditional Full Exam */}
+              <Card className="border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
+                <CardContent className="p-6">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-amber-500 rounded-full flex items-center justify-center mb-4">
+                      <GraduationCap className="w-8 h-8 text-white" />
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-900 mb-2">Traditional Full Exam</h2>
+                    <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                      Quick and straightforward exam generation. Upload your study materials and get comprehensive exams with standard question types and formats.
                     </p>
-                    <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex flex-col gap-2 w-full">
                       <Button 
                         onClick={() => router.push('/exam-prep/full-exam')}
-                        className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+                        className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white w-full"
                       >
                         <Upload className="w-4 h-4 mr-2" />
-                        Create New Exams
+                        Create Standard Exam
                       </Button>
                       <Button 
                         variant="outline"
                         onClick={() => router.push('/exam-prep/manage')}
-                        className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                        className="border-orange-300 text-orange-700 hover:bg-orange-50 w-full"
+                        size="sm"
                       >
                         <FileText className="w-4 h-4 mr-2" />
                         Manage Exams
                       </Button>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </FadeContent>
 
           {/* Study Mode Cards */}
