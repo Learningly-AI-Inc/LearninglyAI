@@ -1,14 +1,17 @@
 "use client"
 
 import * as React from "react"
+import { motion } from "framer-motion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Upload, Bot, History, Sparkles } from "lucide-react"
+import { FileText, Upload, Bot, History, Sparkles, CheckCircle2, ArrowLeft } from "lucide-react"
 import { SampleQuestionsUpload } from "@/components/exam-prep/sample-questions-upload"
 import { LearningMaterialsUpload } from "@/components/exam-prep/learning-materials-upload"
 import { QuestionGenerationPanel } from "@/components/exam-prep/question-generation-panel"
 import { GeneratedPDFsHistory } from "@/components/exam-prep/generated-pdfs-history"
+import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
 
 // Shared interfaces for file management
 interface UploadedFile {
@@ -59,6 +62,7 @@ interface LearningMaterial {
 }
 
 export default function FullLengthExamPrepPage() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = React.useState("sample-questions")
   
   // Shared state for uploaded files
@@ -100,7 +104,6 @@ export default function FullLengthExamPrepPage() {
                     file.processing_status === 'failed' ? 'failed' : 'analyzed'
           }))
           
-          console.log('Sample questions loaded:', sampleQuestions.map((f: any) => ({ id: f.id, name: f.name, status: f.status, processing_status: f.processing_status })))
           setUploadedSampleQuestions(sampleQuestions)
           setUploadedLearningMaterials(learningMaterials)
         } else {
@@ -116,93 +119,110 @@ export default function FullLengthExamPrepPage() {
     loadFiles()
   }, [])
 
+  const steps = [
+    { id: 'sample-questions', label: 'Sample', icon: Upload },
+    { id: 'learning-materials', label: 'Materials', icon: FileText },
+    { id: 'generate', label: 'Generate', icon: Bot },
+    { id: 'history', label: 'History', icon: History },
+  ] as const
+
+  const activeIndex = steps.findIndex(s => s.id === activeTab)
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 space-y-8">
-        {/* Professional Header */}
-        <div className="text-center space-y-6">
+      <div className="container mx-auto px-4 py-10 space-y-8">
+        {/* Back Button */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Button
+            variant="ghost"
+            onClick={() => router.push('/exam-prep')}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Exam Prep
+          </Button>
+        </motion.div>
+        {/* Header with motion */}
+        <motion.div
+          initial={{ y: -16, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.4 }}
+          className="text-center space-y-6"
+        >
           <div className="flex items-center justify-center gap-4">
-            <div className="p-4 bg-primary rounded-2xl shadow-lg">
+            <motion.div whileHover={{ scale: 1.05 }} className="p-4 bg-primary rounded-2xl shadow-lg">
               <Sparkles className="h-10 w-10 text-primary-foreground" />
-            </div>
+            </motion.div>
             <div className="text-left">
-              <h1 className="text-5xl font-bold tracking-tight text-foreground">
+              <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
                 Exam Preparation
               </h1>
-              <p className="text-xl text-muted-foreground mt-2">
+              <p className="text-lg md:text-xl text-muted-foreground mt-2">
                 AI-powered question generation and analysis
               </p>
             </div>
           </div>
-          
-          {/* Professional Features Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 text-center">
-                <Bot className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <p className="text-sm font-medium">AI Analysis</p>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 text-center">
-                <FileText className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <p className="text-sm font-medium">Smart Generation</p>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 text-center">
-                <Upload className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <p className="text-sm font-medium">Multi-Format</p>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 text-center">
-                <History className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <p className="text-sm font-medium">History</p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
 
-        {/* Professional Navigation */}
+          {/* Stepper */}
+          <div className="relative max-w-3xl mx-auto">
+            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-muted/50 rounded-full" />
+            <div className="relative grid grid-cols-4 gap-2">
+              {steps.map((step, idx) => {
+                const Icon = step.icon
+                const isActive = activeTab === step.id
+                const isDone = idx < activeIndex
+                return (
+                  <div key={step.id} className="flex flex-col items-center">
+                    <div className={`relative z-10 flex items-center justify-center w-10 h-10 rounded-full border ${
+                      isActive ? 'bg-primary text-primary-foreground border-primary' : isDone ? 'bg-green-600 text-white border-green-600' : 'bg-background text-foreground border-muted'
+                    }`}> 
+                      {isDone ? <CheckCircle2 className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                    </div>
+                    <span className={`mt-2 text-xs ${isActive ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{step.label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Tabs */}
         <div className="w-full">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="flex items-center justify-center">
-              <TabsList className="grid w-full max-w-4xl grid-cols-5 h-14 bg-muted/30 p-1 rounded-xl">
-                <TabsTrigger 
-                  value="sample-questions" 
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-muted/50 data-[state=active]:bg-background data-[state=active]:shadow-lg data-[state=active]:scale-105"
-                >
-                  <Upload className="h-4 w-4 transition-transform duration-300" />
-                  <span className="font-medium text-sm">Sample Questions</span>
+            <div className="sticky top-14 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-xl border shadow-sm">
+              <TabsList className="grid w-full grid-cols-4 h-14 p-1 rounded-xl">
+                <TabsTrigger value="sample-questions" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background">
+                  <Upload className="h-4 w-4" />
+                  <span className="font-medium text-sm">Sample</span>
+                  {uploadedSampleQuestions.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">{uploadedSampleQuestions.length}</Badge>
+                  )}
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="learning-materials" 
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-muted/50 data-[state=active]:bg-background data-[state=active]:shadow-lg data-[state=active]:scale-105"
-                >
-                  <FileText className="h-4 w-4 transition-transform duration-300" />
-                  <span className="font-medium text-sm">Learning Materials</span>
+                <TabsTrigger value="learning-materials" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background">
+                  <FileText className="h-4 w-4" />
+                  <span className="font-medium text-sm">Materials</span>
+                  {uploadedLearningMaterials.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">{uploadedLearningMaterials.length}</Badge>
+                  )}
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="generate" 
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-muted/50 data-[state=active]:bg-background data-[state=active]:shadow-lg data-[state=active]:scale-105"
-                >
-                  <Bot className="h-4 w-4 transition-transform duration-300" />
-                  <span className="font-medium text-sm">Generate Exam</span>
+                <TabsTrigger value="generate" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background">
+                  <Bot className="h-4 w-4" />
+                  <span className="font-medium text-sm">Generate</span>
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="history" 
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-muted/50 data-[state=active]:bg-background data-[state=active]:shadow-lg data-[state=active]:scale-105"
-                >
-                  <History className="h-4 w-4 transition-transform duration-300" />
+                <TabsTrigger value="history" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background">
+                  <History className="h-4 w-4" />
                   <span className="font-medium text-sm">History</span>
                 </TabsTrigger>
               </TabsList>
             </div>
 
-            <div className="py-6">
+            <div className="py-6 space-y-2">
               <TabsContent value="sample-questions" className="mt-0 data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:duration-300">
-                <div className="space-y-6 animate-in fade-in-0 duration-300">
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6">
                   <div>
                     <h2 className="text-2xl font-semibold tracking-tight">Upload Sample Questions</h2>
                     <p className="text-muted-foreground mt-1">
@@ -218,11 +238,11 @@ export default function FullLengthExamPrepPage() {
                     setSelectedFiles={setSelectedSampleQuestions}
                     isLoading={isLoadingFiles}
                   />
-                </div>
+                </motion.div>
               </TabsContent>
 
               <TabsContent value="learning-materials" className="mt-0 data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:duration-300">
-                <div className="space-y-6 animate-in fade-in-0 duration-300">
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6">
                   <div>
                     <h2 className="text-2xl font-semibold tracking-tight">Learning Materials</h2>
                     <p className="text-muted-foreground mt-1">
@@ -238,11 +258,11 @@ export default function FullLengthExamPrepPage() {
                     setSelectedFiles={setSelectedLearningMaterials}
                     isLoading={isLoadingFiles}
                   />
-                </div>
+                </motion.div>
               </TabsContent>
 
               <TabsContent value="generate" className="mt-0 data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:duration-300">
-                <div className="space-y-6 animate-in fade-in-0 duration-300">
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6">
                   <div>
                     <h2 className="text-2xl font-semibold tracking-tight">Generate Exam</h2>
                     <p className="text-muted-foreground mt-1">
@@ -255,11 +275,11 @@ export default function FullLengthExamPrepPage() {
                     selectedSampleQuestions={selectedSampleQuestions}
                     selectedLearningMaterials={selectedLearningMaterials}
                   />
-                </div>
+                </motion.div>
               </TabsContent>
 
               <TabsContent value="history" className="mt-0 data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:duration-300">
-                <div className="space-y-6 animate-in fade-in-0 duration-300">
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6">
                   <div>
                     <h2 className="text-2xl font-semibold tracking-tight">Generated Exams</h2>
                     <p className="text-muted-foreground mt-1">
@@ -267,9 +287,8 @@ export default function FullLengthExamPrepPage() {
                     </p>
                   </div>
                   <GeneratedPDFsHistory />
-                </div>
+                </motion.div>
               </TabsContent>
-
             </div>
           </Tabs>
         </div>
