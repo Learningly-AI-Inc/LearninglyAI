@@ -5,7 +5,8 @@ import { motion } from "framer-motion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Upload, Bot, History, Sparkles, CheckCircle2, ArrowLeft } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { FileText, Upload, Bot, History, Sparkles, CheckCircle2, ArrowLeft, AlertCircle } from "lucide-react"
 import { SampleQuestionsUpload } from "@/components/exam-prep/sample-questions-upload"
 import { LearningMaterialsUpload } from "@/components/exam-prep/learning-materials-upload"
 import { QuestionGenerationPanel } from "@/components/exam-prep/question-generation-panel"
@@ -14,6 +15,22 @@ import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 
 // Shared interfaces for file management
+interface GenerationSession {
+  id: string
+  status: 'generating' | 'completed' | 'error'
+  progress: number
+  currentStep: string
+  result?: {
+    examData?: any
+    allExams?: any[]
+    pdfUrl?: string
+    downloadType?: 'single' | 'zip'
+    totalSets?: number
+    questionCount?: number
+    fileSize?: number
+  }
+}
+
 interface UploadedFile {
   id: string
   name: string
@@ -79,6 +96,9 @@ export default function FullLengthExamPrepPage() {
   
   // Loading state
   const [isLoadingFiles, setIsLoadingFiles] = React.useState(true)
+  
+  // Generation session state (shared across all tabs)
+  const [currentSession, setCurrentSession] = React.useState<GenerationSession | null>(null)
 
   // Load files from database on component mount
   React.useEffect(() => {
@@ -190,6 +210,74 @@ export default function FullLengthExamPrepPage() {
           </div>
         </motion.div>
 
+        {/* Global Generation Progress - Shows across all tabs */}
+        {currentSession && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="border-orange-200 bg-orange-50/50 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-orange-600" />
+                  Generation Progress
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>{currentSession.currentStep}</span>
+                      <span>{Math.round(currentSession.progress * 10) / 10}%</span>
+                    </div>
+                    <Progress value={currentSession.progress} className="w-full" />
+                  </div>
+
+                  {/* Results */}
+                  {currentSession.result && (
+                    <div className="bg-green-50 rounded-lg p-4">
+                      <h4 className="font-medium mb-2 flex items-center gap-2 text-green-800">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Generation Complete!
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                        <div>
+                          <strong>Question Sets Generated:</strong> {currentSession.result.totalSets || 1}
+                        </div>
+                        <div>
+                          <strong>Questions per Set:</strong> {currentSession.result.questionCount || 0}
+                        </div>
+                        <div>
+                          <strong>Total Questions:</strong> {(currentSession.result.totalSets || 1) * (currentSession.result.questionCount || 0)}
+                        </div>
+                        <div>
+                          <strong>File Size:</strong> {currentSession.result.fileSize ? (currentSession.result.fileSize / 1024 / 1024).toFixed(2) : '0.00'} MB
+                        </div>
+                      </div>
+                      <div className="text-sm text-green-700">
+                        ✅ Exam generated successfully! Switch to the Generate tab to download your files.
+                      </div>
+                    </div>
+                  )}
+
+                  {currentSession.status === 'error' && (
+                    <div className="bg-red-50 rounded-lg p-4">
+                      <h4 className="font-medium mb-2 flex items-center gap-2 text-red-800">
+                        <AlertCircle className="h-4 w-4" />
+                        Generation Failed
+                      </h4>
+                      <p className="text-sm text-red-600">
+                        An error occurred during generation. Please try again.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
         {/* Tabs */}
         <div className="w-full">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -274,6 +362,8 @@ export default function FullLengthExamPrepPage() {
                     uploadedLearningMaterials={uploadedLearningMaterials}
                     selectedSampleQuestions={selectedSampleQuestions}
                     selectedLearningMaterials={selectedLearningMaterials}
+                    currentSession={currentSession}
+                    setCurrentSession={setCurrentSession}
                   />
                 </motion.div>
               </TabsContent>

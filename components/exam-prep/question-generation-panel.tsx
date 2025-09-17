@@ -51,19 +51,20 @@ interface QuestionGenerationParams {
   questionSets: number // number of different question sets to generate
 }
 
+
 interface GenerationSession {
   id: string
-  status: 'idle' | 'generating' | 'completed' | 'error'
+  status: 'generating' | 'completed' | 'error'
   progress: number
   currentStep: string
   result?: {
-    pdfUrl: string
-    questionCount: number
-    fileSize: number
-    examData: any
+    examData?: any
     allExams?: any[]
-    totalSets?: number
+    pdfUrl?: string
     downloadType?: 'single' | 'zip'
+    totalSets?: number
+    questionCount?: number
+    fileSize?: number
   }
 }
 
@@ -72,15 +73,18 @@ interface QuestionGenerationPanelProps {
   uploadedLearningMaterials: any[]
   selectedSampleQuestions: string[]
   selectedLearningMaterials: string[]
+  currentSession: GenerationSession | null
+  setCurrentSession: React.Dispatch<React.SetStateAction<GenerationSession | null>>
 }
 
 export function QuestionGenerationPanel({ 
   uploadedSampleQuestions, 
   uploadedLearningMaterials,
   selectedSampleQuestions,
-  selectedLearningMaterials
+  selectedLearningMaterials,
+  currentSession,
+  setCurrentSession
 }: QuestionGenerationPanelProps) {
-  const [currentSession, setCurrentSession] = React.useState<GenerationSession | null>(null)
   const [isGenerating, setIsGenerating] = React.useState(false)
   const { setGenerating, updateProgress, clearGeneration } = useGlobalLoading()
 
@@ -124,13 +128,13 @@ export function QuestionGenerationPanel({
     setGenerating(true, sessionId)
 
     try {
-      // Update progress
+      // Step 1: Prepare files (5%)
       setCurrentSession(prev => prev ? {
         ...prev,
-        progress: 20,
+        progress: 5,
         currentStep: 'Preparing files for analysis...'
       } : null)
-      updateProgress(20, 'Preparing files for analysis...')
+      updateProgress(5, 'Preparing files for analysis...')
 
       // Get file URLs from selected files
       const selectedFiles = [
@@ -144,12 +148,28 @@ export function QuestionGenerationPanel({
         category: file.category || (uploadedSampleQuestions.includes(file) ? 'sample_questions' : 'learning_materials')
       }))
 
+      // Step 2: Start AI generation (10%)
       setCurrentSession(prev => prev ? {
         ...prev,
-        progress: 40,
+        progress: 10,
         currentStep: 'Sending request to AI...'
       } : null)
-      updateProgress(40, 'Sending request to AI...')
+      updateProgress(10, 'Sending request to AI...')
+
+      // Step 3: AI is processing (simulate progress during API call)
+      const progressInterval = setInterval(() => {
+        setCurrentSession(prev => {
+          if (prev && prev.progress < 70) {
+            const newProgress = Math.min(prev.progress + Math.random() * 3, 70)
+            return {
+              ...prev,
+              progress: Math.round(newProgress * 10) / 10, // Round to 1 decimal place
+              currentStep: 'AI is generating questions...'
+            }
+          }
+          return prev
+        })
+      }, 800)
 
       // Call the real API
       const response = await fetch('/api/exam-prep/generate', {
@@ -171,26 +191,30 @@ export function QuestionGenerationPanel({
         })
       })
 
+      clearInterval(progressInterval)
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(errorData.error || `Generation failed: ${response.statusText}`)
       }
 
+      // Step 4: Process response (75%)
       setCurrentSession(prev => prev ? {
         ...prev,
-        progress: 80,
+        progress: 75,
         currentStep: 'Processing AI response...'
       } : null)
-      updateProgress(80, 'Processing AI response...')
+      updateProgress(75, 'Processing AI response...')
 
       const result = await response.json()
 
+      // Step 5: Create PDFs (80-95%)
       setCurrentSession(prev => prev ? {
         ...prev,
-        progress: 95,
+        progress: 80,
         currentStep: 'Creating PDFs...'
       } : null)
-      updateProgress(95, 'Creating PDFs...')
+      updateProgress(80, 'Creating PDFs...')
 
       // Generate PDFs from all exam data
       const allExams = result.exams || []
@@ -212,6 +236,15 @@ export function QuestionGenerationPanel({
           examData: examData,
           title: examData.examTitle || `Exam Set ${i + 1}`
         })
+
+        // Update progress during PDF generation
+        const pdfProgress = 80 + ((i + 1) / allExams.length) * 10
+        setCurrentSession(prev => prev ? {
+          ...prev,
+          progress: Math.round(pdfProgress * 10) / 10, // Round to 1 decimal place
+          currentStep: `Creating PDFs... (${i + 1}/${allExams.length})`
+        } : null)
+        updateProgress(pdfProgress, `Creating PDFs... (${i + 1}/${allExams.length})`)
       }
 
       // Create zip file if multiple exam sets, otherwise use single PDFs
@@ -249,6 +282,7 @@ export function QuestionGenerationPanel({
         downloadType = 'single'
       }
 
+      // Final step: Complete (100%)
       setCurrentSession(prev => prev ? {
         ...prev,
         progress: 100,
@@ -1006,132 +1040,92 @@ export function QuestionGenerationPanel({
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t">
-              <Button
-                type="submit"
-                disabled={isGenerating || (selectedSampleQuestions.length === 0 && selectedLearningMaterials.length === 0)}
-                className="flex items-center justify-center gap-2 w-full sm:w-auto"
-                size="lg"
-              >
-                {isGenerating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4" />
-                    Generate Exam
-                  </>
-                )}
-              </Button>
+              {currentSession && currentSession.status === 'completed' ? (
+                // Show download buttons when exam is completed
+                <>
+                  <Button
+                    onClick={handleDownload}
+                    className="flex items-center gap-2 w-full sm:w-auto"
+                    size="lg"
+                  >
+                    <Download className="h-4 w-4" />
+                    {currentSession.result?.downloadType === 'zip' 
+                      ? 'Download All Exam Sets (ZIP)' 
+                      : 'Download PDF'
+                    }
+                  </Button>
+                  
+                  {currentSession.result?.downloadType === 'single' && (
+                    <Button
+                      onClick={handleDownloadAnswerKey}
+                      variant="outline"
+                      className="flex items-center gap-2 w-full sm:w-auto"
+                      size="lg"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download Answer Key
+                    </Button>
+                  )}
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={resetSession}
+                    className="w-full sm:w-auto"
+                  >
+                    Generate New Exam
+                  </Button>
+                </>
+              ) : (
+                // Show generate button when no exam is completed
+                <>
+                  <Button
+                    type="submit"
+                    disabled={isGenerating || (selectedSampleQuestions.length === 0 && selectedLearningMaterials.length === 0)}
+                    className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                    size="lg"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4" />
+                        Generate Exam
+                      </>
+                    )}
+                  </Button>
 
-              {currentSession && currentSession.status === 'generating' && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={cancelGeneration}
-                  className="w-full sm:w-auto"
-                >
-                  Cancel Generation
-                </Button>
-              )}
+                  {currentSession && currentSession.status === 'generating' && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={cancelGeneration}
+                      className="w-full sm:w-auto"
+                    >
+                      Cancel Generation
+                    </Button>
+                  )}
 
-              {currentSession && currentSession.status !== 'generating' && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={resetSession}
-                  className="w-full sm:w-auto"
-                >
-                  Reset
-                </Button>
+                  {currentSession && currentSession.status !== 'generating' && currentSession.status !== 'completed' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={resetSession}
+                      className="w-full sm:w-auto"
+                    >
+                      Reset
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </form>
         </CardContent>
       </Card>
 
-      {/* Generation Progress */}
-      {currentSession && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-orange-600" />
-              Generation Progress
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>{currentSession.currentStep}</span>
-                  <span>{currentSession.progress}%</span>
-                </div>
-                <Progress value={currentSession.progress} className="w-full" />
-              </div>
-
-              {/* Results */}
-              {currentSession.result && (
-                <div className="bg-green-50 rounded-lg p-4">
-                  <h4 className="font-medium mb-2 flex items-center gap-2 text-green-800">
-                    <CheckCircle className="h-4 w-4" />
-                    Generation Complete!
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                    <div>
-                      <strong>Question Sets Generated:</strong> {currentSession.result.totalSets || 1}
-                    </div>
-                    <div>
-                      <strong>Questions per Set:</strong> {currentSession.result.questionCount}
-                    </div>
-                    <div>
-                      <strong>Total Questions:</strong> {(currentSession.result.totalSets || 1) * currentSession.result.questionCount}
-                    </div>
-                    <div>
-                      <strong>File Size:</strong> {(currentSession.result.fileSize / 1024 / 1024).toFixed(2)} MB
-                    </div>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                  <Button 
-                    onClick={handleDownload}
-                    className="flex items-center gap-2"
-                  >
-                    <Download className="h-4 w-4" />
-                      {currentSession.result.downloadType === 'zip' 
-                        ? 'Download All Exam Sets (ZIP)' 
-                        : 'Download Questions PDF'
-                      }
-                  </Button>
-                    
-                    {currentSession.result.downloadType === 'single' && (
-                      <Button 
-                        onClick={() => handleDownloadAnswerKey()}
-                        variant="outline"
-                        className="flex items-center gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        Download Answer Key PDF
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {currentSession.status === 'error' && (
-                <div className="bg-red-50 rounded-lg p-4">
-                  <h4 className="font-medium mb-2 flex items-center gap-2 text-red-800">
-                    <AlertCircle className="h-4 w-4" />
-                    Generation Failed
-                  </h4>
-                  <p className="text-sm text-red-600">
-                    An error occurred during generation. Please try again.
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Tips */}
       <Alert>

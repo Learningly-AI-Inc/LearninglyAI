@@ -65,6 +65,7 @@ export function GeneratedPDFsHistory() {
   const [pdfContent, setPdfContent] = React.useState<string>('')
   const [loadingPdf, setLoadingPdf] = React.useState(false)
   const [deletingPdf, setDeletingPdf] = React.useState<GeneratedPDF | null>(null)
+  const [deletingAll, setDeletingAll] = React.useState(false)
 
   // Fetch generated exams from database
   React.useEffect(() => {
