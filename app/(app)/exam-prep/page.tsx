@@ -96,9 +96,9 @@ function ExamPrepSelection() {
                     <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mb-4">
                       <Brain className="w-8 h-8 text-white" />
                     </div>
-                    <h2 className="text-xl font-bold text-slate-900 mb-2">AI-Powered Full-Length Exam Prep</h2>
+                    <h2 className="text-xl font-bold text-slate-900 mb-2">Full-Length Exam Prep</h2>
                     <p className="text-slate-600 mb-4 text-sm leading-relaxed">
-                      Advanced AI system with pattern analysis, content optimization, and intelligent question generation. Upload sample questions + learning materials for smart exam creation.
+                      Comprehensive exam preparation with pattern analysis, content optimization, and intelligent question generation. Upload sample questions + learning materials for smart exam creation.
                     </p>
                     <div className="flex flex-col gap-2 w-full">
                       <Button 
@@ -106,7 +106,7 @@ function ExamPrepSelection() {
                         className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white w-full"
                       >
                         <Brain className="w-4 h-4 mr-2" />
-                        Start AI Exam Prep
+                        Start Exam Prep
                       </Button>
                     </div>
                   </div>
