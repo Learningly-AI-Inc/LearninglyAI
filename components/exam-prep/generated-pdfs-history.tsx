@@ -303,7 +303,7 @@ End of Exam
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
@@ -311,17 +311,6 @@ End of Exam
                 {pdfs.length}
               </div>
               <div className="text-sm text-gray-600">Total Exams</div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {pdfs.reduce((sum, pdf) => sum + pdf.downloadCount, 0)}
-              </div>
-              <div className="text-sm text-gray-600">Total Downloads</div>
             </div>
           </CardContent>
         </Card>
@@ -392,7 +381,17 @@ End of Exam
 
       {/* PDF List */}
       <div className="space-y-4">
-        {filteredAndSortedPDFs.length === 0 ? (
+        {loading ? (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Loading exams...</h3>
+                <p className="text-gray-600">Fetching your generated exams from the database.</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : filteredAndSortedPDFs.length === 0 ? (
           <Card>
             <CardContent className="pt-6">
               <div className="text-center py-8">
@@ -442,24 +441,6 @@ End of Exam
                       >
                         <Download className="h-4 w-4" />
                       </Button>
-                      {pdf.isPublic && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleCopyLink(pdf)}
-                          title="Copy public link"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleTogglePublic(pdf.id)}
-                        title={pdf.isPublic ? "Make private" : "Make public"}
-                      >
-                        <Share2 className="h-4 w-4" />
-                      </Button>
                       <Button 
                         variant="ghost" 
                         size="sm"
@@ -473,7 +454,7 @@ End of Exam
                   
                   <p className="text-gray-600 mb-3">{pdf.description}</p>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-3">
                     <div>
                       <span className="font-medium">Questions:</span> {pdf.questionCount}
                     </div>
@@ -482,9 +463,6 @@ End of Exam
                     </div>
                     <div>
                       <span className="font-medium">Size:</span> {formatFileSize(pdf.fileSize)}
-                    </div>
-                    <div>
-                      <span className="font-medium">Downloads:</span> {pdf.downloadCount}
                     </div>
                   </div>
                   
@@ -503,10 +481,6 @@ End of Exam
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
                       Created {formatDate(pdf.createdAt)}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {pdf.generationParameters.sourceFiles.sampleQuestions} samples, {pdf.generationParameters.sourceFiles.learningMaterials} materials
                     </div>
                     {pdf.answerKeyUrl && (
                       <Badge variant="outline" className="text-xs">
