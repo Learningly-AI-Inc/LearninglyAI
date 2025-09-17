@@ -155,14 +155,6 @@ export default function AppSidebar({
           ))}
         </SidebarSection>
 
-        <SidebarSection title="Spaces" collapsed={sidebarCollapsed}>
-          <SidebarItem 
-            collapsed={sidebarCollapsed} 
-            icon={<User className="h-4 w-4"/>} 
-            label={`${user?.email?.split('@')[0] || 'Your'} Space`}
-            href="/profile"
-          />
-        </SidebarSection>
 
         <SidebarSection title="Help & Tools" collapsed={sidebarCollapsed}>
           <SidebarItem collapsed={sidebarCollapsed} icon={<Bolt className="h-4 w-4"/>} label="Quick Guide" href="/help"/>

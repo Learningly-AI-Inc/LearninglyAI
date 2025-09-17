@@ -67,8 +67,7 @@ ReadingPage
 ├── Header (with mobile hamburger)
 ├── Left Sidebar (desktop only)
 │   ├── Add Content Button
-│   ├── History Section
-│   └── Spaces Section
+│   └── History Section
 ├── Main Content
 │   ├── Empty State (when no document)
 │   └── Content Upload Options

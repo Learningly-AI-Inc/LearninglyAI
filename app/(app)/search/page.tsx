@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Send, Bot, Copy, ThumbsUp, ThumbsDown, RotateCcw, Sparkles, Search, Plus, Trash2, Mic, Square, ChevronRight, Zap, Brain, X, Menu, FileText } from "lucide-react"
+import { Send, Bot, Copy, ThumbsUp, ThumbsDown, RotateCcw, Sparkles, Search, Plus, Trash2, Mic, Square, ChevronRight, Zap, Brain, X, Menu, FileText, Edit2, Save, Check, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { motion, AnimatePresence } from "framer-motion"
@@ -65,6 +65,11 @@ const SearchPage = () => {
   const [showModelMenu, setShowModelMenu] = React.useState(false)
   const [abortController, setAbortController] = React.useState<AbortController | null>(null)
   const [deletingConversationId, setDeletingConversationId] = React.useState<string | null>(null)
+  const [editingConversationId, setEditingConversationId] = React.useState<string | null>(null)
+  const [editingMessageId, setEditingMessageId] = React.useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = React.useState('')
+  const [editingContent, setEditingContent] = React.useState('')
+  const [isSavingMessage, setIsSavingMessage] = React.useState(false)
   const scrollAreaRef = React.useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -586,6 +591,180 @@ const SearchPage = () => {
     toast.success('Copied to clipboard')
   }
 
+  // Edit conversation title
+  const handleEditConversationTitle = (conversationId: string, currentTitle: string) => {
+    setEditingConversationId(conversationId)
+    setEditingTitle(currentTitle)
+  }
+
+  const handleSaveConversationTitle = async () => {
+    if (!editingConversationId || !editingTitle.trim() || !user?.id) {
+      return
+    }
+
+    try {
+      // Note: Database update functionality removed - only updating local state for now
+      console.log('🔍 [SEARCH PAGE] Conversation title updated locally (database update disabled)')
+
+      // Update local conversations state
+      setConversations(prev => prev.map(conv => 
+        conv.id === editingConversationId 
+          ? { ...conv, title: editingTitle.trim() }
+          : conv
+      ))
+
+      toast.success('Conversation title updated')
+      setEditingConversationId(null)
+      setEditingTitle('')
+    } catch (error: any) {
+      console.error('Error updating conversation title:', error)
+      toast.error('Failed to update conversation title')
+    }
+  }
+
+  const handleCancelEditConversation = () => {
+    setEditingConversationId(null)
+    setEditingTitle('')
+  }
+
+  // Edit message content
+  const handleEditMessage = (messageId: string, currentContent: string) => {
+    setEditingMessageId(messageId)
+    setEditingContent(currentContent)
+  }
+
+  const handleSaveMessage = async () => {
+    if (!editingMessageId || !editingContent.trim() || !user?.id) {
+      console.error('🔍 [SEARCH PAGE] Invalid save parameters:', {
+        hasMessageId: !!editingMessageId,
+        hasContent: !!editingContent.trim(),
+        hasUser: !!user?.id,
+        contentLength: editingContent.trim().length
+      })
+      toast.error('Cannot save: Missing required information')
+      return
+    }
+
+    if (editingContent.trim().length === 0) {
+      toast.error('Message cannot be empty')
+      return
+    }
+
+    if (isSavingMessage) {
+      console.log('🔍 [SEARCH PAGE] Save already in progress, ignoring duplicate request')
+      return
+    }
+
+    setIsSavingMessage(true)
+
+    try {
+      // Find the index of the message being edited
+      const messageIndex = messages.findIndex(msg => msg.id === editingMessageId)
+      if (messageIndex === -1) {
+        toast.error('Message not found')
+        return
+      }
+
+      // Remove all messages after the edited message (ChatGPT-style)
+      const messagesUpToEdit = messages.slice(0, messageIndex + 1)
+      
+      // Update the edited message in the local state
+      const updatedMessages = messagesUpToEdit.map(msg => 
+        msg.id === editingMessageId 
+          ? { ...msg, content: editingContent.trim() }
+          : msg
+      )
+
+      // Set the messages to only include up to the edited message
+      setMessages(updatedMessages)
+
+      // If this is a user message, send it to get a new AI response
+      const editedMessage = updatedMessages[messageIndex]
+      if (editedMessage.type === 'user') {
+        console.log('💬 [SEARCH PAGE] Regenerating response after edit...')
+        
+        // Add typing indicator
+        const typingMessage: Message = {
+          id: `typing-${Date.now()}`,
+          type: 'assistant',
+          content: '',
+          timestamp: new Date(),
+          isTyping: true
+        }
+        setMessages(prev => [...prev, typingMessage])
+        setIsTyping(true)
+
+        // Send the edited message to get a new response
+        try {
+          const response = await fetch('/api/search', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: editingContent.trim(),
+              conversationId: selectedConversationId,
+              model: selectedModel
+            })
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            
+            if (data?.response) {
+              // Replace typing message with actual response
+              setMessages(prev => prev.map(msg =>
+                msg.isTyping ? {
+                  id: `assistant-${Date.now()}`,
+                  type: 'assistant',
+                  content: data.response,
+                  timestamp: new Date(),
+                  sources: data.sources || []
+                } : msg
+              ))
+              
+              toast.success('Message edited and response regenerated')
+            } else {
+              // Remove typing message if no response
+              setMessages(prev => prev.filter(msg => !msg.isTyping))
+              toast.error('Failed to get new response')
+            }
+          } else {
+            // Remove typing message on error
+            setMessages(prev => prev.filter(msg => !msg.isTyping))
+            const errorData = await response.json()
+            toast.error(errorData.error || 'Failed to regenerate response')
+          }
+        } catch (regenerateError: any) {
+          console.error('Error regenerating response:', regenerateError)
+          setMessages(prev => prev.filter(msg => !msg.isTyping))
+          toast.error('Failed to regenerate response')
+        } finally {
+          setIsTyping(false)
+        }
+      } else {
+        // For assistant messages, just update without regenerating
+        toast.success('Message updated')
+      }
+
+      // Note: Database update functionality removed - only updating local state for now
+      console.log('🔍 [SEARCH PAGE] Message updated locally (database update disabled)')
+
+      setEditingMessageId(null)
+      setEditingContent('')
+    } catch (error: any) {
+      console.error('Error updating message:', error)
+      toast.error('Failed to update message')
+    } finally {
+      setIsSavingMessage(false)
+    }
+  }
+
+  const handleCancelEditMessage = () => {
+    setEditingMessageId(null)
+    setEditingContent('')
+  }
+
   const TypingIndicator = () => (
     <div className="flex items-center space-x-2 text-muted-foreground">
       <div className="flex space-x-1">
@@ -684,27 +863,74 @@ const SearchPage = () => {
                         ) : (
                           <>
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm text-slate-900 truncate">
-                                {conversation.title}
-                              </div>
+                              {editingConversationId === conversation.id ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    value={editingTitle}
+                                    onChange={(e) => setEditingTitle(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        handleSaveConversationTitle()
+                                      } else if (e.key === 'Escape') {
+                                        handleCancelEditConversation()
+                                      }
+                                    }}
+                                    className="text-sm bg-white border border-slate-300 rounded px-1 py-0.5 flex-1"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={handleSaveConversationTitle}
+                                    className="p-0.5 rounded hover:bg-green-100 text-green-600"
+                                    title="Save"
+                                  >
+                                    <Check className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    onClick={handleCancelEditConversation}
+                                    className="p-0.5 rounded hover:bg-red-100 text-red-600"
+                                    title="Cancel"
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="text-sm text-slate-900 truncate">
+                                  {conversation.title}
+                                </div>
+                              )}
                               <div className="text-xs text-slate-500">
                                 {formatDate(conversation.updated_at)}
                               </div>
                             </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDeleteConversation(conversation.id)
-                              }}
-                              disabled={deletingConversationId === conversation.id}
-                              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {deletingConversationId === conversation.id ? (
-                                <div className="h-3 w-3 border border-slate-400 border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <Trash2 className="h-3 w-3 text-slate-400" />
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                              {editingConversationId !== conversation.id && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleEditConversationTitle(conversation.id, conversation.title)
+                                  }}
+                                  className="p-1 rounded hover:bg-slate-200 transition"
+                                  title="Edit title"
+                                >
+                                  <Edit2 className="h-3 w-3 text-slate-400" />
+                                </button>
                               )}
-                            </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteConversation(conversation.id)
+                                }}
+                                disabled={deletingConversationId === conversation.id}
+                                className="p-1 rounded hover:bg-slate-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Delete conversation"
+                              >
+                                {deletingConversationId === conversation.id ? (
+                                  <div className="h-3 w-3 border border-slate-400 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3 w-3 text-slate-400" />
+                                )}
+                              </button>
+                            </div>
                           </>
                         )}
                       </div>
@@ -780,27 +1006,74 @@ const SearchPage = () => {
                           }}
                           >
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm text-slate-900 truncate">
-                                {conversation.title}
-                              </div>
+                              {editingConversationId === conversation.id ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    value={editingTitle}
+                                    onChange={(e) => setEditingTitle(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        handleSaveConversationTitle()
+                                      } else if (e.key === 'Escape') {
+                                        handleCancelEditConversation()
+                                      }
+                                    }}
+                                    className="text-sm bg-white border border-slate-300 rounded px-1 py-0.5 flex-1"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={handleSaveConversationTitle}
+                                    className="p-0.5 rounded hover:bg-green-100 text-green-600"
+                                    title="Save"
+                                  >
+                                    <Check className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    onClick={handleCancelEditConversation}
+                                    className="p-0.5 rounded hover:bg-red-100 text-red-600"
+                                    title="Cancel"
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="text-sm text-slate-900 truncate">
+                                  {conversation.title}
+                                </div>
+                              )}
                               <div className="text-xs text-slate-500">
                                 {formatDate(conversation.updated_at)}
                               </div>
                             </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteConversation(conversation.id);
-                              }}
-                              disabled={deletingConversationId === conversation.id}
-                              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {deletingConversationId === conversation.id ? (
-                                <div className="h-3 w-3 border border-slate-400 border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <Trash2 className="h-3 w-3 text-slate-400" />
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                              {editingConversationId !== conversation.id && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleEditConversationTitle(conversation.id, conversation.title)
+                                  }}
+                                  className="p-1 rounded hover:bg-slate-200 transition"
+                                  title="Edit title"
+                                >
+                                  <Edit2 className="h-3 w-3 text-slate-400" />
+                                </button>
                               )}
-                            </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteConversation(conversation.id);
+                                }}
+                                disabled={deletingConversationId === conversation.id}
+                                className="p-1 rounded hover:bg-slate-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Delete conversation"
+                              >
+                                {deletingConversationId === conversation.id ? (
+                                  <div className="h-3 w-3 border border-slate-400 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3 w-3 text-slate-400" />
+                                )}
+                              </button>
+                            </div>
                           </div>
                         </motion.div>
                       ))}
@@ -891,8 +1164,64 @@ const SearchPage = () => {
                   >
                     {message.type === 'user' ? (
                       <div className="flex justify-end">
-                        <div className="bg-slate-200 text-slate-700 rounded-2xl px-4 py-2 text-sm max-w-[80%]">
-                          {message.content}
+                        <div className="bg-slate-200 text-slate-700 rounded-2xl px-4 py-2 text-sm max-w-[80%] group/user">
+                          {editingMessageId === message.id ? (
+                            <div className="w-full">
+                              {/* ChatGPT-style editing interface */}
+                              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                                <textarea
+                                  value={editingContent}
+                                  onChange={(e) => setEditingContent(e.target.value)}
+                                  className="w-full bg-transparent outline-none text-sm resize-none min-h-[60px]"
+                                  placeholder="Edit your message..."
+                                  autoFocus
+                                />
+                                <div className="flex justify-end gap-2 mt-3">
+                                  <button
+                                    onClick={handleCancelEditMessage}
+                                    className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={handleSaveMessage}
+                                    disabled={isSavingMessage}
+                                    className="px-4 py-2 text-sm text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center gap-2"
+                                  >
+                                    {isSavingMessage ? (
+                                      <>
+                                        <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                                        Saving...
+                                      </>
+                                    ) : (
+                                      'Send'
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="relative group/user-bubble">
+                              <span>{message.content}</span>
+                              {/* Action buttons positioned below and to the right */}
+                              <div className="absolute -bottom-6 right-0 flex items-center gap-1 opacity-0 group-hover/user-bubble:opacity-100 transition-opacity bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm">
+                                <button
+                                  onClick={() => copyToClipboard(message.content)}
+                                  className="p-1.5 rounded hover:bg-slate-100 transition-colors"
+                                  title="Copy message"
+                                >
+                                  <Copy className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
+                                </button>
+                                <button
+                                  onClick={() => handleEditMessage(message.id, message.content)}
+                                  className="p-1.5 rounded hover:bg-slate-100 transition-colors"
+                                  title="Edit message"
+                                >
+                                  <Edit2 className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -905,42 +1234,84 @@ const SearchPage = () => {
                             <TypingIndicator />
                           ) : (
                             <>
-                              <div className="text-slate-900">
-                                <Markdown>{message.content}</Markdown>
-                              </div>
-                              
-                              {/* Clean Message Actions */}
-                              <div className="flex items-center gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => copyToClipboard(message.content)}
-                                  className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600"
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600"
-                                >
-                                  <ThumbsUp className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600"
-                                >
-                                  <ThumbsDown className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600"
-                                >
-                                  <RotateCcw className="h-4 w-4" />
-                                </Button>
-                              </div>
+                              {editingMessageId === message.id ? (
+                                <div className="w-full">
+                                  {/* ChatGPT-style editing interface */}
+                                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                                    <textarea
+                                      value={editingContent}
+                                      onChange={(e) => setEditingContent(e.target.value)}
+                                      className="w-full bg-transparent outline-none text-sm resize-none min-h-[120px]"
+                                      placeholder="Edit the AI response..."
+                                      autoFocus
+                                    />
+                                    <div className="flex justify-end gap-2 mt-3">
+                                      <button
+                                        onClick={handleCancelEditMessage}
+                                        className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        onClick={handleSaveMessage}
+                                        disabled={isSavingMessage}
+                                        className="px-4 py-2 text-sm text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center gap-2"
+                                      >
+                                        {isSavingMessage ? (
+                                          <>
+                                            <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                                            Saving...
+                                          </>
+                                        ) : (
+                                          'Send'
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="text-slate-900">
+                                    <Markdown>{message.content}</Markdown>
+                                  </div>
+                                  
+                                  {/* ChatGPT-style Message Actions */}
+                                  <div className="flex items-center gap-0.5 mt-3 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg px-1.5 py-1 shadow-sm w-fit">
+                                    <button
+                                      onClick={() => copyToClipboard(message.content)}
+                                      className="p-1.5 rounded hover:bg-slate-100 transition-colors"
+                                      title="Copy message"
+                                    >
+                                      <Copy className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleEditMessage(message.id, message.content)}
+                                      className="p-1.5 rounded hover:bg-slate-100 transition-colors"
+                                      title="Edit message"
+                                    >
+                                      <Edit2 className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
+                                    </button>
+                                    <button
+                                      className="p-1.5 rounded hover:bg-slate-100 transition-colors"
+                                      title="Thumbs up"
+                                    >
+                                      <ThumbsUp className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
+                                    </button>
+                                    <button
+                                      className="p-1.5 rounded hover:bg-slate-100 transition-colors"
+                                      title="Thumbs down"
+                                    >
+                                      <ThumbsDown className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
+                                    </button>
+                                    <button
+                                      className="p-1.5 rounded hover:bg-slate-100 transition-colors"
+                                      title="Regenerate"
+                                    >
+                                      <RotateCcw className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
+                                    </button>
+                                  </div>
+                                </>
+                              )}
                               
                               {/* Sources */}
                               {message.sources && message.sources.length > 0 && (
