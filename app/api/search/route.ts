@@ -64,6 +64,8 @@ export async function POST(request: NextRequest) {
     }
     
     const userId = user.id
+    let newUser: any = null // Declare newUser variable for potential user creation/update
+    
     console.log('🔍 [SEARCH API] Authenticated user:', {
       userId,
       userIdType: typeof userId,
@@ -95,16 +97,96 @@ export async function POST(request: NextRequest) {
         errorCode: userError.code,
         errorMessage: userError.message
       })
-      return NextResponse.json(
-        { error: 'User not found in database' },
-        { status: 404 }
-      )
+      
+      // If user doesn't exist, try to create them automatically
+      if (userError.code === 'PGRST116') {
+        console.log('🔍 [SEARCH API] User not found, attempting to create user profile...')
+        
+        // First, check if there's an existing user with the same email but different ID
+        const { data: existingUserByEmail, error: emailCheckError } = await supabase
+          .from('users')
+          .select('id, email, full_name')
+          .eq('email', user.email)
+          .single()
+        
+        if (existingUserByEmail && !emailCheckError) {
+          console.log('🔍 [SEARCH API] Found existing user with same email, updating ID...')
+          
+          // Update the existing user's ID to match the auth user
+          const { data: updatedUser, error: updateError } = await supabase
+            .from('users')
+            .update({
+              id: user.id,
+              full_name: user.user_metadata?.full_name || user.user_metadata?.name || existingUserByEmail.full_name,
+              last_login: user.last_sign_in_at
+            })
+            .eq('email', user.email)
+            .select('id, email, full_name')
+            .single()
+          
+          if (updateError) {
+            console.error('🔍 [SEARCH API] Error updating user ID:', updateError)
+            return NextResponse.json(
+              { error: 'User ID mismatch and could not be updated' },
+              { status: 500 }
+            )
+          }
+          
+          console.log('🔍 [SEARCH API] User ID updated successfully:', {
+            userId: updatedUser.id,
+            email: updatedUser.email,
+            fullName: updatedUser.full_name
+          })
+          
+          // Set newUser to the updated user
+          newUser = updatedUser
+        } else {
+          // Create new user profile
+          const { data: createdUser, error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: user.id,
+              email: user.email,
+              full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
+              username: `user_${user.id.substring(0, 8)}`,
+              role: 'self-learner',
+              created_at: user.created_at,
+              last_login: user.last_sign_in_at
+            })
+            .select('id, email, full_name')
+            .single()
+          
+          if (createError) {
+            console.error('🔍 [SEARCH API] Error creating user profile:', createError)
+            return NextResponse.json(
+              { error: 'User not found and could not be created' },
+              { status: 404 }
+            )
+          }
+          
+          console.log('🔍 [SEARCH API] User profile created successfully:', {
+            userId: createdUser.id,
+            email: createdUser.email,
+            fullName: createdUser.full_name
+          })
+          
+          // Set newUser to the created user
+          newUser = createdUser
+        }
+      } else {
+        return NextResponse.json(
+          { error: 'User not found in database' },
+          { status: 404 }
+        )
+      }
     }
     
+    // Get the user record (either existing or newly created)
+    const finalUserRecord = userRecord || newUser
     console.log('🔍 [SEARCH API] User verified in database:', {
-      userId: userRecord.id,
-      email: userRecord.email,
-      fullName: userRecord.full_name
+      userId: finalUserRecord.id,
+      email: finalUserRecord.email,
+      fullName: finalUserRecord.full_name
     })
 
     // Get user's uploaded documents for context
