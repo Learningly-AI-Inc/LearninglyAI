@@ -95,7 +95,10 @@ export function GeneratedPDFsHistory() {
               isStarred: false, // Default to not starred
               topics: questions.map((q: any) => q.topic).filter(Boolean).slice(0, 3) || ['General'],
               generationParameters: {
-                questionTypes: [...new Set(questions.map((q: any) => q.type || 'mcq'))] || ['multiple_choice'],
+                questionTypes: (() => {
+                  const types = [...new Set(questions.map((q: any) => q.type || 'mcq'))];
+                  return types.length > 0 ? types : ['multiple_choice'];
+                })(),
                 aiAgentsUsed: ['GPT-4'],
                 sourceFiles: {
                   sampleQuestions: 0,

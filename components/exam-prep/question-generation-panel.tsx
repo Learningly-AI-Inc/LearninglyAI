@@ -194,7 +194,12 @@ export function QuestionGenerationPanel({
 
       // Generate PDFs from all exam data
       const allExams = result.exams || []
-      const examFiles = []
+      const examFiles: Array<{
+        questionsBlob: Blob;
+        answerKeyBlob: Blob;
+        examData: any;
+        title: string;
+      }> = []
       
       for (let i = 0; i < allExams.length; i++) {
         const examData = allExams[i]
