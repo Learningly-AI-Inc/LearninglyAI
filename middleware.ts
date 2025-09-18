@@ -2,6 +2,13 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Skip middleware for admin routes completely - they have their own auth
+  if (pathname.startsWith('/admin')) {
+    return NextResponse.next()
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -65,8 +72,6 @@ export async function middleware(request: NextRequest) {
     '/'
   ]
 
-  const { pathname } = request.nextUrl
-
   // Skip middleware for certain paths to prevent issues
   if (pathname.startsWith('/_next') || 
       pathname.startsWith('/api') || 
@@ -125,8 +130,9 @@ export const config = {
      * - favicon.ico (favicon file)
      * - images (public image files)
      * - api (API routes)
+     * - admin (admin routes with their own auth)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico|images|api).*)',
+    '/((?!_next/static|_next/image|favicon.ico|images|api|admin).*)',
   ],
 }

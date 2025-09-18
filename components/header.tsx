@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { Search, Bell, Settings, User, LogOut, Moon, Sun } from "lucide-react"
+import { Search, Bell, Settings, User, LogOut, Moon, Sun, Shield } from "lucide-react"
+import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,6 +55,12 @@ export function Header() {
             <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
           </span>
         </Button>
+
+        <Link href="/admin">
+          <Button variant="ghost" size="icon" className="hover:bg-secondary" title="Admin Panel">
+            <Shield className="h-4 w-4" />
+          </Button>
+        </Link>
 
         <div className="flex items-center space-x-3 border-l border-white/10 pl-4">
           <div className="flex items-center space-x-3">

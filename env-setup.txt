@@ -1,0 +1,10 @@
+# Add these lines to your .env.local file:
+
+# Admin Credentials
+ADMIN_EMAIL=admin@learningly.com
+ADMIN_PASSWORD=learningly
+
+# Your existing Supabase variables (keep these as they are)
+# NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+# SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
