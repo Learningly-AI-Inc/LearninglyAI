@@ -794,7 +794,7 @@ const SearchPage = () => {
     <div className="h-screen w-full bg-gradient-to-b from-slate-50 to-white text-slate-900">
       <div className="flex h-full w-full">
         {/* Conversation Sidebar - Collapsible (Desktop) */}
-        <aside className={`hidden lg:flex ${conversationSidebarCollapsed ? 'w-16' : 'w-[260px]'} flex-col border-r bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 transition-[width] duration-200 z-40`}>
+        <aside className={`hidden lg:flex ${conversationSidebarCollapsed ? 'w-16' : 'w-[260px]'} flex-col border-r bg-white transition-[width] duration-200 z-40`}>
           <div className="flex items-center gap-2 px-3 h-12 border-b flex-shrink-0">
             {!conversationSidebarCollapsed && (
               <div className="font-medium text-sm">Conversations</div>
@@ -925,13 +925,23 @@ const SearchPage = () => {
                   ))}
                 </AnimatePresence>
                 
-                {conversations.length === 0 && !conversationSidebarCollapsed && (
+                {loading && !conversationSidebarCollapsed && (
+                  <div className="px-3 py-4 space-y-3">
+                    {/* Loading skeleton for conversations */}
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="animate-pulse">
+                        <div className="bg-slate-200 rounded-lg p-3">
+                          <div className="h-4 bg-slate-300 rounded w-3/4 mb-2"></div>
+                          <div className="h-3 bg-slate-300 rounded w-1/2"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {conversations.length === 0 && !loading && !conversationSidebarCollapsed && (
                   <div className="text-center py-6 text-slate-500">
-                    {loading ? (
-                      <p className="text-sm">Loading conversations...</p>
-                    ) : (
-                      <p className="text-sm">No conversations yet</p>
-                    )}
+                    <p className="text-sm">No conversations yet</p>
                   </div>
                 )}
               </div>
@@ -944,7 +954,7 @@ const SearchPage = () => {
           <div className="lg:hidden fixed inset-0 z-50">
             {/* Backdrop */}
             <div 
-              className="absolute inset-0 bg-black/20 backdrop-blur-sm" 
+              className="absolute inset-0 bg-black/20" 
               onClick={() => setSidebarOpen(false)}
             />
             {/* Sidebar */}
@@ -1066,13 +1076,23 @@ const SearchPage = () => {
                       ))}
                     </AnimatePresence>
                     
-                    {conversations.length === 0 && (
+                    {loading && (
+                      <div className="px-3 py-4 space-y-3">
+                        {/* Loading skeleton for conversations */}
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="animate-pulse">
+                            <div className="bg-slate-200 rounded-lg p-3">
+                              <div className="h-4 bg-slate-300 rounded w-3/4 mb-2"></div>
+                              <div className="h-3 bg-slate-300 rounded w-1/2"></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {conversations.length === 0 && !loading && (
                       <div className="text-center py-6 text-slate-500">
-                        {loading ? (
-                          <p className="text-sm">Loading conversations...</p>
-                        ) : (
-                          <p className="text-sm">No conversations yet</p>
-                        )}
+                        <p className="text-sm">No conversations yet</p>
                       </div>
                     )}
                   </div>
@@ -1085,7 +1105,7 @@ const SearchPage = () => {
         {/* Main Content */}
         <main className="flex-1 min-w-0 flex flex-col pb-32">
           {/* Top bar */}
-          <div className="h-12 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b flex items-center gap-3 px-4">
+          <div className="h-12 bg-white border-b flex items-center gap-3 px-4">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)} 
               className="lg:hidden rounded-lg p-2 hover:bg-slate-100" 
@@ -1105,7 +1125,7 @@ const SearchPage = () => {
           {/* Scrollable content area */}
           <div className="flex-1 overflow-y-auto px-3 sm:px-4 pt-3 relative" style={{ paddingBottom: '200px' }}>
             {/* Bottom fade indicator */}
-            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
             <div className="flex items-center gap-3">
               <h1 className="text-lg font-semibold">Ask Anything, I am here to answer!</h1>
               {loading && (
@@ -1115,7 +1135,7 @@ const SearchPage = () => {
 
              {/* Assistant welcome card - only show when no conversation is selected and no messages exist */}
              {!selectedConversationId && messages.length === 0 && (
-              <div className="mt-3 bg-white/90 backdrop-blur border rounded-2xl p-4 shadow-sm">
+              <div className="mt-3 bg-white border rounded-2xl p-4 shadow-sm">
                 <div className="flex items-start gap-3">
                   <div className="h-8 w-8 rounded-xl bg-slate-900 text-white grid place-content-center text-sm font-bold">AI</div>
                   <div className="space-y-2">
@@ -1138,6 +1158,25 @@ const SearchPage = () => {
 
             {/* Messages */}
             <div className="mt-3 space-y-4">
+              {/* Loading state for messages */}
+              {loading && selectedConversationId && messages.length === 0 && (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] rounded-2xl p-4 ${
+                          i % 2 === 0 ? 'bg-slate-200' : 'bg-white border'
+                        }`}>
+                          <div className="h-4 bg-slate-300 rounded w-full mb-2"></div>
+                          <div className="h-4 bg-slate-300 rounded w-3/4 mb-2"></div>
+                          <div className="h-4 bg-slate-300 rounded w-1/2"></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
               <AnimatePresence>
                 {/* Show all messages when a conversation is selected, or skip welcome message when in new conversation */}
                 {(selectedConversationId ? messages : messages.slice(1)).map((message) => (
