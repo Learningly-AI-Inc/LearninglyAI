@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       .eq('status', 'completed')
 
     // Prepare system prompt with user personalization
-    const systemPrompt = buildSystemPrompt(userRecord, userContent)
+    const systemPrompt = buildSystemPrompt(userRecord, userContent || [])
 
     // Build conversation context
     const messages = [

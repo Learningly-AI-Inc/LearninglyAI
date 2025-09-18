@@ -116,7 +116,7 @@ export class TokenManager {
     completionTokens: number,
     model: string = 'gpt-3.5-turbo'
   ): number {
-    const config = this.MODEL_CONFIGS[model]
+    const config = TokenManager.MODEL_CONFIGS[model]
     if (!config) {
       // Fallback to default pricing
       return (promptTokens + completionTokens) * 0.00002
@@ -136,7 +136,7 @@ export class TokenManager {
     warnings: string[]
     recommendations: string[]
   } {
-    const config = this.MODEL_CONFIGS[model]
+    const config = TokenManager.MODEL_CONFIGS[model]
     const warnings: string[] = []
     const recommendations: string[] = []
 
@@ -320,14 +320,14 @@ export class TokenManager {
    * Get model configuration
    */
   static getModelConfig(model: string): ModelConfig | null {
-    return this.MODEL_CONFIGS[model] || null
+    return TokenManager.MODEL_CONFIGS[model] || null
   }
 
   /**
    * List available models
    */
   static getAvailableModels(): string[] {
-    return Object.keys(this.MODEL_CONFIGS)
+    return Object.keys(TokenManager.MODEL_CONFIGS)
   }
 
   /**

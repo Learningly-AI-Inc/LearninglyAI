@@ -333,7 +333,7 @@ export function useEnhancedConversation(options: UseEnhancedConversationOptions 
       
       return response
     } catch (error) {
-      if (retryCountRef.current < maxRetries && !(error as any).name === 'AbortError') {
+      if (retryCountRef.current < maxRetries && (error as any).name !== 'AbortError') {
         retryCountRef.current++
         console.log(`Retrying request (${retryCountRef.current}/${maxRetries})...`)
         
