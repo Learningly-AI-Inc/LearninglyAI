@@ -112,7 +112,7 @@ const SearchPage = () => {
     
     try {
       // Fetch conversations directly from search API
-      const response = await fetch(`/api/search?userId=${user.id}`)
+      const response = await fetch(`/api/search/enhanced?userId=${user.id}`)
       
       if (!response.ok) {
         throw new Error(`Failed to load conversations: ${response.status}`)
@@ -161,7 +161,7 @@ const SearchPage = () => {
       setIsLoading(true)
 
       // Fetch messages directly from search API instead of using chat hook
-      const response = await fetch(`/api/search?userId=${user.id}&conversationId=${conversationId}`)
+      const response = await fetch(`/api/search/enhanced?userId=${user.id}&conversationId=${conversationId}`)
       
       if (!response.ok) {
         throw new Error(`Failed to load messages: ${response.status}`)
@@ -261,7 +261,7 @@ const SearchPage = () => {
       console.log('💬 [SEARCH PAGE] Making API request with model:', selectedModel)
       let response: Response
       try {
-        response = await fetch('/api/search', {
+        response = await fetch('/api/search/enhanced', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -528,7 +528,7 @@ const SearchPage = () => {
       console.log('💬 [SEARCH PAGE] Deleting conversation via API...')
       
       // Call the DELETE API to remove conversation from database
-      const response = await fetch(`/api/search?conversationId=${conversationId}`, {
+      const response = await fetch(`/api/search/enhanced?conversationId=${conversationId}`, {
         method: 'DELETE'
       })
 
@@ -683,7 +683,7 @@ const SearchPage = () => {
 
         // Send the edited message to get a new response
         try {
-          const response = await fetch('/api/search', {
+          const response = await fetch('/api/search/enhanced', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
