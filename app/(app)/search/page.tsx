@@ -1189,7 +1189,7 @@ const SearchPage = () => {
                     className="group"
                   >
                     {message.type === 'user' ? (
-                      <div className="flex justify-end">
+                      <div className="flex justify-end mb-8">
                         <div className="bg-slate-200 text-slate-700 rounded-2xl px-4 py-2 text-sm max-w-[80%] group/user">
                           {editingMessageId === message.id ? (
                             <div className="w-full">
@@ -1229,8 +1229,8 @@ const SearchPage = () => {
                           ) : (
                             <div className="relative group/user-bubble">
                               <span>{message.content}</span>
-                              {/* Action buttons positioned below and to the right */}
-                              <div className="absolute -bottom-6 right-0 flex items-center gap-1 opacity-0 group-hover/user-bubble:opacity-100 transition-opacity bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm">
+                              {/* Action buttons positioned with better spacing to avoid overlap */}
+                              <div className="absolute -bottom-8 right-0 flex items-center gap-1 opacity-0 group-hover/user-bubble:opacity-100 transition-opacity bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm z-10">
                                 <button
                                   onClick={() => copyToClipboard(message.content)}
                                   className="p-1.5 rounded hover:bg-slate-100 transition-colors"
@@ -1251,7 +1251,7 @@ const SearchPage = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex gap-3">
+                      <div className="flex gap-3 mb-4">
                         <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0">
                           <Bot className="h-4 w-4 text-white" />
                         </div>
@@ -1301,39 +1301,14 @@ const SearchPage = () => {
                                     <Markdown>{message.content}</Markdown>
                                   </div>
                                   
-                                  {/* ChatGPT-style Message Actions */}
-                                  <div className="flex items-center gap-0.5 mt-3 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg px-1.5 py-1 shadow-sm w-fit">
+                                  {/* Simplified Message Actions - Copy only */}
+                                  <div className="flex items-center gap-0.5 mt-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg px-1.5 py-1 shadow-sm w-fit z-10">
                                     <button
                                       onClick={() => copyToClipboard(message.content)}
                                       className="p-1.5 rounded hover:bg-slate-100 transition-colors"
                                       title="Copy message"
                                     >
                                       <Copy className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleEditMessage(message.id, message.content)}
-                                      className="p-1.5 rounded hover:bg-slate-100 transition-colors"
-                                      title="Edit message"
-                                    >
-                                      <Edit2 className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
-                                    </button>
-                                    <button
-                                      className="p-1.5 rounded hover:bg-slate-100 transition-colors"
-                                      title="Thumbs up"
-                                    >
-                                      <ThumbsUp className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
-                                    </button>
-                                    <button
-                                      className="p-1.5 rounded hover:bg-slate-100 transition-colors"
-                                      title="Thumbs down"
-                                    >
-                                      <ThumbsDown className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
-                                    </button>
-                                    <button
-                                      className="p-1.5 rounded hover:bg-slate-100 transition-colors"
-                                      title="Regenerate"
-                                    >
-                                      <RotateCcw className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
                                     </button>
                                   </div>
                                 </>
