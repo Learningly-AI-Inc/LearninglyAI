@@ -25,6 +25,8 @@ import { AdminStatsCards } from "@/components/admin/admin-stats-cards"
 import { AdminRecentActivity } from "@/components/admin/admin-recent-activity"
 import { AdminQuickActions } from "@/components/admin/admin-quick-actions"
 import { AdminSystemHealth } from "@/components/admin/admin-system-health"
+import { UserSyncPanel } from "@/components/admin/user-sync-panel"
+import { ServerAutoSync } from "@/components/admin/server-auto-sync"
 import { useSupabase } from "@/hooks/use-supabase"
 import { useAdminAuth } from "@/hooks/use-admin-auth"
 
@@ -220,6 +222,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
+      <ServerAutoSync />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
@@ -396,6 +399,7 @@ export default function AdminDashboard() {
 
         <TabsContent value="system" className="space-y-4">
           <AdminSystemHealth />
+          <UserSyncPanel />
         </TabsContent>
       </Tabs>
     </div>

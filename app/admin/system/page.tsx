@@ -490,7 +490,7 @@ export default function AdminSystemPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {storageStats?.bucketBreakdown.length > 0 ? (
+                {storageStats?.bucketBreakdown && storageStats.bucketBreakdown.length > 0 ? (
                   storageStats.bucketBreakdown.map((bucket) => (
                     <div key={bucket.name} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center gap-3">
