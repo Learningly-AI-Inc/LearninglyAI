@@ -158,7 +158,7 @@ export default function PricingPage() {
           
           {!user && (
             <div className="flex justify-center mt-4">
-              <Link href="/account/signin">
+              <Link href="/account">
                 <Badge className="bg-blue-500 text-white px-4 py-2 text-sm">
                   Sign in to see your current plan
                 </Badge>
@@ -273,7 +273,7 @@ export default function PricingPage() {
                   Start Free Trial
                 </button>
               </Link>
-              <Link href="/account/signin">
+              <Link href="/account">
                 <button className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
                   Sign In
                 </button>

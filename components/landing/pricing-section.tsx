@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Check, Star, X, Coffee, Zap, Crown, ArrowRight } from 'lucide-react';
+import { Check, Star, X, Coffee, Zap, Crown, ArrowRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ShinyText } from '@/components/react-bits';
 import { useAuth } from '@/hooks/use-auth';
@@ -80,6 +80,7 @@ const plans = [
 
 export const PricingSection: React.FC = () => {
   const [isYearly, setIsYearly] = useState(false);
+  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const { user } = useAuth();
   const { subscription, createCheckoutSession, loading: subscriptionLoading } = useSubscription();
 
@@ -92,6 +93,8 @@ export const PricingSection: React.FC = () => {
       return;
     }
 
+    // Set loading state for this specific plan
+    setLoadingPlanId(planId);
     console.log('Creating Stripe checkout session for:', planId);
     
     try {
@@ -123,6 +126,8 @@ export const PricingSection: React.FC = () => {
     } catch (error) {
       console.error('Error creating checkout session:', error);
       alert(`Unable to create checkout session: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again later.`);
+      // Reset loading state on error
+      setLoadingPlanId(null);
     }
   };
 
@@ -261,7 +266,7 @@ export const PricingSection: React.FC = () => {
               <Button 
                 size="lg" 
                 onClick={() => handleUpgrade(plan.id)}
-                disabled={subscriptionLoading || plan.name.toLowerCase() === currentPlan}
+                disabled={subscriptionLoading || loadingPlanId === plan.id || plan.name.toLowerCase() === currentPlan}
                 className={cn(
                   "w-full font-semibold py-3 transition-all duration-300",
                   plan.isPopular
@@ -271,7 +276,12 @@ export const PricingSection: React.FC = () => {
                       : "bg-blue-600 text-white hover:bg-blue-700"
                 )}
               >
-                {subscriptionLoading ? (
+                {loadingPlanId === plan.id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : subscriptionLoading ? (
                   "Loading..."
                 ) : plan.name.toLowerCase() === currentPlan ? (
                   "Current Plan"
@@ -311,7 +321,7 @@ export const PricingSection: React.FC = () => {
                         <ArrowRight className="h-4 w-4 ml-2" />
                       </Button>
                     </Link>
-                    <Link href="/account/signin">
+                    <Link href="/account">
                       <Button size="lg" variant="outline">
                         Sign In
                       </Button>

@@ -47,7 +47,7 @@ export default function SuccessPage() {
   }
 
   const handleSignIn = () => {
-    router.push('/account/signin')
+    router.push('/account')
   }
 
   const handleGoToDashboard = () => {

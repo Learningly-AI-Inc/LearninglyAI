@@ -89,6 +89,9 @@ export class AuthSessionManager {
 
     // Step 3: Proceed with OAuth flow
     try {
+      // Generate a custom state parameter for better validation
+      const stateParam = `${context}_${Date.now()}_${Math.random().toString(36).substring(2)}`
+      
       const { data, error } = await this.supabase.auth.signInWithOAuth({
         provider,
         options: { 
@@ -96,6 +99,7 @@ export class AuthSessionManager {
           queryParams: {
             access_type: 'offline',
             prompt: context === 'signup' ? 'consent' : 'select_account',
+            state: stateParam // Add custom state parameter
           }
         },
       })

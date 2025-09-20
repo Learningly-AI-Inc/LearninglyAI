@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Check, Crown, Zap, Star } from 'lucide-react'
+import { Check, Crown, Zap, Star, Loader2 } from 'lucide-react'
 import { formatPrice } from '@/lib/stripe'
 import { useSubscription } from '@/hooks/use-subscription'
 import { useAuth } from '@/hooks/use-auth'
@@ -196,7 +196,10 @@ export function SubscriptionCard({ plan, isCurrentPlan = false, isPopular = fals
           style={{ cursor: isCurrentPlan || isLoading ? 'not-allowed' : 'pointer' }}
         >
           {isLoading ? (
-            'Processing...'
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Processing...
+            </>
           ) : isCurrentPlan ? (
             'Current Plan'
           ) : !user ? (

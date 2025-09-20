@@ -62,6 +62,29 @@ export function UnifiedAuthCard() {
         const { data, error } = await signIn(email, password)
         
         if (error) {
+          // Check if this is a "password not set" error for a paying customer
+          if (error.message?.includes('Invalid login credentials') || error.message?.includes('Invalid email or password')) {
+            // Try to verify if this email has a subscription
+            try {
+              const verifyResponse = await fetch('/api/auth/verify-payment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+              })
+              
+              const verifyData = await verifyResponse.json()
+              
+              if (verifyResponse.ok && verifyData.hasSubscription && !verifyData.hasPassword) {
+                // User has subscription but no password - redirect to password setup
+                toast.info('Account found with subscription. Please set up your password.')
+                window.location.href = `/account/setup-password?email=${encodeURIComponent(email)}`
+                return
+              }
+            } catch (verifyError) {
+              console.error('Error verifying payment:', verifyError)
+            }
+          }
+          
           toast.error(error.message || 'Failed to sign in')
           return
         }
@@ -339,7 +362,7 @@ export function UnifiedAuthCard() {
         </ClickSpark>
       </form>
       
-      <div className="text-center">
+      <div className="text-center space-y-2">
         <p className="text-xs text-gray-600">
           {mode === 'signin' ? "Don't have an account? " : "Already have an account? "}
           <button
@@ -349,6 +372,24 @@ export function UnifiedAuthCard() {
             {mode === 'signin' ? 'Sign up' : 'Sign in'}
           </button>
         </p>
+        
+        {mode === 'signin' && (
+          <p className="text-xs text-gray-500">
+            Paid but can't sign in?{' '}
+            <button
+              onClick={() => {
+                if (email) {
+                  window.location.href = `/account/setup-password?email=${encodeURIComponent(email)}`
+                } else {
+                  toast.info('Please enter your email address first')
+                }
+              }}
+              className="text-blue-600 font-medium hover:text-blue-700 transition-colors"
+            >
+              Set up your password
+            </button>
+          </p>
+        )}
       </div>
     </div>
   )

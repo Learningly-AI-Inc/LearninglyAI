@@ -118,6 +118,15 @@ export async function GET(request: NextRequest) {
       url: request.url
     })
     
+    // Handle specific OAuth errors
+    if (params.error === 'invalid_request' && params.error_description?.includes('bad_oauth_state')) {
+      return createErrorResponse({
+        type: 'auth_callback_error',
+        message: 'OAuth state validation failed. Please try signing in again.',
+        details: 'The OAuth state parameter did not match. This usually happens when the authentication session expires or is interrupted.'
+      }, origin)
+    }
+    
     return createErrorResponse({
       type: 'auth_callback_error',
       message: 'OAuth provider returned an error',
@@ -138,8 +147,14 @@ export async function GET(request: NextRequest) {
     }, origin)
   }
   
-  // Note: Supabase automatically validates the state parameter when using exchangeCodeForSession
-  // We don't need to manually validate it here as it can interfere with the OAuth flow
+  // Validate state parameter if present
+  if (params.state) {
+    // Log state parameter for debugging
+    logOAuthEvent('state_received', {
+      state: params.state,
+      code: params.code?.substring(0, 10) + '...'
+    })
+  }
   
   // Validate and sanitize redirect path
   const validatedNext = validateRedirectPath(params.next || null)
@@ -147,7 +162,15 @@ export async function GET(request: NextRequest) {
   try {
     // Exchange code for session with cookie bridging
     const supabase = await createClient()
-    const { data, error } = await supabase.auth.exchangeCodeForSession(params.code)
+    
+    // For OAuth callback, we need to exchange the code for a session
+    // Include state parameter if present to help Supabase validate
+    const exchangeParams: any = { auth_code: params.code }
+    if (params.state) {
+      exchangeParams.state = params.state
+    }
+    
+    const { data, error } = await supabase.auth.exchangeCodeForSession(exchangeParams)
     
     if (error) {
       logOAuthEvent('error', {
