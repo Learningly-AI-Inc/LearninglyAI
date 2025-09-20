@@ -11,7 +11,7 @@ export interface UsageLimitConfig {
 export function useUsageLimits() {
   const { subscription, checkUsageLimit, incrementUsage, canUseFeature, getUsagePercentage } = useSubscription()
 
-  const withUsageCheck = async <T>(
+  const withUsageCheck = async <T,>(
     config: UsageLimitConfig,
     operation: () => Promise<T>
   ): Promise<{ success: boolean; result?: T; error?: string; needsUpgrade?: boolean }> => {
@@ -123,13 +123,13 @@ export function useUsageLimits() {
     }
   }
 
-  const isLimitReached = (feature: keyof UsageLimitConfig['action']): boolean => {
-    const percentage = getUsagePercentage(feature)
+  const isLimitReached = (feature: string): boolean => {
+    const percentage = getUsagePercentage(feature as any)
     return percentage >= 100
   }
 
-  const isNearLimit = (feature: keyof UsageLimitConfig['action'], threshold: number = 80): boolean => {
-    const percentage = getUsagePercentage(feature)
+  const isNearLimit = (feature: string, threshold: number = 80): boolean => {
+    const percentage = getUsagePercentage(feature as any)
     return percentage >= threshold
   }
 

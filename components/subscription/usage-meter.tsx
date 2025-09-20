@@ -21,7 +21,7 @@ export function UsageMeter({ label, used, limit, percentage, icon, description }
 
   const getStatusColor = () => {
     if (isAtLimit) return 'destructive'
-    if (isNearLimit) return 'warning'
+    if (isNearLimit) return 'secondary'
     return 'default'
   }
 

@@ -40,14 +40,17 @@ export interface UsageData {
 }
 
 export class SubscriptionService {
-  private supabase = createClient()
+  private async getSupabase() {
+    return await createClient()
+  }
 
   /**
    * Get all available subscription plans
    */
   async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
     try {
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase()
+      const { data, error } = await supabase
         .from('subscription_plans')
         .select('*')
         .eq('is_active', true)
@@ -66,7 +69,8 @@ export class SubscriptionService {
    */
   async getUserSubscription(userId: string): Promise<UserSubscription | null> {
     try {
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase()
+      const { data, error } = await supabase
         .from('user_subscriptions')
         .select('*')
         .eq('user_id', userId)
@@ -86,7 +90,8 @@ export class SubscriptionService {
    */
   async getUserSubscriptionWithPlan(userId: string) {
     try {
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase()
+      const { data, error } = await supabase
         .from('user_subscriptions')
         .select(`
           *,
@@ -147,7 +152,8 @@ export class SubscriptionService {
       let customerId = await this.getStripeCustomerId(userId)
       
       if (!customerId) {
-        const { data: user } = await this.supabase.auth.getUser()
+        const supabase = await this.getSupabase()
+        const { data: user } = await supabase.auth.getUser()
         if (!user.user) throw new Error('User not found')
         
         customerId = await this.createStripeCustomer(
@@ -211,7 +217,8 @@ export class SubscriptionService {
    */
   private async getStripeCustomerId(userId: string): Promise<string | null> {
     try {
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase()
+      const { data, error } = await supabase
         .from('user_subscriptions')
         .select('stripe_customer_id')
         .eq('user_id', userId)
@@ -239,7 +246,8 @@ export class SubscriptionService {
       if (!plan) throw new Error('Plan not found')
 
       // Create or update subscription record
-      const { error } = await this.supabase
+      const supabase = await this.getSupabase()
+      const { error } = await supabase
         .from('user_subscriptions')
         .upsert({
           user_id: userId,
@@ -247,10 +255,10 @@ export class SubscriptionService {
           stripe_customer_id: subscription.customer as string,
           stripe_subscription_id: subscription.id,
           status: subscription.status as any,
-          current_period_start: new Date(subscription.current_period_start * 1000),
-          current_period_end: new Date(subscription.current_period_end * 1000),
-          cancel_at_period_end: subscription.cancel_at_period_end,
-          trial_end: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+          current_period_start: new Date((subscription as any).current_period_start * 1000),
+          current_period_end: new Date((subscription as any).current_period_end * 1000),
+          cancel_at_period_end: (subscription as any).cancel_at_period_end,
+          trial_end: (subscription as any).trial_end ? new Date((subscription as any).trial_end * 1000) : null,
         })
 
       if (error) throw error
@@ -267,14 +275,15 @@ export class SubscriptionService {
     try {
       const userId = subscription.metadata.user_id
       
-      const { error } = await this.supabase
+      const supabase = await this.getSupabase()
+      const { error } = await supabase
         .from('user_subscriptions')
         .update({
           status: subscription.status as any,
-          current_period_start: new Date(subscription.current_period_start * 1000),
-          current_period_end: new Date(subscription.current_period_end * 1000),
-          cancel_at_period_end: subscription.cancel_at_period_end,
-          trial_end: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+          current_period_start: new Date((subscription as any).current_period_start * 1000),
+          current_period_end: new Date((subscription as any).current_period_end * 1000),
+          cancel_at_period_end: (subscription as any).cancel_at_period_end,
+          trial_end: (subscription as any).trial_end ? new Date((subscription as any).trial_end * 1000) : null,
         })
         .eq('stripe_subscription_id', subscription.id)
 
@@ -290,7 +299,8 @@ export class SubscriptionService {
    */
   async handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
     try {
-      const { error } = await this.supabase
+      const supabase = await this.getSupabase()
+      const { error } = await supabase
         .from('user_subscriptions')
         .update({ status: 'canceled' })
         .eq('stripe_subscription_id', subscription.id)
@@ -307,7 +317,8 @@ export class SubscriptionService {
    */
   private async getPlanByPriceId(priceId: string): Promise<SubscriptionPlan | null> {
     try {
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase()
+      const { data, error } = await supabase
         .from('subscription_plans')
         .select('*')
         .eq('stripe_price_id', priceId)
@@ -326,7 +337,8 @@ export class SubscriptionService {
    */
   async getCurrentUsage(userId: string): Promise<UsageData> {
     try {
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase()
+      const { data, error } = await supabase
         .from('user_usage')
         .select('*')
         .eq('user_id', userId)
@@ -394,7 +406,8 @@ export class SubscriptionService {
       const updateData: Partial<UsageData> = {}
       updateData[action] = amount
 
-      const { error } = await this.supabase
+      const supabase = await this.getSupabase()
+      const { error } = await supabase
         .from('user_usage')
         .upsert({
           user_id: userId,

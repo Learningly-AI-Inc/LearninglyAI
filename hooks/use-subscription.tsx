@@ -182,7 +182,7 @@ export function useSubscription() {
     const limit = subscription.plan.limits[feature]
     if (limit === -1) return true // Unlimited
 
-    const currentUsage = subscription.usage[feature] || 0
+    const currentUsage = (subscription.usage as any)[feature] || 0
     return (currentUsage + requestedAmount) <= limit
   }
 
@@ -192,7 +192,7 @@ export function useSubscription() {
     const limit = subscription.plan.limits[feature]
     if (limit === -1) return 0 // Unlimited
 
-    const currentUsage = subscription.usage[feature] || 0
+    const currentUsage = (subscription.usage as any)[feature] || 0
     return Math.min((currentUsage / limit) * 100, 100)
   }
 
