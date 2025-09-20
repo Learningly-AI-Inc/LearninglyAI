@@ -16,7 +16,10 @@ import {
   AlertCircle,
   BarChart3,
   Database,
-  Shield
+  Shield,
+  GraduationCap,
+  MessageSquare,
+  BookOpen
 } from "lucide-react"
 import { AdminStatsCards } from "@/components/admin/admin-stats-cards"
 import { AdminRecentActivity } from "@/components/admin/admin-recent-activity"
@@ -42,6 +45,9 @@ interface DashboardStats {
   totalExamSessions: number
   totalQuestions: number
   totalReadingDocs: number
+  totalAILogs: number
+  totalConversations: number
+  totalMessages: number
 }
 
 export default function AdminDashboard() {
@@ -81,6 +87,41 @@ export default function AdminDashboard() {
 
       if (aiError) throw aiError
 
+      // Fetch exam prep sessions
+      const { data: examSessions, error: examError } = await supabase
+        .from('exam_prep_sessions')
+        .select('*')
+
+      if (examError) throw examError
+
+      // Fetch exam prep questions
+      const { data: examQuestions, error: questionsError } = await supabase
+        .from('exam_prep_questions')
+        .select('*')
+
+      if (questionsError) throw questionsError
+
+      // Fetch reading documents
+      const { data: readingDocs, error: readingError } = await supabase
+        .from('reading_documents')
+        .select('*')
+
+      if (readingError) throw readingError
+
+      // Fetch conversations
+      const { data: conversations, error: convError } = await supabase
+        .from('search_conversations')
+        .select('*')
+
+      if (convError) throw convError
+
+      // Fetch messages
+      const { data: messages, error: msgError } = await supabase
+        .from('search_messages')
+        .select('*')
+
+      if (msgError) throw msgError
+
       // Calculate statistics
       const now = new Date()
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
@@ -99,10 +140,13 @@ export default function AdminDashboard() {
         completedContent: contentStats?.filter(c => c.status === 'completed').length || 0,
         processingContent: contentStats?.filter(c => c.status === 'processing').length || 0,
         failedContent: contentStats?.filter(c => c.status === 'failed').length || 0,
-        totalSummaries: 0, // Will be fetched separately
-        totalExamSessions: 0, // Will be fetched separately
-        totalQuestions: 0, // Will be fetched separately
-        totalReadingDocs: 0, // Will be fetched separately
+        totalSummaries: 0, // No summaries table in current schema
+        totalExamSessions: examSessions?.length || 0,
+        totalQuestions: examQuestions?.length || 0,
+        totalReadingDocs: readingDocs?.length || 0,
+        totalAILogs: aiLogs?.length || 0,
+        totalConversations: conversations?.length || 0,
+        totalMessages: messages?.length || 0
       }
 
       setStats(calculatedStats)
@@ -286,9 +330,64 @@ export default function AdminDashboard() {
                 <Brain className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">-</div>
+                <div className="text-2xl font-bold">{stats?.totalAILogs}</div>
                 <p className="text-xs text-muted-foreground">
                   Total AI model requests
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Additional Analytics Cards */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Exam Sessions</CardTitle>
+                <GraduationCap className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.totalExamSessions}</div>
+                <p className="text-xs text-muted-foreground">
+                  Total exam sessions
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Questions Generated</CardTitle>
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.totalQuestions}</div>
+                <p className="text-xs text-muted-foreground">
+                  Exam questions created
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Reading Documents</CardTitle>
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.totalReadingDocs}</div>
+                <p className="text-xs text-muted-foreground">
+                  Documents uploaded
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Chat Messages</CardTitle>
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.totalMessages}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stats?.totalConversations} conversations
                 </p>
               </CardContent>
             </Card>

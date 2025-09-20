@@ -134,3 +134,6 @@ Your admin panel is now ready to use with environment-based authentication. Simp
 4. **Start managing** your Learningly AI platform!
 
 For any issues, check the troubleshooting section above or review the console for error messages.
+
+
+
