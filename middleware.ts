@@ -45,11 +45,14 @@ export async function middleware(request: NextRequest) {
       console.error('Middleware auth error:', error)
     }
     
-    console.log('Middleware check:', { 
-      pathname: request.nextUrl.pathname, 
-      hasUser: !!user, 
-      userId: user?.id?.substring(0, 8) + '...' || 'none'
-    })
+    // Only log for important paths to reduce noise
+    if (!pathname.includes('.') && pathname !== '/favicon.ico') {
+      console.log('Middleware check:', { 
+        pathname: request.nextUrl.pathname, 
+        hasUser: !!user, 
+        userId: user?.id?.substring(0, 8) + '...' || 'none'
+      })
+    }
 
   // Define protected routes
   const protectedRoutes = [
@@ -79,6 +82,8 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith('/images') ||
       pathname.startsWith('/avatars') ||
       pathname.startsWith('/videos') ||
+      pathname.startsWith('/site.webmanifest') ||
+      pathname.startsWith('/apple-touch-icon') ||
       pathname.includes('.') // Skip files with extensions
   ) {
     return response

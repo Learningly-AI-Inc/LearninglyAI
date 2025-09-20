@@ -45,7 +45,9 @@ export function useSubscription() {
       setLoading(true)
       setError(null)
 
-      const response = await fetch('/api/subscriptions/status')
+      const response = await fetch('/api/subscriptions/status', {
+        cache: 'no-store', // Ensure we get fresh data
+      })
       
       if (!response.ok) {
         throw new Error('Failed to fetch subscription status')
@@ -139,13 +141,17 @@ export function useSubscription() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to create checkout session')
+        const errorData = await response.json()
+        console.error('API Error:', errorData)
+        throw new Error(errorData.error || 'Failed to create checkout session')
       }
 
       const data = await response.json()
       return data.checkoutUrl
     } catch (err) {
       console.error('Error creating checkout session:', err)
+      // Show user-friendly error message
+      alert(`Unable to create checkout session: ${err instanceof Error ? err.message : 'Unknown error'}. Please try again later.`)
       return null
     }
   }
@@ -196,11 +202,15 @@ export function useSubscription() {
     return Math.min((currentUsage / limit) * 100, 100)
   }
 
+  const refreshSubscription = async () => {
+    await fetchSubscription()
+  }
+
   return {
     subscription,
     loading,
     error,
-    refresh: fetchSubscription,
+    refresh: refreshSubscription,
     checkUsageLimit,
     incrementUsage,
     createCheckoutSession,

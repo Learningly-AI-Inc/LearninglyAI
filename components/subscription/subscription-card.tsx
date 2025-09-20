@@ -6,7 +6,9 @@ import { Badge } from '@/components/ui/badge'
 import { Check, Crown, Zap, Star } from 'lucide-react'
 import { formatPrice } from '@/lib/stripe'
 import { useSubscription } from '@/hooks/use-subscription'
+import { useAuth } from '@/hooks/use-auth'
 import { useState } from 'react'
+import Link from 'next/link'
 
 interface SubscriptionCardProps {
   plan: {
@@ -24,16 +26,40 @@ interface SubscriptionCardProps {
 
 export function SubscriptionCard({ plan, isCurrentPlan = false, isPopular = false }: SubscriptionCardProps) {
   const { createCheckoutSession, loading } = useSubscription()
+  const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
 
   const handleUpgrade = async () => {
-    if (isCurrentPlan) return
+    console.log('Button clicked!', { plan: plan.name, user: !!user, isCurrentPlan })
     
+    if (isCurrentPlan) {
+      console.log('Current plan, not upgrading')
+      return
+    }
+    
+    // If user is not logged in, redirect to signup
+    if (!user) {
+      console.log('No user, redirecting to signup')
+      window.location.href = '/account/signup'
+      return
+    }
+    
+    // If it's the free plan, redirect to dashboard
+    if (plan.name.toLowerCase() === 'free') {
+      console.log('Free plan, redirecting to dashboard')
+      window.location.href = '/dashboard'
+      return
+    }
+    
+    console.log('Creating checkout session for:', plan.name.toLowerCase())
     setIsLoading(true)
     try {
       const checkoutUrl = await createCheckoutSession(plan.name.toLowerCase())
+      console.log('Checkout URL:', checkoutUrl)
       if (checkoutUrl) {
         window.location.href = checkoutUrl
+      } else {
+        console.error('No checkout URL returned')
       }
     } catch (error) {
       console.error('Error creating checkout session:', error)
@@ -155,7 +181,10 @@ export function SubscriptionCard({ plan, isCurrentPlan = false, isPopular = fals
 
       <CardFooter>
         <Button
-          onClick={handleUpgrade}
+          onClick={(e) => {
+            console.log('Button click event fired!', e)
+            handleUpgrade()
+          }}
           disabled={isCurrentPlan || isLoading}
           className={`w-full ${
             isPopular 
@@ -164,11 +193,14 @@ export function SubscriptionCard({ plan, isCurrentPlan = false, isPopular = fals
                 ? 'bg-green-500 cursor-not-allowed' 
                 : 'bg-gray-900 hover:bg-gray-800'
           }`}
+          style={{ cursor: isCurrentPlan || isLoading ? 'not-allowed' : 'pointer' }}
         >
           {isLoading ? (
             'Processing...'
           ) : isCurrentPlan ? (
             'Current Plan'
+          ) : !user ? (
+            plan.price_cents === 0 ? 'Sign Up Free' : 'Sign Up & Start'
           ) : plan.price_cents === 0 ? (
             'Get Started'
           ) : (

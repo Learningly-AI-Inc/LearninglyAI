@@ -12,8 +12,8 @@ export const STRIPE_CONFIG = {
   secretKey: process.env.STRIPE_SECRET_KEY!,
   webhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
   priceIds: {
-    freemium: 'prod_T4pBu37GhWbvsC',
-    premium: 'prod_T4pBIbtWpXJo6c',
+    freemium: process.env.STRIPE_FREEMIUM_PRICE_ID!,
+    premium: process.env.STRIPE_PREMIUM_PRICE_ID!,
   },
   webhookUrl: 'https://learningly.ai/api/webhooks/stripe',
 } as const
@@ -24,6 +24,8 @@ export function validateStripeConfig() {
     'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
     'STRIPE_SECRET_KEY',
     'STRIPE_WEBHOOK_SECRET',
+    'STRIPE_FREEMIUM_PRICE_ID',
+    'STRIPE_PREMIUM_PRICE_ID',
   ]
   
   const missing = required.filter(key => !process.env[key])

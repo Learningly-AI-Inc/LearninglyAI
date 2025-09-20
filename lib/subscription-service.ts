@@ -269,6 +269,77 @@ export class SubscriptionService {
   }
 
   /**
+   * Handle guest subscription created (for non-authenticated users)
+   */
+  async handleGuestSubscriptionCreated(subscription: Stripe.Subscription, customerEmail?: string): Promise<void> {
+    try {
+      const priceId = subscription.items.data[0].price.id
+      
+      // Get plan details
+      const plan = await this.getPlanByPriceId(priceId)
+      if (!plan) throw new Error('Plan not found')
+
+      const supabase = await this.getSupabase()
+
+      // Check if user already exists with this email
+      let userId: string | null = null
+      
+      if (customerEmail) {
+        const { data: existingUser } = await supabase.auth.admin.getUserByEmail(customerEmail)
+        if (existingUser?.user) {
+          userId = existingUser.user.id
+          console.log('Found existing user with email:', customerEmail)
+        }
+      }
+
+      // If no existing user, create a new one
+      if (!userId) {
+        if (!customerEmail) {
+          throw new Error('Customer email is required for guest checkout')
+        }
+
+        console.log('Creating new user account for guest checkout:', customerEmail)
+        
+        // Create user account with email/password auth (they can link OAuth later)
+        const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+          email: customerEmail,
+          email_confirm: true, // Auto-confirm email
+          user_metadata: {
+            source: 'stripe_guest_checkout',
+            stripe_customer_id: subscription.customer as string,
+          }
+        })
+
+        if (createError) throw createError
+        userId = newUser.user.id
+        console.log('Created new user account:', userId)
+      }
+
+      // Create or update subscription record
+      const { error: subscriptionError } = await supabase
+        .from('user_subscriptions')
+        .upsert({
+          user_id: userId,
+          plan_id: plan.id,
+          stripe_customer_id: subscription.customer as string,
+          stripe_subscription_id: subscription.id,
+          status: subscription.status as any,
+          current_period_start: new Date((subscription as any).current_period_start * 1000),
+          current_period_end: new Date((subscription as any).current_period_end * 1000),
+          cancel_at_period_end: (subscription as any).cancel_at_period_end,
+          trial_end: (subscription as any).trial_end ? new Date((subscription as any).trial_end * 1000) : null,
+        })
+
+      if (subscriptionError) throw subscriptionError
+
+      console.log('Guest subscription created successfully for user:', userId)
+    } catch (error) {
+      console.error('Error handling guest subscription created:', error)
+      throw error
+    }
+  }
+
+  /**
    * Handle subscription updates
    */
   async handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {

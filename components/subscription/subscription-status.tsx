@@ -3,12 +3,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, CreditCard, Settings, AlertCircle } from 'lucide-react'
+import { Calendar, CreditCard, Settings, AlertCircle, RefreshCw } from 'lucide-react'
 import { useSubscription } from '@/hooks/use-subscription'
 import { useState } from 'react'
 
 export function SubscriptionStatus() {
-  const { subscription, loading, createPortalSession } = useSubscription()
+  const { subscription, loading, createPortalSession, refresh } = useSubscription()
   const [isLoading, setIsLoading] = useState(false)
 
   const handleManageSubscription = async () => {
@@ -23,6 +23,10 @@ export function SubscriptionStatus() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleRefresh = async () => {
+    await refresh()
   }
 
   const getStatusBadge = (status: string) => {
@@ -78,9 +82,20 @@ export function SubscriptionStatus() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button asChild className="w-full">
-            <a href="/pricing">View Plans</a>
-          </Button>
+          <div className="space-y-3">
+            <Button asChild className="w-full">
+              <a href="/pricing">View Plans</a>
+            </Button>
+            <Button 
+              onClick={handleRefresh}
+              variant="outline" 
+              className="w-full"
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Refresh Status
+            </Button>
+          </div>
         </CardContent>
       </Card>
     )
@@ -127,7 +142,7 @@ export function SubscriptionStatus() {
           )}
         </div>
         
-        <div className="pt-4 border-t">
+        <div className="pt-4 border-t space-y-3">
           <Button
             onClick={handleManageSubscription}
             disabled={isLoading}
@@ -136,6 +151,16 @@ export function SubscriptionStatus() {
           >
             <Settings className="h-4 w-4 mr-2" />
             {isLoading ? 'Loading...' : 'Manage Subscription'}
+          </Button>
+          <Button 
+            onClick={handleRefresh}
+            variant="ghost" 
+            size="sm"
+            className="w-full"
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh Status
           </Button>
         </div>
       </CardContent>

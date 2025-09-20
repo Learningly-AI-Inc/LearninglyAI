@@ -50,6 +50,10 @@ export async function POST(request: NextRequest) {
         )
         break
 
+      case 'checkout.session.completed':
+        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session)
+        break
+
       case 'invoice.payment_succeeded':
         await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice)
         break
@@ -69,6 +73,43 @@ export async function POST(request: NextRequest) {
       { error: 'Webhook handler failed' },
       { status: 500 }
     )
+  }
+}
+
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  try {
+    console.log('Checkout session completed:', session.id)
+    console.log('Session mode:', session.mode)
+    console.log('Session metadata:', session.metadata)
+    console.log('Customer details:', session.customer_details)
+    
+    const customerId = session.customer as string
+    const subscriptionId = session.subscription as string
+    const customerEmail = session.customer_details?.email
+    
+    if (!customerId) {
+      console.error('Missing customer ID in checkout session')
+      return
+    }
+    
+    // Only handle subscription mode (we don't support one-time payments)
+    if (session.mode === 'subscription' && subscriptionId) {
+      console.log('Processing subscription checkout session')
+      const stripe = new (await import('stripe')).default(process.env.STRIPE_SECRET_KEY!)
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+      
+      // Handle guest checkout by creating user account if needed
+      await subscriptionService.handleGuestSubscriptionCreated(subscription, customerEmail)
+    } else {
+      console.error('Invalid checkout session mode or missing subscription ID:', {
+        mode: session.mode,
+        hasSubscription: !!subscriptionId
+      })
+    }
+    
+    console.log('Successfully processed checkout session:', session.id)
+  } catch (error) {
+    console.error('Error handling checkout session completed:', error)
   }
 }
 
