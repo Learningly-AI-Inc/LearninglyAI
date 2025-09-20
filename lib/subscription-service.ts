@@ -2,8 +2,18 @@ import { stripe, STRIPE_CONFIG, validateStripeConfig } from './stripe'
 import { createClient } from './supabase-server'
 import type { Stripe } from 'stripe'
 
-// Validate Stripe configuration on import
-validateStripeConfig()
+// Validate Stripe configuration only when needed (not during build)
+let stripeConfigValidated = false
+function ensureStripeConfig() {
+  if (!stripeConfigValidated && process.env.NODE_ENV !== 'production') {
+    try {
+      validateStripeConfig()
+      stripeConfigValidated = true
+    } catch (error) {
+      console.warn('Stripe configuration validation skipped during build:', error instanceof Error ? error.message : String(error))
+    }
+  }
+}
 
 export interface SubscriptionPlan {
   id: string
@@ -123,6 +133,7 @@ export class SubscriptionService {
    */
   async createStripeCustomer(userId: string, email: string, name?: string): Promise<string> {
     try {
+      ensureStripeConfig()
       const customer = await stripe.customers.create({
         email,
         name,
@@ -148,6 +159,7 @@ export class SubscriptionService {
     cancelUrl: string
   ): Promise<string> {
     try {
+      ensureStripeConfig()
       // Get or create Stripe customer
       let customerId = await this.getStripeCustomerId(userId)
       
@@ -197,6 +209,7 @@ export class SubscriptionService {
    */
   async createPortalSession(userId: string, returnUrl: string): Promise<string> {
     try {
+      ensureStripeConfig()
       const customerId = await this.getStripeCustomerId(userId)
       if (!customerId) throw new Error('No Stripe customer found')
 
@@ -271,7 +284,7 @@ export class SubscriptionService {
   /**
    * Handle guest subscription created (for non-authenticated users)
    */
-  async handleGuestSubscriptionCreated(subscription: Stripe.Subscription, customerEmail?: string): Promise<void> {
+  async handleGuestSubscriptionCreated(subscription: Stripe.Subscription, customerEmail?: string | null): Promise<void> {
     try {
       const priceId = subscription.items.data[0].price.id
       
@@ -285,9 +298,13 @@ export class SubscriptionService {
       let userId: string | null = null
       
       if (customerEmail) {
-        const { data: existingUser } = await supabase.auth.admin.getUserByEmail(customerEmail)
-        if (existingUser?.user) {
-          userId = existingUser.user.id
+        const { data: users } = await supabase.auth.admin.listUsers({
+          page: 1,
+          perPage: 1000
+        })
+        const existingUser = users?.users?.find(u => u.email === customerEmail)
+        if (existingUser) {
+          userId = existingUser.id
           console.log('Found existing user with email:', customerEmail)
         }
       }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, AlertTriangle, Loader2, Eye, EyeOff } from 'lucide-react'
 
-export default function SetupPasswordPage() {
+function SetupPasswordContent() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -252,5 +252,24 @@ export default function SetupPasswordPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function SetupPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="flex justify-center mb-4">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            </div>
+            <p className="text-center text-gray-600">Loading...</p>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <SetupPasswordContent />
+    </Suspense>
   )
 }

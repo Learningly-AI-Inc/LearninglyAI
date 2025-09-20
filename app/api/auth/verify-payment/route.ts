@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-server'
 import { stripe } from '@/lib/stripe'
 
 export async function POST(request: NextRequest) {
@@ -13,10 +13,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
-    // Check if user exists with this email
-    const { data: existingUser, error: userError } = await supabase.auth.admin.getUserByEmail(email)
+    // Check if user exists by listing users and filtering by email
+    const { data: users, error: userError } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000 // Get a large number to find the user
+    })
     
     if (userError) {
       console.error('Error checking user:', userError)
@@ -26,7 +29,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!existingUser?.user) {
+    // Find user by email
+    const user = users?.users?.find(u => u.email === email)
+    
+    if (!user) {
       return NextResponse.json(
         { 
           error: 'No account found with this email',
@@ -35,8 +41,6 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
-
-    const user = existingUser.user
 
     // Check if user has a subscription (indicates they paid)
     const { data: subscription, error: subError } = await supabase
@@ -55,8 +59,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user has a password set
-    const hasPassword = user.encrypted_password !== null
+    // Check if user has a password set by looking at identities
+    const hasPassword = user.identities?.some(identity => identity.provider === 'email')
 
     if (hasPassword) {
       // User already has a password, they can sign in normally

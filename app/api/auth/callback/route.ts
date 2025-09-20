@@ -68,7 +68,7 @@ function getRedirectOrigin(request: NextRequest): string {
  * Logs OAuth callback events for debugging and monitoring
  */
 function logOAuthEvent(
-  event: 'success' | 'error' | 'missing_code' | 'invalid_redirect',
+  event: 'success' | 'error' | 'missing_code' | 'invalid_redirect' | 'state_received',
   details: Record<string, any>
 ): void {
   const timestamp = new Date().toISOString()

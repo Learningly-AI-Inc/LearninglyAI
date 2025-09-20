@@ -22,7 +22,11 @@ export class EmailReconciliationService {
       const supabase = await this.getSupabase()
       
       // Check if OAuth email already has an account
-      const { data: existingUser } = await supabase.auth.admin.getUserByEmail(oauthEmail)
+      const { data: users } = await supabase.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000
+      })
+      const existingUser = users?.users?.find(u => u.email === oauthEmail)
       
       // Check if Stripe customer has an account
       const { data: stripeUser } = await supabase
@@ -31,7 +35,7 @@ export class EmailReconciliationService {
         .eq('stripe_customer_id', stripeCustomerId)
         .single()
 
-      if (existingUser?.user && stripeUser) {
+      if (existingUser && stripeUser) {
         // Both accounts exist - need user to choose
         return {
           action: 'require_verification',
@@ -40,7 +44,7 @@ export class EmailReconciliationService {
         }
       }
 
-      if (existingUser?.user && !stripeUser) {
+      if (existingUser && !stripeUser) {
         // OAuth account exists, no Stripe account - normal login
         return {
           action: 'link_accounts',
@@ -49,7 +53,7 @@ export class EmailReconciliationService {
         }
       }
 
-      if (!existingUser?.user && stripeUser) {
+      if (!existingUser && stripeUser) {
         // Stripe account exists, no OAuth account - link OAuth to existing Stripe account
         return {
           action: 'link_accounts',

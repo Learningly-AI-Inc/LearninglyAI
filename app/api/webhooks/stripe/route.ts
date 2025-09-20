@@ -99,7 +99,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       const subscription = await stripe.subscriptions.retrieve(subscriptionId)
       
       // Handle guest checkout by creating user account if needed
-      await subscriptionService.handleGuestSubscriptionCreated(subscription, customerEmail)
+      await subscriptionService.handleGuestSubscriptionCreated(subscription, customerEmail || undefined)
     } else {
       console.error('Invalid checkout session mode or missing subscription ID:', {
         mode: session.mode,
