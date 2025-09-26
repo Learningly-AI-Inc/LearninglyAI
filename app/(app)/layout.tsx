@@ -79,7 +79,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         
         <main 
           className={`
-            ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-[240px] lg:ml-[280px]'} 
+            ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-[220px] lg:ml-[260px]'}
+            px-3 md:px-4
             transition-all duration-300 ease-out
           `}
         >
