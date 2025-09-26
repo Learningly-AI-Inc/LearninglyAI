@@ -52,15 +52,8 @@ function validateRedirectPath(path: string | null): string {
  * Determines the redirect origin based on the deployment environment
  */
 function getRedirectOrigin(request: NextRequest): string {
-  // Check for forwarded host header (common in production deployments)
-  const forwardedHost = request.headers.get('x-forwarded-host')
-  const forwardedProto = request.headers.get('x-forwarded-proto')
-  
-  if (forwardedHost && forwardedProto) {
-    return `${forwardedProto}://${forwardedHost}`
-  }
-  
-  // Fallback to the request origin
+  // Always use the actual request origin to avoid cross-env redirects
+  // (e.g., local dev should stay on localhost even if forwarded headers are set)
   return request.nextUrl.origin
 }
 
@@ -168,6 +161,9 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
+        cookieOptions: {
+          secure: process.env.NODE_ENV === 'production',
+        },
         cookies: {
           getAll() {
             return request.cookies.getAll()
@@ -181,11 +177,8 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    // Exchange authorization code for a session
-    const exchangeParams: any = { auth_code: params.code }
-    if (params.state) exchangeParams.state = params.state
-
-    const { data, error } = await supabase.auth.exchangeCodeForSession(exchangeParams)
+    // Exchange authorization code for a session using SSR helper (pass full URL)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(request.url)
 
     if (error) {
       logOAuthEvent('error', {
