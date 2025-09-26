@@ -169,16 +169,23 @@ export async function GET(request: NextRequest) {
             return request.cookies.getAll()
           },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              response.cookies.set(name, value, options)
-            )
+            cookiesToSet.forEach(({ name, value, options }) => {
+              const adjustedOptions = {
+                ...options,
+                // Ensure cookies work on http://localhost during development
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax' as const,
+                path: '/',
+              }
+              response.cookies.set(name, value, adjustedOptions)
+            })
           },
         },
       }
     )
 
-    // Exchange authorization code for a session using SSR helper (pass full URL)
-    const { data, error } = await supabase.auth.exchangeCodeForSession(request.url)
+    // Exchange authorization code for a session (use code string as recommended)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(params.code as string)
 
     if (error) {
       logOAuthEvent('error', {

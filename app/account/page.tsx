@@ -19,7 +19,27 @@ function AccountContent() {
     if (!loading && user) {
       console.log('User is authenticated, redirecting to dashboard')
       router.replace('/dashboard')
+      return
     }
+    // One-shot check: if OAuth just set cookies but context hasn't hydrated yet,
+    // ask the server for the user and redirect immediately if present.
+    const controller = new AbortController()
+    const checkServerSession = async () => {
+      try {
+        const res = await fetch('/api/auth/user', { cache: 'no-store', signal: controller.signal })
+        if (res.ok) {
+          const data = await res.json()
+          if (data?.user?.id) {
+            router.replace('/dashboard')
+          }
+        }
+      } catch {}
+    }
+    // Only run for a short window on first mount to avoid loops
+    if (!user && !loading) {
+      checkServerSession()
+    }
+    return () => controller.abort()
   }, [user, loading, router])
 
   // Show loading state while checking authentication
