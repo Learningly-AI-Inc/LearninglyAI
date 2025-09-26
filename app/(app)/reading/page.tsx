@@ -43,22 +43,6 @@ const ReadingPage = () => {
       description: "Browse and load documents from your library",
       gradient: "from-purple-500 to-violet-600",
       action: () => setShowDocumentListModal(true)
-    },
-    {
-      icon: Globe,
-      title: "Import from Web",
-      description: "YouTube videos, articles, and websites", 
-      gradient: "from-green-500 to-emerald-600",
-      action: () => router.push(`/reading/document-viewer?title=${encodeURIComponent("Web Content")}&url=${encodeURIComponent("/sample-website.pdf")}`),
-      comingSoon: true
-    },
-    {
-      icon: Headphones,
-      title: "Record Audio",
-      description: "Live lectures, meetings, and conversations",
-      gradient: "from-purple-500 to-violet-600",
-      action: () => router.push(`/reading/document-viewer?title=${encodeURIComponent("Recorded Content")}&url=${encodeURIComponent("/sample-recording.pdf")}`),
-      comingSoon: true
     }
   ]
 
@@ -123,13 +107,7 @@ const ReadingPage = () => {
                     onClick={option.action}
                   >
                     <div className={`absolute inset-0 bg-gradient-to-br ${option.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
-                    {option.comingSoon && (
-                      <div className="absolute top-4 right-4 z-10">
-                        <Badge variant="outline" className="bg-orange-50 text-orange-600 border-orange-200">
-                          Coming Soon
-                        </Badge>
-                      </div>
-                    )}
+                    
                     <CardContent className="p-8 text-center relative flex flex-col justify-center h-full min-h-[280px]">
                       <div className={`inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br ${option.gradient} rounded-2xl mb-8 shadow-lg group-hover:scale-110 transition-transform duration-300 mx-auto`}>
                         <option.icon className="h-10 w-10 text-white" />
@@ -139,10 +117,8 @@ const ReadingPage = () => {
                       </h4>
                       <p className="text-gray-600 leading-relaxed mb-6 text-lg">{option.description}</p>
                       <div className="inline-flex items-center justify-center text-blue-600 font-semibold text-lg group-hover:text-blue-700 transition-colors duration-200">
-                        {option.comingSoon ? "Coming Soon" : "Get Started"}
-                        {!option.comingSoon && (
-                          <ArrowUpRight className="h-5 w-5 ml-2 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200" />
-                        )}
+                        Get Started
+                        <ArrowUpRight className="h-5 w-5 ml-2 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200" />
                       </div>
                     </CardContent>
                   </Card>

@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import {
-  Search, Bell, BookOpen, PencilRuler, ScanSearch, GraduationCap, Lightbulb, TrendingUp, 
+  Search, Bell, BookOpen, PencilRuler, ScanSearch, GraduationCap, TrendingUp, 
   ArrowRight, Sparkles, Star, ChevronRight
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -38,18 +38,6 @@ const featureCards = [
     iconBg: "bg-gradient-to-br from-purple-500 to-pink-500",
     badge: "Enhanced",
     badgeVariant: "outline" as const,
-  },
-  {
-    icon: Lightbulb,
-    title: "Solver",
-    description: "Get intelligent step-by-step solutions to complex mathematical and logical problems.",
-    href: "/solver",
-    cta: "Start Solving",
-    gradient: "from-amber-500/20 to-orange-500/20",
-    iconBg: "bg-gradient-to-br from-amber-500 to-orange-500",
-    badge: "Coming Soon",
-    badgeVariant: "outline" as const,
-    comingSoon: true,
   },
   {
     icon: ScanSearch,

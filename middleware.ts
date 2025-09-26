@@ -59,10 +59,8 @@ export async function middleware(request: NextRequest) {
     '/dashboard',
     '/reading',
     '/writing',
-    '/solver',
     '/search',
     '/exam-prep',
-    '/math-viz',
     '/profile',
     '/calendar',
     '/settings'
