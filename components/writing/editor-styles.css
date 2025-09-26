@@ -17,6 +17,7 @@
   box-sizing: border-box;
   flex-grow: 1;
   min-height: 200px;
+  cursor: text;
 }
 
 .rdw-editor-wrapper {
@@ -40,6 +41,7 @@
   padding: 1rem;
   min-height: 200px;
   height: 100%;
+  direction: ltr;
 }
 
 .read-only .rdw-editor-toolbar {

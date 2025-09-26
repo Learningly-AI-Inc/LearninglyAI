@@ -53,19 +53,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   }, [setEditorRef, editorState]);
   
-  // Update editor content when initialContent changes
-  useEffect(() => {
-    if (initialContent) {
-      const contentBlock = htmlToDraft(initialContent);
-      if (contentBlock) {
-        const contentState = ContentState.createFromBlockArray(
-          contentBlock.contentBlocks
-        );
-        const newEditorState = EditorState.createWithContent(contentState);
-        setEditorState(newEditorState);
-      }
-    }
-  }, [initialContent]);
+  // Note: We intentionally avoid syncing editorState on every initialContent change
+  // to prevent keystroke resets. Parent re-mounts this component via `key` when
+  // it needs to force-load external content (e.g., loading a draft).
   
   // Track selected text - using a more stable approach
   useEffect(() => {
@@ -100,7 +90,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     
     if (onChange) {
       const rawContent = convertToRaw(newState.getCurrentContent());
-      const html = draftToHtml(rawContent);
+      // Ensure exported HTML enforces LTR to avoid mirrored text when rendered elsewhere
+      const htmlBody = draftToHtml(rawContent);
+      const html = `<div dir="ltr" style="direction:ltr;text-align:left;">${htmlBody}</div>`;
       onChange(html, rawContent);
     }
   };
@@ -158,6 +150,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             placeholder={placeholder}
             readOnly={readOnly}
             toolbar={toolbarOptions}
+            textAlignment="left"
           />
         </div>
       </CardContent>
