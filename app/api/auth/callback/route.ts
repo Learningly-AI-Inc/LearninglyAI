@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase-server'
+import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Type definitions for better type safety
@@ -160,59 +160,69 @@ export async function GET(request: NextRequest) {
   const validatedNext = validateRedirectPath(params.next || null)
   
   try {
-    // Exchange code for session with cookie bridging
-    const supabase = await createClient()
-    
-    // For OAuth callback, we need to exchange the code for a session
-    // Include state parameter if present to help Supabase validate
+    // Prepare redirect response up-front so we can attach cookies to it
+    const response = NextResponse.redirect(`${origin}${validatedNext}`)
+
+    // Create Supabase server client that bridges cookies onto the response
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            )
+          },
+        },
+      }
+    )
+
+    // Exchange authorization code for a session
     const exchangeParams: any = { auth_code: params.code }
-    if (params.state) {
-      exchangeParams.state = params.state
-    }
-    
+    if (params.state) exchangeParams.state = params.state
+
     const { data, error } = await supabase.auth.exchangeCodeForSession(exchangeParams)
-    
+
     if (error) {
       logOAuthEvent('error', {
         supabaseError: error.message,
         errorCode: error.status,
-        code: params.code.substring(0, 10) + '...' // Log partial code for debugging
+        code: params.code.substring(0, 10) + '...'
       })
-      
+
       return createErrorResponse({
         type: 'session_error',
         message: 'Failed to exchange code for session',
         details: error.message
       }, origin)
     }
-    
+
     if (!data.session) {
       logOAuthEvent('error', {
         message: 'No session returned from code exchange',
         code: params.code.substring(0, 10) + '...'
       })
-      
+
       return createErrorResponse({
         type: 'session_error',
         message: 'No session created from authorization code'
       }, origin)
     }
-    
-    // Log successful authentication
+
+    // Log successful authentication and return response with cookies set
     logOAuthEvent('success', {
       userId: data.user?.id,
       email: data.user?.email,
       redirectTo: validatedNext,
       provider: data.user?.app_metadata?.provider
     })
-    
-    // Create response with cookies and redirect
-    const response = NextResponse.redirect(`${origin}${validatedNext}`)
-    
-    // The createServerClient automatically handles cookie setting
-    // The response will include the session cookies from the exchangeCodeForSession call
+
     return response
-    
+
   } catch (error) {
     // Handle unexpected errors (network issues, etc.)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
