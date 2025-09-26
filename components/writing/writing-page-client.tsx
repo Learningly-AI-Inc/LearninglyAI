@@ -608,16 +608,7 @@ const WritingPageClient = () => {
 
   return (
     <ImprovedWritingPage
-      header={
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Writing Assistant
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Write, edit, and improve your text with smart assistance.
-          </p>
-        </div>
-      }
+      header={<h1 className="text-xl font-semibold text-gray-900">Writing Assistant</h1>}
       draftsManager={
         <DraftsManager
           userId={getMockUserId()}
@@ -652,19 +643,24 @@ const WritingPageClient = () => {
         <WordCounter text={editorContent} />
       }
       aiSuggestionsPanel={
-        <AISuggestionsPanel
-          selectedText={selectedText}
-          onAccept={handleAcceptSuggestion}
-          onReject={handleRejectSuggestion}
-          onAcceptAll={handleAcceptAll}
-          onClear={handleClearSuggestions}
-          onTryAgain={handleParaphrase}
-          isProcessing={isProcessing}
-          suggestedText={suggestedText}
-          grammarIssues={grammarIssues}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-        />
+        <div className="h-full flex flex-col">
+          <div className="px-3 py-2 border-b bg-white text-sm font-semibold">Output</div>
+          <div className="flex-1 overflow-auto">
+            <AISuggestionsPanel
+              selectedText={selectedText}
+              onAccept={handleAcceptSuggestion}
+              onReject={handleRejectSuggestion}
+              onAcceptAll={handleAcceptAll}
+              onClear={handleClearSuggestions}
+              onTryAgain={handleParaphrase}
+              isProcessing={isProcessing}
+              suggestedText={suggestedText}
+              grammarIssues={grammarIssues}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
+          </div>
+        </div>
       }
     />
   )

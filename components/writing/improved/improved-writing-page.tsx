@@ -41,7 +41,7 @@ export function ImprovedWritingPage({
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       {/* Header Section */}
-      <div className="p-4 border-b bg-white">
+      <div className="p-3 border-b bg-white">
         <div className="flex justify-between items-center">
           {header}
           {draftsManager}
@@ -53,7 +53,7 @@ export function ImprovedWritingPage({
           direction={isMobile ? "vertical" : "horizontal"}
           className="h-full"
         >
-          <ResizablePanel defaultSize={60} minSize={30}>
+          <ResizablePanel defaultSize={70} minSize={35}>
             <Card className="h-full flex flex-col shadow-sm">
               <CardHeader className="p-0">
                 {writingToolbar}
@@ -69,8 +69,8 @@ export function ImprovedWritingPage({
             </Card>
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={40} minSize={30}>
-            <div className="h-full p-0 pl-4">
+          <ResizablePanel defaultSize={30} minSize={25}>
+            <div className="h-full p-0 pl-3">
               {aiSuggestionsPanel}
             </div>
           </ResizablePanel>
