@@ -40,7 +40,7 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
   const router = useRouter()
   const [pdfError, setPdfError] = React.useState(false)
   const [pdfLoading, setPdfLoading] = React.useState(true)
-  const [zoomLevel, setZoomLevel] = React.useState(75)
+  const [zoomLevel, setZoomLevel] = React.useState(80)
   const [isFocusMode, setIsFocusMode] = React.useState(false)
   const [currentPage, setCurrentPage] = React.useState(1)
   const [pageDimensions, setPageDimensions] = React.useState({ width: 0, height: 0 })
@@ -584,9 +584,9 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
          </div>
        </div>
 
-       {/* Split Layout */}
-       <div className="flex-1 overflow-hidden">
-         <Allotment defaultSizes={[60, 40]} minSize={300}>
+      {/* Split Layout */}
+      <div className="flex-1 overflow-hidden">
+        <Allotment defaultSizes={[70, 30]} minSize={300}>
            {/* Left Panel - PDF Viewer */}
            <Allotment.Pane>
              <div className="h-full w-full bg-gray-50">
@@ -645,17 +645,19 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
              </div>
            </Allotment.Pane>
 
-           {/* Right Panel - Chat Interface */}
-           <Allotment.Pane>
-             <div className="h-full border-l bg-white">
-               <RightDrawer 
-                 isOpen={true}
-                 onClose={() => {}}
-                 document={document}
-                 className="h-full"
-               />
-             </div>
-           </Allotment.Pane>
+          {/* Right Panel - Chat/Tools Drawer */}
+          {!isFocusMode && (
+            <Allotment.Pane>
+              <div className="h-full border-l bg-white">
+                <RightDrawer 
+                  isOpen={true}
+                  onClose={() => {}}
+                  document={document}
+                  className="h-full"
+                />
+              </div>
+            </Allotment.Pane>
+          )}
          </Allotment>
        </div>
 

@@ -41,6 +41,12 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
   const [mindmapMetadata, setMindmapMetadata] = React.useState<any>(null)
   const [mindmapError, setMindmapError] = React.useState<string | null>(null)
   const [showMindmapSettings, setShowMindmapSettings] = React.useState(false)
+  const [notes, setNotes] = React.useState<string | null>(null)
+  const [notesError, setNotesError] = React.useState<string | null>(null)
+  const [isGeneratingNotes, setIsGeneratingNotes] = React.useState(false)
+  const [meme, setMeme] = React.useState<{ topText: string; bottomText: string } | null>(null)
+  const [memeError, setMemeError] = React.useState<string | null>(null)
+  const [isGeneratingMeme, setIsGeneratingMeme] = React.useState(false)
   
   const { document: contextDocument } = useDocument()
   const { summarizeDocument, isLoading: isSummarizing, error: summarizationError } = useDocumentSummarization()
@@ -57,6 +63,11 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
       icon: <MessageSquare className="h-4 w-4" />
     },
     {
+      id: "notes",
+      label: "Notes",
+      icon: <FileText className="h-4 w-4" />
+    },
+    {
       id: "flashcards", 
       label: "Flashcards",
       icon: <Sparkles className="h-4 w-4" />
@@ -70,6 +81,11 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
       id: "summary",
       label: "Summary", 
       icon: <Archive className="h-4 w-4" />
+    },
+    {
+      id: "memes",
+      label: "Memes",
+      icon: <Sparkles className="h-4 w-4" />
     }
   ]
 
@@ -181,6 +197,51 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
     setShowFlashcardSettings(true)
   }
 
+  const handleGenerateNotes = async () => {
+    const doc = currentDocument
+    if (!doc?.id) {
+      setNotesError("No document available for notes")
+      return
+    }
+    setIsGeneratingNotes(true)
+    setNotesError(null)
+    try {
+      const response = await fetch('/api/reading/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId: doc.id, style: 'concise' })
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to generate notes')
+      }
+      const data = await response.json()
+      setNotes(data.notes || '')
+    } catch (e: any) {
+      setNotesError(e.message || 'Failed to generate notes')
+    } finally {
+      setIsGeneratingNotes(false)
+    }
+  }
+
+  const handleGenerateMeme = async () => {
+    setIsGeneratingMeme(true)
+    setMemeError(null)
+    try {
+      const topic = currentDocument?.title || 'Studying'
+      const res = await fetch('/api/meme', { method: 'POST', body: JSON.stringify({ topic }) })
+      if (!res.ok) {
+        throw new Error('Failed to generate meme')
+      }
+      const data = await res.json()
+      setMeme({ topText: data.topText, bottomText: data.bottomText })
+    } catch (e: any) {
+      setMemeError(e.message || 'Failed to generate meme')
+    } finally {
+      setIsGeneratingMeme(false)
+    }
+  }
+
   const handleGenerateMindmap = async (settings?: any) => {
     if (!currentDocument?.id) {
       setMindmapError("No document available for mindmap generation")
@@ -274,7 +335,7 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
       
              {/* Tabs */}
        <div className="p-3">
-         <div className="flex rounded-lg bg-gray-100 p-0.5 mb-3">
+        <div className="flex rounded-lg bg-gray-100 p-0.5 mb-3">
           {tabs.map((tab) => (
                          <button
                key={tab.id}
@@ -295,6 +356,77 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
          <div className="h-[calc(100vh-180px)] overflow-hidden flex flex-col">
           {activeTab === "chat" && (
             <ChatInterface />
+          )}
+
+          {activeTab === "notes" && (
+            <div className="h-full flex flex-col">
+              {!currentDocument ? (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <FileText className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-1">Notes</h3>
+                    <p className="text-xs text-gray-600">Upload a document to generate concise notes.</p>
+                  </div>
+                </div>
+              ) : notes ? (
+                <div className="flex-1 overflow-hidden flex flex-col">
+                  <div className="flex items-center justify-between p-3 border-b border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-900">Document Notes</h3>
+                    <button
+                      onClick={handleGenerateNotes}
+                      disabled={isGeneratingNotes}
+                      className="px-3 py-1.5 rounded-full text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isGeneratingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                      {isGeneratingNotes ? 'Generating...' : 'Regenerate'}
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <div className="prose prose-sm max-w-none">
+                      <Markdown>{notes}</Markdown>
+                    </div>
+                  </div>
+                </div>
+              ) : notesError ? (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <FileText className="h-6 w-6 text-red-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-1">Notes Error</h3>
+                    <p className="text-xs text-red-600 mb-4">{notesError}</p>
+                    <button
+                      onClick={handleGenerateNotes}
+                      disabled={isGeneratingNotes}
+                      className="px-3 py-2 rounded-full text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
+                    >
+                      {isGeneratingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                      {isGeneratingNotes ? 'Generating...' : 'Try Again'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <FileText className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-1">Ready to create notes!</h3>
+                    <p className="text-xs text-gray-600 mb-4">Generate concise, exam-friendly notes from your document.</p>
+                    <button
+                      onClick={handleGenerateNotes}
+                      disabled={isGeneratingNotes}
+                      className="px-3 py-2 rounded-full text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
+                    >
+                      {isGeneratingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                      {isGeneratingNotes ? 'Generating...' : 'Generate notes'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           
                      {activeTab === "flashcards" && (
@@ -468,7 +600,7 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
              </div>
           )}
           
-                     {activeTab === "summary" && (
+          {activeTab === "summary" && (
              <div className="h-full flex flex-col">
                {!currentDocument ? (
                  <div className="h-full flex items-center justify-center">
@@ -569,6 +701,36 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                  </div>
                )}
              </div>
+          )}
+
+          {activeTab === "memes" && (
+            <div className="h-full flex flex-col">
+              <div className="flex items-center justify-between p-3 border-b border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-900">Study Memes</h3>
+                <button
+                  onClick={handleGenerateMeme}
+                  disabled={isGeneratingMeme}
+                  className="px-3 py-1.5 rounded-full text-xs bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingMeme ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  {isGeneratingMeme ? 'Generating...' : 'Generate'}
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                {!meme && !memeError && (
+                  <p className="text-xs text-gray-600">Click Generate to create a caption pair for “{currentDocument?.title || 'your topic'}”.</p>
+                )}
+                {meme && (
+                  <div className="space-y-2 text-center">
+                    <div className="text-sm font-semibold">{meme.topText}</div>
+                    <div className="text-xs text-gray-700">{meme.bottomText}</div>
+                  </div>
+                )}
+                {memeError && (
+                  <p className="text-xs text-red-600">{memeError}</p>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>
