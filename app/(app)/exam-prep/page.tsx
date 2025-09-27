@@ -36,30 +36,16 @@ const studyModes: StudyMode[] = [
     id: "full-length",
     title: "Full-Length Exam Prep",
     description:
-      "Comprehensive exam prep with pattern analysis and intelligent question generation.",
+      "Upload lectures and past papers. We analyze the professor's style and generate 10–20 full PDF exams in that style.",
     icon: BookOpen,
     gradient: "from-blue-500 to-indigo-600",
   },
   {
     id: "quiz",
-    title: "Interactive Quiz",
-    description: "Test your knowledge with AI-generated questions",
+    title: "Online Exam (Timed Quiz)",
+    description: "Upload materials to generate a long, timed quiz you can configure (time & number of questions).",
     icon: Brain,
     gradient: "from-blue-400 to-blue-600",
-  },
-  {
-    id: "flashcards",
-    title: "Smart Flashcards",
-    description: "Master concepts with spaced repetition",
-    icon: FileText,
-    gradient: "from-green-400 to-green-600",
-  },
-  {
-    id: "meme",
-    title: "Memory Memes",
-    description: "Learn through humor and visual memory",
-    icon: Smile,
-    gradient: "from-purple-400 to-purple-600",
   },
 ];
 
@@ -79,24 +65,21 @@ const StudyModeCard = ({ mode, isSelected, onSelect }: StudyModeCardProps) => {
   return (
     <motion.div
       variants={cardVariants}
-      whileHover={{ y: -5, boxShadow: "0px 10px 20px rgba(0,0,0,0.1)" }}
+      whileHover={{ y: -4, scale: 1.01 }}
       onClick={() => onSelect(mode.id)}
-      className={`cursor-pointer rounded-2xl overflow-hidden relative border-2 transition-all duration-300 ${
+      className={`cursor-pointer rounded-xl overflow-hidden relative transition-all duration-300 bg-white/80 backdrop-blur-sm ${
         isSelected
-          ? "border-blue-500 shadow-xl ring-4 ring-blue-200"
-          : "border-slate-200 hover:border-slate-300"
+          ? "shadow-lg border border-blue-500/60"
+          : "shadow-sm border border-slate-200 hover:border-slate-300"
       }`}
     >
-      <Card className="h-full">
+      <Card className="h-full border-0 shadow-none bg-transparent">
         <CardContent className="p-6 text-center flex flex-col items-center justify-center h-full">
-          <motion.div
-            className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${mode.gradient} mb-4 flex items-center justify-center`}
-            whileHover={{ scale: 1.1, rotate: 5 }}
-          >
-            <Icon className="w-8 h-8 text-white" />
-          </motion.div>
-          <h3 className="text-xl font-bold text-slate-800 mb-2">{mode.title}</h3>
-          <p className="text-slate-600 text-sm leading-relaxed">
+          <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${mode.gradient} mb-4 flex items-center justify-center shadow-md`}>
+            <Icon className="w-7 h-7 text-white" />
+          </div>
+          <h3 className="text-lg font-semibold text-slate-900 mb-1">{mode.title}</h3>
+          <p className="text-slate-600 text-sm leading-relaxed max-w-xs">
             {mode.description}
           </p>
         </CardContent>
@@ -104,12 +87,12 @@ const StudyModeCard = ({ mode, isSelected, onSelect }: StudyModeCardProps) => {
       <AnimatePresence>
         {isSelected && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="absolute top-3 right-3 bg-blue-500 rounded-full p-1"
+            exit={{ opacity: 0, y: -8 }}
+            className="absolute top-3 right-3 bg-blue-600 rounded-full p-1.5 shadow"
           >
-            <CheckCircle2 className="w-5 h-5 text-white" />
+            <CheckCircle2 className="w-4 h-4 text-white" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -154,28 +137,27 @@ function ExamPrepSelection() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-16">
+    <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-slate-100">
+      <div className="container mx-auto px-4 py-14">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <motion.div
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="text-center mb-12"
+            className="text-center mb-10"
           >
-            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4 tracking-tight">
-              Choose Your Study Method
+            <h1 className="text-4xl md:text-5xl font-extrabold mb-3 tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+              Take Full Exam Prep with Learningly
             </h1>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Select how you'd like to study and provide context about your
-              topic
+            <p className="text-base md:text-lg text-slate-600 max-w-2xl mx-auto">
+              Choose a streamlined path to practice: generate full PDF exams in your professor’s style or create a long, timed online exam.
             </p>
           </motion.div>
 
           {/* Study Mode Cards */}
           <motion.div
-            className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10"
+            className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8"
             initial="hidden"
             animate="visible"
             variants={{
@@ -203,21 +185,20 @@ function ExamPrepSelection() {
                 exit={{ opacity: 0, y: 20 }}
                 transition={{ duration: 0.3 }}
               >
-                <Card className="mb-8 shadow-sm">
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4">
-                      Provide Context
+                <Card className="mb-8 shadow-sm border border-slate-200/80">
+                  <CardContent className="p-5">
+                    <h3 className="text-base font-semibold text-slate-900 mb-3">
+                      Upload instructions and context for the online exam
                     </h3>
                     <Textarea
-                      placeholder="Enter your study topic, specific concepts, or any context that will help generate better content. For example: 'JavaScript promises and async/await', 'Calculus derivatives', or 'World War II causes'..."
+                      placeholder="Guidance for the quiz (topics, files you'll upload next, constraints)…"
                       value={context}
                       onChange={(e) => setContext(e.target.value)}
-                      rows={4}
+                      rows={3}
                       className="resize-none text-base"
                     />
-                    <p className="text-sm text-slate-500 mt-2">
-                      The more specific you are, the better your study
-                      materials will be!
+                    <p className="text-xs text-slate-500 mt-2">
+                      You'll choose time and number of questions on the next step.
                     </p>
                   </CardContent>
                 </Card>
@@ -243,7 +224,7 @@ function ExamPrepSelection() {
                     (selectedMode !== "full-length" && !context.trim())
                   }
                   size="lg"
-                  className="w-full sm:w-auto px-10 py-6 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-all duration-300 transform hover:scale-105"
+                  className="w-full sm:w-auto px-10 py-5 text-base md:text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-md transition-all duration-200"
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2">
