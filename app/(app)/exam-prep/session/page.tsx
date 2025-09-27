@@ -52,73 +52,59 @@ async function postJSON(path: string, payload?: Record<string, unknown>) {
 }
 
 // Quiz Component
+async function fetchUserExamText(): Promise<string> {
+  try {
+    const res = await fetch('/api/exam-prep/files')
+    if (!res.ok) return ''
+    const data = await res.json()
+    const files = (data?.files || []).slice(0, 3)
+    let combined = ''
+    for (const f of files) {
+      const r = await fetch(`/api/exam-prep/files/${encodeURIComponent(f.id)}/content`)
+      if (!r.ok) continue
+      const c = await r.json()
+      if (c?.extracted_content) {
+        combined += '\n\n' + c.extracted_content
+      }
+    }
+    return combined
+  } catch {
+    return ''
+  }
+}
+
 function QuizSession({ topic }: { topic: string }) {
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState("");
   const [score, setScore] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [count, setCount] = useState(10);
+  const [duration, setDuration] = useState(30);
 
   const currentQuestion = questions[currentIndex];
-
-  useEffect(() => {
-    generateQuiz();
-  }, [topic]);
 
   async function generateQuiz() {
     try {
       setIsLoading(true);
-      console.log('Generating quiz for topic:', topic);
-      
-      // Try test API first for debugging
-      const data = await postJSON('/api/test-exam', { 
-        mode: 'quiz',
-        topic, 
-        count: 5, 
-        difficulty: 'medium' 
-      });
-      
+      // Pull extracted text from recent uploads (best-effort)
+      const contextText = await fetchUserExamText();
+      const payload: any = { topic, count, difficulty: 'medium', durationMinutes: duration };
+      if (contextText) payload.context = contextText.slice(0, 8000);
+      const data = await postJSON('/api/quiz', payload);
       if (data?.questions?.length) {
         setQuestions(data.questions);
+        setCurrentIndex(0);
+        setScore(0);
+        setIsCompleted(false);
       } else {
-        console.log('No questions in response:', data);
-        // Set fallback questions
-        setQuestions([
-          {
-            id: '1',
-            type: 'fill',
-            prompt: `What is a key concept in ${topic}?`,
-            answer: 'variables'
-          },
-          {
-            id: '2',
-            type: 'single',
-            prompt: `Which of the following is related to ${topic}?`,
-            choices: ['Option A', 'Option B', 'Option C', 'Option D'],
-            answer: 'Option A'
-          }
-        ]);
+        setQuestions([]);
       }
     } catch (error) {
       console.error('Failed to generate quiz:', error);
-      // Fallback questions
-      setQuestions([
-        {
-          id: '1',
-          type: 'fill',
-          prompt: `What is a key concept in ${topic}?`,
-          answer: 'variables'
-        },
-        {
-          id: '2',
-          type: 'single',
-          prompt: `Which of the following is related to ${topic}?`,
-          choices: ['Option A', 'Option B', 'Option C', 'Option D'],
-          answer: 'Option A'
-        }
-      ]);
+      setQuestions([]);
     } finally {
       setIsLoading(false);
     }
@@ -182,12 +168,38 @@ function QuizSession({ topic }: { topic: string }) {
     );
   }
 
+  // Pre-quiz configuration
+  if (questions.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <h3 className="text-lg font-semibold">Configure your exam</h3>
+          <div className="grid grid-cols-2 gap-4 max-w-lg">
+            <div>
+              <label className="text-xs text-slate-500">Questions</label>
+              <Input type="number" min={3} max={50} value={count} onChange={e => setCount(parseInt(e.target.value || '0'))} />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Duration (minutes)</label>
+              <Input type="number" min={5} max={180} value={duration} onChange={e => setDuration(parseInt(e.target.value || '0'))} />
+            </div>
+          </div>
+          <Button onClick={generateQuiz} disabled={isLoading} className="w-full sm:w-auto">Generate</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <CardTitle>Question {currentIndex + 1} of {questions.length}</CardTitle>
-          <div className="text-sm text-slate-500">Score: {score}</div>
+          <div className="flex gap-2 items-center text-sm text-slate-600">
+            <div>Score: {score}</div>
+            <div className="hidden sm:block">•</div>
+            <div>Duration: {duration} min</div>
+          </div>
         </div>
         <Progress value={(currentIndex / questions.length) * 100} className="w-full" />
       </CardHeader>
