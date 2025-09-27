@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
 
 interface DocumentData {
   id: string;
@@ -39,7 +39,7 @@ interface DocumentContextType {
   
   // Chat state
   messages: ChatMessage[];
-  setMessages: (messages: ChatMessage[]) => void;
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   
   // UI state
@@ -80,6 +80,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     progress: 0,
     message: ''
   });
+  const lastDocumentIdRef = useRef<string | null>(null);
   
 
   const addMessage = React.useCallback((message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
@@ -90,6 +91,38 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     };
     setMessages(prev => [...prev, newMessage]);
   }, []);
+
+  // Persist messages per-document so UI state is resilient to transient remounts
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storageKey = document?.id ? `learningly_reading_messages_${document.id}` : 'learningly_reading_messages';
+    try {
+      window.sessionStorage.setItem(storageKey, JSON.stringify(messages));
+      // Also keep a generic key for quick restore between docs
+      window.sessionStorage.setItem('learningly_reading_messages', JSON.stringify(messages));
+    } catch {
+      // ignore storage failures (private mode, quota, etc.)
+    }
+  }, [messages, document?.id]);
+
+  // Restore messages when current document changes or on first mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const currentId = document?.id || null;
+    if (lastDocumentIdRef.current === currentId) return;
+    lastDocumentIdRef.current = currentId;
+    try {
+      const storageKey = currentId ? `learningly_reading_messages_${currentId}` : 'learningly_reading_messages';
+      const stored = window.sessionStorage.getItem(storageKey);
+      if (stored) {
+        setMessages(JSON.parse(stored));
+      } else {
+        setMessages([]);
+      }
+    } catch {
+      setMessages([]);
+    }
+  }, [document?.id]);
 
   const resetUpload = React.useCallback(() => {
     setUploadProgress({
