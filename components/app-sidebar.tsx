@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Menu, LogOut, Settings, BrainCircuit, User, Bolt, ChevronRight, Clock, Crown, Zap, Shield } from "lucide-react"
+import { Menu, LogOut, Settings, BrainCircuit, User, Bolt, ChevronRight, Clock, Crown, Zap, Shield, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuthContext } from "@/components/auth/auth-provider"
@@ -90,6 +90,19 @@ export default function AppSidebar({
   const { signOut, user } = useAuthContext()
   const router = useRouter()
 
+  // Show/hide Upgrade card (dismiss for current session only)
+  const [showUpgradeCard, setShowUpgradeCard] = React.useState(true)
+  React.useEffect(() => {
+    try {
+      const hidden = sessionStorage.getItem('hideUpgradeCard') === '1'
+      if (hidden) setShowUpgradeCard(false)
+    } catch {}
+  }, [])
+  const handleCloseUpgrade = () => {
+    setShowUpgradeCard(false)
+    try { sessionStorage.setItem('hideUpgradeCard', '1') } catch {}
+  }
+
   const handleLogout = async () => {
     try {
       const { error } = await signOut()
@@ -164,7 +177,17 @@ export default function AppSidebar({
       </div>
 
       <div className="p-4 border-t border-border/50 space-y-4">
-        <div className={`rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-white ${sidebarCollapsed ? "p-2 flex justify-center" : "p-4"} modern-shadow`}>
+        {showUpgradeCard && (
+        <div className={`relative rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-white ${sidebarCollapsed ? "p-2 flex justify-center" : "p-4"} modern-shadow`}>
+          {!sidebarCollapsed && (
+            <button
+              aria-label="Close upgrade card"
+              onClick={handleCloseUpgrade}
+              className="absolute top-2 right-2 rounded-md bg-white/20 hover:bg-white/30 p-1 transition-colors"
+            >
+              <X className="h-4 w-4 text-white" />
+            </button>
+          )}
           {!sidebarCollapsed && (
             <>
               <div className="flex items-center gap-2 text-sm font-semibold mb-1">
@@ -185,6 +208,7 @@ export default function AppSidebar({
             )}
           </button>
         </div>
+        )}
         <div className="flex items-center justify-between">
           <Link href="/settings" className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-primary transition-colors duration-200">
             <Settings className="h-4 w-4"/>
