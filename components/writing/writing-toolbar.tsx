@@ -11,8 +11,8 @@ import {
   Wand2,
   ArrowUpDown,
   Loader2,
-  User,
-  Bot,
+  ShieldCheck,
+  Scan,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +39,9 @@ interface WritingToolbarProps {
   isProcessing: boolean;
   hasContent: boolean;
   lastProcessedFeature?: string;
+  onSelectOutput: (panel: 'paraphrase' | 'grammar' | 'detector' | 'checker') => void;
+  selectedEnglishType: string;
+  onEnglishTypeChange: (type: string) => void;
 }
 
 const WritingToolbar: React.FC<WritingToolbarProps> = ({
@@ -52,13 +55,16 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
   isProcessing,
   hasContent,
   lastProcessedFeature,
+  onSelectOutput,
+  selectedEnglishType,
+  onEnglishTypeChange,
 }) => {
   const toneOptions = ["Formal", "Informal", "Academic", "Casual"];
   const englishOptions = ["American", "British"];
   
   return (
-    <div className="flex flex-wrap gap-3 items-center justify-between py-4 px-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
-      <div className="flex flex-wrap gap-3 items-center">
+    <div className="flex flex-wrap gap-3 items-center justify-between py-3 px-3 bg-white">
+      <div className="flex flex-wrap gap-2 items-center">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -67,7 +73,8 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
                 size="sm"
                 onClick={onParaphrase}
                 disabled={isProcessing || !hasContent}
-                className="bg-gray-900 hover:bg-black text-white shadow-md hover:shadow-lg transition-all duration-200 border-0 px-4 py-2 h-9"
+                className="bg-gray-900 hover:bg-black text-white shadow-md hover:shadow-lg transition-all duration-200 border-0 px-3 py-2 h-9"
+                onMouseDown={() => onSelectOutput('paraphrase')}
               >
                 {isProcessing ? (
                   <>
@@ -96,7 +103,8 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
                 size="sm"
                 onClick={onCheckGrammar}
                 disabled={isProcessing || !hasContent}
-                className="bg-gray-800 hover:bg-gray-900 text-white shadow-md hover:shadow-lg transition-all duration-200 border-0 px-4 py-2 h-9"
+                className="bg-gray-800 hover:bg-gray-900 text-white shadow-md hover:shadow-lg transition-all duration-200 border-0 px-3 py-2 h-9"
+                onMouseDown={() => onSelectOutput('grammar')}
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Check Grammar
@@ -107,16 +115,37 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+        {/* AI Detector */}
+        <Button
+          variant="outline"
+          size="sm"
+          onMouseDown={() => onSelectOutput('detector')}
+          className="text-gray-700 border-gray-300 h-9"
+        >
+          <Scan className="h-4 w-4 mr-2" />
+          AI Detector
+        </Button>
+        {/* AI Checker */}
+        <Button
+          variant="outline"
+          size="sm"
+          onMouseDown={() => onSelectOutput('checker')}
+          className="text-gray-700 border-gray-300 h-9"
+        >
+          <ShieldCheck className="h-4 w-4 mr-2" />
+          AI Checker
+        </Button>
 
+        {/* Shorten / Expand */}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="default"
+                variant="outline"
                 size="sm"
                 onClick={() => onLengthAdjustClick('shorten')}
                 disabled={isProcessing || !hasContent}
-                className="bg-gray-700 hover:bg-gray-800 text-white shadow-md hover:shadow-lg transition-all duration-200 border-0 px-4 py-2 h-9"
+                className="text-gray-700 border-gray-300 h-9"
               >
                 <ArrowUpDown className="h-4 w-4 mr-2" />
                 Shorten
@@ -132,11 +161,11 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="default"
+                variant="outline"
                 size="sm"
                 onClick={() => onLengthAdjustClick('expand')}
                 disabled={isProcessing || !hasContent}
-                className="bg-gray-600 hover:bg-gray-700 text-white shadow-md hover:shadow-lg transition-all duration-200 border-0 px-4 py-2 h-9"
+                className="text-gray-700 border-gray-300 h-9"
               >
                 <ArrowUpDown className="h-4 w-4 mr-2" />
                 Expand
@@ -147,26 +176,6 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-
-        {/* Placeholders: active buttons that do nothing for now */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {}}
-          className="text-gray-700 border-gray-300 h-9"
-        >
-          <User className="h-4 w-4 mr-2" />
-          AI Checker
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {}}
-          className="text-gray-700 border-gray-300 h-9"
-        >
-          <Bot className="h-4 w-4 mr-2" />
-          AI Detector
-        </Button>
       </div>
 
       <div className="flex items-center gap-3">
@@ -208,13 +217,13 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
                 size="sm"
                 className="bg-white border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1 h-8"
               >
-                Select
+                {selectedEnglishType}
                 <ChevronDown className="h-3 w-3 ml-1" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-36">
               {englishOptions.map((opt) => (
-                <DropdownMenuItem key={opt} className="cursor-pointer">
+                <DropdownMenuItem key={opt} className="cursor-pointer" onClick={() => onEnglishTypeChange(opt)}>
                   {opt}
                 </DropdownMenuItem>
               ))}

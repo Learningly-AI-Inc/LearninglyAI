@@ -29,6 +29,7 @@ const WritingPageClient = () => {
   const [suggestedText, setSuggestedText] = useState<string>("")
   const [grammarIssues, setGrammarIssues] = useState<GrammarIssue[]>([])
   const [tone, setTone] = useState<string>("Formal")
+  const [englishType, setEnglishType] = useState<string>("American")
   const [isProcessing, setIsProcessing] = useState<boolean>(false)
   const [collapseSuggestions, setCollapseSuggestions] = useState<boolean>(false)
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null)
@@ -608,7 +609,7 @@ const WritingPageClient = () => {
 
   return (
     <ImprovedWritingPage
-      header={<h1 className="text-xl font-semibold text-gray-900">Writing Assistant</h1>}
+      header={null}
       draftsManager={
         <DraftsManager
           userId={getMockUserId()}
@@ -627,6 +628,9 @@ const WritingPageClient = () => {
           isProcessing={isProcessing}
           hasContent={editorContent.trim().length > 0}
           lastProcessedFeature={lastProcessedFeature}
+          onSelectOutput={(panel) => setActiveTab(panel)}
+          selectedEnglishType={englishType}
+          onEnglishTypeChange={setEnglishType}
         />
       }
       richTextEditor={
@@ -644,7 +648,6 @@ const WritingPageClient = () => {
       }
       aiSuggestionsPanel={
         <div className="h-full flex flex-col">
-          <div className="px-3 py-2 border-b bg-white text-sm font-semibold">Output</div>
           <div className="flex-1 overflow-auto">
             <AISuggestionsPanel
               selectedText={selectedText}

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Sparkles, CheckCircle, X, RefreshCw, Eraser, Copy } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -67,20 +67,18 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
   };
   
   return (
-    <Card className="shadow-xl rounded-xl h-full border-0 bg-gradient-to-br from-gray-50 to-white overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-gray-900 to-gray-800 text-white border-b-0">
-        <CardTitle className="flex items-center justify-between">
+    <Card className="shadow-sm rounded-lg h-full border bg-white overflow-hidden">
+      <CardHeader className="bg-white border-b">
+        <CardTitle className="flex items-center justify-between text-base">
           <div className="flex items-center">
-            <div className="p-2 bg-white/20 rounded-lg mr-3">
-              <Sparkles className="h-5 w-5 text-white" />
-            </div>
+            <span className="font-semibold text-gray-800">Output</span>
           </div>
           <div className="flex gap-2">
             <Button
               size="sm"
               variant="ghost"
               onClick={onClear}
-              className="text-white/80 hover:text-white hover:bg-white/20 border-0"
+              className="text-gray-600 hover:text-gray-900"
               disabled={isProcessing || (!suggestedText && grammarIssues.length === 0)}
             >
               <Eraser className="h-4 w-4 mr-1" /> Clear
@@ -89,24 +87,8 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0 h-full">
+        {/* Keep internal tab state but hide the visual tabs; the toolbar will control it */}
         <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col">
-          <div className="px-4 pt-4">
-            <TabsList className="grid grid-cols-2 mb-4 bg-white/50 backdrop-blur-sm border border-gray-200">
-              <TabsTrigger 
-                value="paraphrase"
-                className="data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:shadow-md"
-              >
-                Paraphrase
-              </TabsTrigger>
-              <TabsTrigger 
-                value="grammar"
-                className="data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:shadow-md"
-              >
-                Grammar
-              </TabsTrigger>
-            </TabsList>
-          </div>
-          
           <div className="flex-1 px-4 pb-4 overflow-auto">
             <TabsContent value="paraphrase" className="h-full m-0">
               {isProcessing ? (
@@ -189,7 +171,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                 </div>
               )}
             </TabsContent>
-            
+
             <TabsContent value="grammar" className="h-full m-0">
               {isProcessing ? (
                 <div className="space-y-4 p-4">
@@ -277,7 +259,33 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                 </div>
               )}
             </TabsContent>
-            
+
+            {/* Placeholder content for AI Detector */}
+            <TabsContent value="detector" className="h-full m-0">
+              <div className="flex items-center justify-center h-[calc(100vh-320px)] border-2 border-dashed border-gray-300 rounded-lg bg-white/50">
+                <div className="text-center">
+                  <div className="p-4 bg-yellow-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                    <Sparkles className="h-8 w-8 text-yellow-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-yellow-700 mb-2">AI Detector</h3>
+                  <p className="text-yellow-700/80">Coming soon</p>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Placeholder content for AI Checker */}
+            <TabsContent value="checker" className="h-full m-0">
+              <div className="flex items-center justify-center h-[calc(100vh-320px)] border-2 border-dashed border-gray-300 rounded-lg bg-white/50">
+                <div className="text-center">
+                  <div className="p-4 bg-blue-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                    <CheckCircle className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-blue-700 mb-2">AI Checker</h3>
+                  <p className="text-blue-700/80">Coming soon</p>
+                </div>
+              </div>
+            </TabsContent>
+
           </div>
         </Tabs>
       </CardContent>
