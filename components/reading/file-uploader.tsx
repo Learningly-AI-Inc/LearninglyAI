@@ -11,6 +11,7 @@ import { useDocument } from "./document-context"
 
 interface FileUploaderProps {
   onClose?: () => void
+  onUploaded?: (result: { fileUrl?: string; documentId?: string; title?: string }) => void
 }
 
 const SUPPORTED_TYPES = {
@@ -21,7 +22,7 @@ const SUPPORTED_TYPES = {
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
-export function FileUploaderComponent({ onClose }: FileUploaderProps) {
+export function FileUploaderComponent({ onClose, onUploaded }: FileUploaderProps) {
   const router = useRouter()
   const { uploadDocument, uploadProgress, resetUpload } = useDocument()
   const [file, setFile] = useState<File | null>(null)
@@ -85,21 +86,23 @@ export function FileUploaderComponent({ onClose }: FileUploaderProps) {
         description: `${file.name} has been processed and is ready for analysis.`,
       })
       
-      // Navigate to document viewer with the actual file URL and document ID
-      const title = result.title || file.name
-      const url = result.fileUrl
-      const documentId = result.documentId
-      
-      if (url && documentId) {
-        router.push(`/reading/document-viewer?title=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}&documentId=${encodeURIComponent(documentId)}`)
-      } else if (url) {
-        router.push(`/reading/document-viewer?title=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`)
+      if (onUploaded) {
+        onUploaded(result)
+        onClose?.()
       } else {
-        // Fallback if no URL returned
-        router.push(`/reading/document-viewer?title=${encodeURIComponent(title)}`)
+        // Backward compatibility: default behavior navigates to reading viewer
+        const title = result.title || file.name
+        const url = result.fileUrl
+        const documentId = result.documentId
+        if (url && documentId) {
+          router.push(`/reading/document-viewer?title=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}&documentId=${encodeURIComponent(documentId)}`)
+        } else if (url) {
+          router.push(`/reading/document-viewer?title=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`)
+        } else {
+          router.push(`/reading/document-viewer?title=${encodeURIComponent(title)}`)
+        }
+        onClose?.()
       }
-      
-      onClose?.()
       
     } catch (error: any) {
       console.error('Upload failed:', error)
@@ -110,7 +113,7 @@ export function FileUploaderComponent({ onClose }: FileUploaderProps) {
         variant: "destructive"
       })
     }
-  }, [file, uploadDocument, router, onClose])
+  }, [file, uploadDocument, router, onClose, onUploaded])
   
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()

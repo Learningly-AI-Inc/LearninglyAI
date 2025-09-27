@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { FileUploaderComponent } from "@/components/reading/file-uploader";
+import { DocumentProvider } from "@/components/reading/document-context";
 import {
   Brain,
   FileText,
@@ -109,14 +111,19 @@ function ExamPrepSelection() {
   );
   const [context, setContext] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showUploader, setShowUploader] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{ title?: string; fileUrl?: string; documentId?: string }>>([])
 
   const handleModeSelect = (mode: StudyMode["id"]) => {
     setSelectedMode(mode);
+    if (mode === 'quiz') {
+      setShowUploader(true)
+    }
   };
 
   const handleStartStudy = async () => {
     if (!selectedMode) return;
-    if (selectedMode !== 'full-length' && !context.trim()) return;
+    if (selectedMode !== 'full-length' && uploadedFiles.length === 0) return;
 
 
     setIsLoading(true);
@@ -126,13 +133,9 @@ function ExamPrepSelection() {
       return;
     }
 
-    // Navigate to the specific mode with context
-    const params = new URLSearchParams({
-      mode: selectedMode,
-      topic: context.trim(),
-    });
-
-    // Navigate to the study session
+    // Navigate to the study session (online exam)
+    // Pass a lightweight flag; server-side will fetch uploaded files for the user
+    const params = new URLSearchParams({ mode: selectedMode });
     router.push(`/exam-prep/session?${params.toString()}`);
   };
 
@@ -187,19 +190,32 @@ function ExamPrepSelection() {
               >
                 <Card className="mb-8 shadow-sm border border-slate-200/80">
                   <CardContent className="p-5">
-                    <h3 className="text-base font-semibold text-slate-900 mb-3">
-                      Upload instructions and context for the online exam
-                    </h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-base font-semibold text-slate-900">
+                        Online exam setup
+                      </h3>
+                      <Button size="sm" variant="outline" onClick={() => setShowUploader(true)}>Upload materials</Button>
+                    </div>
+                    {uploadedFiles.length > 0 && (
+                      <div className="mb-3 text-sm text-slate-700">
+                        <div className="mb-2 font-medium">Files to include:</div>
+                        <ul className="list-disc ml-5 space-y-1">
+                          {uploadedFiles.map((f, i) => (
+                            <li key={i} className="truncate">
+                              {f.title || f.fileUrl || `File ${i+1}`}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     <Textarea
-                      placeholder="Guidance for the quiz (topics, files you'll upload next, constraints)…"
+                      placeholder="Brief notes (topics, constraints)…"
                       value={context}
                       onChange={(e) => setContext(e.target.value)}
                       rows={3}
                       className="resize-none text-base"
                     />
-                    <p className="text-xs text-slate-500 mt-2">
-                      You'll choose time and number of questions on the next step.
-                    </p>
+                    <p className="text-xs text-slate-500 mt-2">Next step: choose time and number of questions.</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -221,7 +237,7 @@ function ExamPrepSelection() {
                   onClick={handleStartStudy}
                   disabled={
                     isLoading ||
-                    (selectedMode !== "full-length" && !context.trim())
+                    (selectedMode !== "full-length" && uploadedFiles.length === 0)
                   }
                   size="lg"
                   className="w-full sm:w-auto px-10 py-5 text-base md:text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-md transition-all duration-200"
@@ -245,6 +261,16 @@ function ExamPrepSelection() {
           </AnimatePresence>
         </div>
       </div>
+      {showUploader && (
+        <DocumentProvider>
+          <FileUploaderComponent 
+            onClose={() => setShowUploader(false)}
+            onUploaded={(result) => {
+              setUploadedFiles(prev => [...prev, result])
+            }}
+          />
+        </DocumentProvider>
+      )}
     </div>
   );
 }

@@ -494,12 +494,15 @@ function ExamPrepSessionContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const mode = searchParams.get('mode') as 'quiz' | 'flashcards' | 'meme' | null;
-  const topic = searchParams.get('topic');
+  const topic = searchParams.get('topic') || 'Uploaded materials';
 
-  if (!mode || !topic) {
-    router.push('/exam-prep');
-    return null;
-  }
+  // Avoid router.push during render; guard with effect
+  useEffect(() => {
+    if (!mode) {
+      router.replace('/exam-prep');
+    }
+  }, [mode, router]);
+  if (!mode) return null;
 
   const getIcon = () => {
     switch (mode) {
