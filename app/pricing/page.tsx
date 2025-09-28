@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { SubscriptionCard } from '@/components/subscription/subscription-card'
-import { DebugButtonTest } from '@/components/debug-button-test'
 import { Container } from '@/components/ui/container'
 import { Badge } from '@/components/ui/badge'
 import { Check, Zap, Crown, Star, ArrowRight } from 'lucide-react'
@@ -153,8 +152,7 @@ export default function PricingPage() {
             Unlock the full potential of AI-powered learning with our flexible subscription plans
           </p>
           
-          {/* Debug Component */}
-          <DebugButtonTest />
+          {/* Debug component removed */}
           
           {!user && (
             <div className="flex justify-center mt-4">

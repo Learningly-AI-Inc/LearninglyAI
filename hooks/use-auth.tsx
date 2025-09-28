@@ -142,8 +142,25 @@ export function useAuth() {
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    return { error }
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        const name = (error as any)?.name || ''
+        const message = (error as any)?.message || ''
+        if (name === 'AuthSessionMissingError' || /auth session missing/i.test(message)) {
+          return { error: null }
+        }
+        return { error }
+      }
+      return { error: null }
+    } catch (err: any) {
+      const name = err?.name || ''
+      const message = err?.message || ''
+      if (name === 'AuthSessionMissingError' || /auth session missing/i.test(message)) {
+        return { error: null }
+      }
+      return { error: err }
+    }
   }
 
   const resetPassword = async (email: string) => {

@@ -46,13 +46,17 @@ export async function POST(request: NextRequest) {
     // Get price ID for the plan
     const priceId = getPriceIdByPlan(plan)
 
-    // Create checkout session
-    const checkoutUrl = await subscriptionService.createCheckoutSession(
-      user.id,
-      priceId,
-      successUrl,
-      cancelUrl
-    )
+    // Create checkout session via Stripe directly to avoid importing server secret into client bundle
+    const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/subscriptions/create-checkout-guest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan, successUrl, cancelUrl })
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      return NextResponse.json({ error: err.error || 'Failed to create checkout session' }, { status: 500 })
+    }
+    const { checkoutUrl } = await res.json()
 
     return NextResponse.json({ checkoutUrl })
   } catch (error) {

@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
+// Import Stripe server-side directly to avoid bundling server secrets into the client
+import Stripe from 'stripe'
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: '2025-08-27.basil',
+  typescript: true,
+})
 import { getPriceIdByPlan } from '@/lib/stripe'
 
 export async function POST(request: NextRequest) {

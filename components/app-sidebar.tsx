@@ -90,17 +90,10 @@ export default function AppSidebar({
   const { signOut, user } = useAuthContext()
   const router = useRouter()
 
-  // Show/hide Upgrade card (dismiss for current session only)
+  // Show/hide Upgrade card (dismiss for current page only; resets on refresh)
   const [showUpgradeCard, setShowUpgradeCard] = React.useState(true)
-  React.useEffect(() => {
-    try {
-      const hidden = sessionStorage.getItem('hideUpgradeCard') === '1'
-      if (hidden) setShowUpgradeCard(false)
-    } catch {}
-  }, [])
   const handleCloseUpgrade = () => {
     setShowUpgradeCard(false)
-    try { sessionStorage.setItem('hideUpgradeCard', '1') } catch {}
   }
 
   const handleLogout = async () => {
@@ -199,7 +192,10 @@ export default function AppSidebar({
               </div>
             </>
           )}
-          <button className={`${sidebarCollapsed ? "w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200" : "w-full px-3 py-2"} text-xs font-medium bg-white text-primary rounded-full hover:bg-white/90 transition-colors duration-200 shadow-sm`}>
+          <button 
+            onClick={() => router.push('/pricing')}
+            className={`${sidebarCollapsed ? "w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200" : "w-full px-3 py-2"} text-xs font-medium bg-white text-primary rounded-full hover:bg-white/90 transition-colors duration-200 shadow-sm`}
+          >
             {sidebarCollapsed ? <Crown className="h-5 w-5 text-white" /> : (
               <div className="flex items-center justify-center gap-1">
                 <Zap className="h-3 w-3" />

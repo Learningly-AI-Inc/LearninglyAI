@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Check, Crown, Zap, Star, Loader2 } from 'lucide-react'
-import { formatPrice } from '@/lib/stripe'
 import { useSubscription } from '@/hooks/use-subscription'
 import { useAuth } from '@/hooks/use-auth'
 import { useState } from 'react'
@@ -28,6 +27,12 @@ export function SubscriptionCard({ plan, isCurrentPlan = false, isPopular = fals
   const { createCheckoutSession, loading } = useSubscription()
   const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
+  const formatPrice = (amount: number, currency: string = 'USD'): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+    }).format(amount / 100)
+  }
 
   const handleUpgrade = async () => {
     console.log('Button clicked!', { plan: plan.name, user: !!user, isCurrentPlan })
