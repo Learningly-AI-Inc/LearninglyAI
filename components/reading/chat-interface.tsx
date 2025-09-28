@@ -364,9 +364,9 @@ export function ChatInterface() {
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <Bot className="h-8 w-8 text-white" />
               </div>
-              <h3 className="font-bold text-gray-900 mb-2 text-lg">
-                {document ? "Document loaded successfully! 🎉" : "Upload a document to start"}
-              </h3>
+              {!document && (
+                <h3 className="font-bold text-gray-900 mb-2 text-lg">Upload a document to start</h3>
+              )}
               <p className="text-gray-600 text-sm mb-6 px-4 leading-relaxed">
                 {document ? 
                   `I'm ready to help you with "${document.title}". Ask me anything or choose from the options below.` :

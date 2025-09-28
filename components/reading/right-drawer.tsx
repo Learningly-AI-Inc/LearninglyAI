@@ -318,25 +318,6 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
 
   return (
     <div className={`bg-white shadow-xl transition-all duration-200 ${className}`}>
-             {/* Header */}
-       <div className="flex items-center p-3 border-b border-gray-200">
-         <div>
-           <div className="text-xs font-semibold text-gray-900">
-             {document ? "AI Assistant" : "Chat"}
-           </div>
-           <div className="text-xs text-gray-500">
-             {currentDocument ? (
-               <div className="flex items-center gap-1">
-                 <span className="text-green-600">✓</span>
-                 <span>Document loaded successfully! 🎉</span>
-               </div>
-             ) : (
-               "Upload a document to start"
-             )}
-           </div>
-         </div>
-       </div>
-      
              {/* Tabs */}
       <div className="p-3">
        <div className="flex rounded-lg bg-gray-100 p-0.5 mb-3 overflow-x-auto flex-nowrap touch-pan-x overscroll-x-contain">
@@ -708,31 +689,13 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
           )}
 
           {activeTab === "memes" && (
-            <div className="h-full flex flex-col">
-              <div className="flex items-center justify-between p-3 border-b border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-900">Study Memes</h3>
-                <button
-                  onClick={handleGenerateMeme}
-                  disabled={isGeneratingMeme}
-                  className="px-3 py-1.5 rounded-full text-xs bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isGeneratingMeme ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                  {isGeneratingMeme ? 'Generating...' : 'Generate'}
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4">
-                {!meme && !memeError && (
-                  <p className="text-xs text-gray-600">Click Generate to create a caption pair for “{currentDocument?.title || 'your topic'}”.</p>
-                )}
-                {meme && (
-                  <div className="space-y-2 text-center">
-                    <div className="text-sm font-semibold">{meme.topText}</div>
-                    <div className="text-xs text-gray-700">{meme.bottomText}</div>
-                  </div>
-                )}
-                {memeError && (
-                  <p className="text-xs text-red-600">{memeError}</p>
-                )}
+            <div className="h-full flex items-center justify-center p-4 text-center">
+              <div>
+                <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Sparkles className="h-6 w-6 text-indigo-600" />
+                </div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-1">Custom Meme coming soon</h3>
+                <p className="text-xs text-gray-600">Were building a tailored meme generator for study topics.</p>
               </div>
             </div>
           )}

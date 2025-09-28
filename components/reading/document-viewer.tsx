@@ -586,7 +586,7 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
 
       {/* Split Layout */}
       <div className="flex-1 overflow-hidden">
-        <Allotment defaultSizes={[70, 30]} minSize={300}>
+        <Allotment defaultSizes={[60, 40]} minSize={300}>
            {/* Left Panel - PDF Viewer */}
            <Allotment.Pane>
              <div className="h-full w-full bg-gray-50">
