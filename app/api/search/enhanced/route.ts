@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   console.log('🚀 [ENHANCED SEARCH API] POST request started')
 
   try {
-    const { message, conversationId, model = 'gemini-2.5-flash' } = await request.json()
+    const { message, conversationId, model = 'gemini-2.5-flash', attachedDocumentIds = [] } = await request.json()
     
     console.log('🚀 [ENHANCED SEARCH API] Request details:', {
       message: message?.substring(0, 50) + (message?.length > 50 ? '...' : ''),
@@ -108,6 +108,30 @@ export async function POST(request: NextRequest) {
       .eq('user_id', userId)
       .eq('status', 'completed')
 
+    // If the user attached specific reading documents, fetch smart context for grounding
+    let smartContextSections: string[] = []
+    let smartContextSources: string[] = []
+    if (Array.isArray(attachedDocumentIds) && attachedDocumentIds.length > 0) {
+      for (const docId of attachedDocumentIds) {
+        try {
+          const ctxRes = await fetch(`${request.nextUrl.origin}/api/reading/get-context`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': request.headers.get('Authorization') || '',
+              'Cookie': request.headers.get('Cookie') || ''
+            },
+            body: JSON.stringify({ documentId: docId, options: { maxTokens: 6000, includeMetadata: true, strategy: 'smart' } })
+          })
+          if (ctxRes.ok) {
+            const { context, document } = await ctxRes.json()
+            smartContextSections.push(...(context?.chunks || []).map((c: any) => c.content))
+            if (document?.title) smartContextSources.push(document.title)
+          }
+        } catch {}
+      }
+    }
+
     // Prepare system prompt with user personalization
     const systemPrompt = buildSystemPrompt(userRecord, userContent || [])
 
@@ -115,6 +139,11 @@ export async function POST(request: NextRequest) {
     const messages = [
       { role: 'system', content: systemPrompt }
     ]
+
+    if (smartContextSections.length > 0) {
+      const joined = smartContextSections.slice(0, 20).map((c, i) => `[Section ${i + 1}]\n${c}`).join('\n\n')
+      messages.push({ role: 'system', content: `Use ONLY the following document sections as ground truth unless the user asks for general knowledge. Cite sections when helpful.\n\n${joined}` })
+    }
 
     // Add recent conversation history (last 10 messages to manage context)
     const recentMessages = (existingMessages || []).slice(-10)
@@ -167,7 +196,9 @@ export async function POST(request: NextRequest) {
         conversation_id: currentConversationId,
         role: 'assistant',
         content: aiResponse,
-        sources: userContent?.map(c => c.content_url.split('/').pop() || 'document') || [],
+        sources: (smartContextSources.length > 0
+          ? smartContextSources
+          : (userContent?.map(c => c.content_url.split('/').pop() || 'document') || [])),
         model_used: model,
         tokens_used: responseTokens
       })
