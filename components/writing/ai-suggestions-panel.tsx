@@ -89,7 +89,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
       </CardHeader>
       <CardContent className="p-0 h-full">
         {/* Keep internal tab state but hide the visual tabs; the toolbar will control it */}
-        <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col">
+        <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col min-h-0">
           <div className="flex-1 px-4 pb-4 overflow-auto">
             <TabsContent value="paraphrase" className="h-full m-0">
               {isProcessing ? (
@@ -156,7 +156,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-center h-[calc(100vh-320px)] border-2 border-dashed border-gray-300 rounded-lg bg-white/50 backdrop-blur-sm">
+                <div className="flex items-center justify-center h-full border-2 border-dashed border-gray-300 rounded-lg bg-white/50 backdrop-blur-sm">
                   <div className="text-center">
                     <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                       <Sparkles className="h-8 w-8 text-gray-600" />
@@ -212,7 +212,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-center h-[calc(100vh-320px)] border-2 border-dashed border-gray-300 rounded-lg bg-white/50">
+                <div className="flex items-center justify-center h-full border-2 border-dashed border-gray-300 rounded-lg bg-white/50">
                   <div className="text-center">
                     <div className="p-4 bg-green-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                       <CheckCircle className="h-8 w-8 text-green-600" />
@@ -226,7 +226,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
 
             {/* Placeholder content for AI Detector */}
             <TabsContent value="detector" className="h-full m-0">
-              <div className="flex items-center justify-center h-[calc(100vh-320px)] border-2 border-dashed border-gray-300 rounded-lg bg-white/50">
+              <div className="flex items-center justify-center h-full border-2 border-dashed border-gray-300 rounded-lg bg-white/50">
                 <div className="text-center">
                   <div className="p-4 bg-yellow-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                     <Sparkles className="h-8 w-8 text-yellow-600" />
@@ -239,7 +239,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
 
             {/* Placeholder content for AI Checker */}
             <TabsContent value="checker" className="h-full m-0">
-              <div className="flex items-center justify-center h-[calc(100vh-320px)] border-2 border-dashed border-gray-300 rounded-lg bg-white/50">
+              <div className="flex items-center justify-center h-full border-2 border-dashed border-gray-300 rounded-lg bg-white/50">
                 <div className="text-center">
                   <div className="p-4 bg-blue-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                     <CheckCircle className="h-8 w-8 text-blue-600" />

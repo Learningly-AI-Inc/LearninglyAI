@@ -67,7 +67,7 @@ export function ImprovedWritingPage({
             </div>
           </div>
         ) : (
-          <div className="h-full grid grid-cols-[minmax(0,1fr)_360px] gap-3">
+          <div className="h-full grid grid-cols-[minmax(0,1fr)_360px] gap-3 min-h-0">
             <Card className="h-full flex flex-col shadow-sm">
               <CardHeader className="p-0">
                 {writingToolbar}
@@ -81,7 +81,7 @@ export function ImprovedWritingPage({
                 {wordCounter}
               </div>
             </Card>
-            <div className="h-full">
+            <div className="h-full min-h-0">
               {aiSuggestionsPanel}
             </div>
           </div>
