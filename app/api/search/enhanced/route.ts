@@ -265,6 +265,10 @@ async function generateAIResponse(
       return await generateGeminiResponse(messages, model)
     } else if (model.startsWith('gpt')) {
       return await generateOpenAIResponse(messages, model)
+    } else if (model.startsWith('claude') || model.startsWith('grok') || model.startsWith('deepseek')) {
+      // Map unsupported providers to closest available engines for MVP
+      const mapped = model.startsWith('claude') ? 'gpt-5' : model.startsWith('grok') ? 'gpt-5-mini' : 'gpt-5-nano'
+      return await generateOpenAIResponse(messages, mapped)
     } else {
       throw new Error(`Unsupported model: ${model}`)
     }

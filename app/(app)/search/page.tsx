@@ -1126,38 +1126,17 @@ const SearchPage = () => {
           <div className="flex-1 overflow-y-auto px-3 sm:px-4 pt-3 relative" style={{ paddingBottom: '200px' }}>
             {/* Bottom fade indicator */}
             <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-lg font-semibold">Ask Anything, I am here to answer!</h1>
-              {loading && (
-                <div className="text-sm text-slate-500">Loading...</div>
-              )}
-            </div>
-
-             {/* Assistant welcome card - only show when no conversation is selected and no messages exist */}
-             {!selectedConversationId && messages.length === 0 && (
-              <div className="mt-3 bg-white border rounded-2xl p-4 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <div className="h-8 w-8 rounded-xl bg-slate-900 text-white grid place-content-center text-sm font-bold">AI</div>
-                  <div className="space-y-2">
-                    <p className="text-slate-800 text-sm">Hello! Ask Anything, I am here to answer! I'm here to help you learn and understand new concepts. To get started, you can:</p>
-                    <ul className="list-disc pl-4 text-slate-700 space-y-0.5 text-sm">
-                      <li>Ask me questions about topics you're studying.</li>
-                      <li>Provide content (articles or notes) and ask me to explain parts of it.</li>
-                      <li>Request a quiz or flashcards to test your knowledge.</li>
-                      <li>Ask me to create diagrams or visualizations.</li>
-                    </ul>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2">
-                      <QuickTip icon={<Search className="h-4 w-4 mt-0.5"/>} title="Summarize the main points" desc="Paste a link, PDF, or notes"/>
-                      <QuickTip icon={<FileText className="h-4 w-4 mt-0.5"/>} title="What are the key concepts?" desc="Surface definitions and examples"/>
-                      <QuickTip icon={<Bot className="h-4 w-4 mt-0.5"/>} title="Explain this simply" desc="Great for first‑time learning"/>
-                    </div>
+            <div className="mx-auto max-w-3xl">
+              {!selectedConversationId && messages.length === 0 && (
+                <div className="flex items-center justify-center min-h-[60vh] sm:min-h-[65vh] text-center select-none">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Ask Anything, I am here to answer!</h1>
+                    <p className="text-sm text-slate-500 mt-1">I’ll help with answers, explanations, and examples.</p>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* Messages */}
-            <div className="mt-3 space-y-4">
+              )}
+              {/* Messages */}
+              <div className="mt-3 space-y-4">
               {/* Loading state for messages */}
               {loading && selectedConversationId && messages.length === 0 && (
                 <div className="space-y-4">
@@ -1178,8 +1157,7 @@ const SearchPage = () => {
               )}
               
               <AnimatePresence>
-                {/* Show all messages when a conversation is selected, or skip welcome message when in new conversation */}
-                {(selectedConversationId ? messages : messages.slice(1)).map((message) => (
+                {messages.map((message) => (
                   <motion.div
                     key={message.id}
                     initial={{ opacity: 0, y: 10 }}
@@ -1340,10 +1318,10 @@ const SearchPage = () => {
           </div>
 
           {/* Composer (sticky bottom like ChatGPT) */}
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/95 border-t border-slate-200 shadow-lg">
-            <div className="px-3 sm:px-4 py-3">
-              <div className="mx-auto max-w-4xl">
-                <div className="bg-white border rounded-3xl px-4 py-3 shadow-sm">
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-white/95 to-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/90 border-t border-slate-200">
+            <div className="px-3 sm:px-4 py-4">
+              <div className="mx-auto max-w-3xl">
+                <div className="bg-white/95 border rounded-[28px] px-4 py-3 shadow-sm">
                   <div className="flex items-end gap-3">
                     <div className="flex-1 px-1 sm:px-2 py-2">
                       <textarea
@@ -1356,8 +1334,8 @@ const SearchPage = () => {
                           }
                         }}
                         placeholder={loading ? "Loading..." : "Message Learningly…"}
-                        rows={2}
-                        className="w-full resize-none outline-none text-sm bg-transparent"
+                        rows={1}
+                        className="w-full resize-none outline-none text-sm bg-transparent leading-6 max-h-40"
                         disabled={isTyping || loading || !user?.id}
                       />
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-2">
@@ -1455,13 +1433,69 @@ const SearchPage = () => {
                                     </button>
                                   ))}
                                 </div>
+
+                                {/* Other Providers (Claude, Grok, DeepSeek) - non-functional placeholders mapping to closest models */}
+                                <div className="px-2 py-1">
+                                  <div className="text-xs font-medium text-slate-500 px-2 py-1 mb-1">Other Providers</div>
+                                  {[
+                                    { id: 'claude-3.7', name: 'Claude 3.7', map: 'gpt-5' },
+                                    { id: 'grok-3', name: 'Grok 3', map: 'gpt-5-mini' },
+                                    { id: 'deepseek-v3', name: 'DeepSeek V3', map: 'gpt-5-nano' }
+                                  ].map((model) => (
+                                    <button
+                                      key={model.id}
+                                      onClick={() => {
+                                        setSelectedModel(model.map as any);
+                                        setShowModelMenu(false);
+                                      }}
+                                      className={`w-full px-3 py-2.5 text-left hover:bg-slate-50 transition-colors rounded-lg ${
+                                        selectedModel === model.map ? 'bg-slate-100 text-slate-900' : 'text-slate-700'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <div className="text-sm font-medium">{model.name}</div>
+                                          <div className="text-xs text-slate-500">Maps to {model.map}</div>
+                                        </div>
+                                        {selectedModel === model.map && (
+                                          <div className="w-2 h-2 rounded-full bg-slate-600"></div>
+                                        )}
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
                             </div>
                           )}
                         </div>
-                        <Button variant="outline" size="sm" className="h-8 px-3 text-xs border-slate-200 bg-white hover:bg-slate-50 w-full sm:w-auto">
-                          Add Context
-                        </Button>
+                        {/* Upload document like popular LLMs */}
+                        <label className="inline-flex items-center justify-center h-8 px-3 text-xs border border-slate-200 bg-white hover:bg-slate-50 rounded-md cursor-pointer w-full sm:w-auto">
+                          <input
+                            type="file"
+                            accept=".pdf,.txt,.docx"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0]
+                              if (!file) return
+                              const form = new FormData()
+                              form.append('file', file)
+                              try {
+                                const res = await fetch('/api/search/upload', { method: 'POST', body: form })
+                                if (!res.ok) {
+                                  const err = await res.json().catch(() => ({}))
+                                  throw new Error(err.error || 'Upload failed')
+                                }
+                                const data = await res.json()
+                                toast.success('Document uploaded')
+                              } catch (err: any) {
+                                toast.error(err.message || 'Failed to upload')
+                              } finally {
+                                e.currentTarget.value = ''
+                              }
+                            }}
+                          />
+                          Upload
+                        </label>
 
                         {/* Stop generation button - shows when typing */}
                         {isTyping ? (
@@ -1480,7 +1514,7 @@ const SearchPage = () => {
                               <button
                                 onClick={handleSendMessage}
                                 disabled={!currentMessage.trim() || isTyping || loading || !user?.id}
-                                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1 text-xs px-3 py-1.5 rounded-full bg-slate-900 text-white hover:bg-slate-800 disabled:bg-slate-400 transition-colors"
+                                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1 text-xs px-3 py-1.5 rounded-full bg-slate-900 text-white hover:bg-slate-800 disabled:bg-slate-400 transition-colors shadow-sm"
                               >
                                 <Send className="h-3.5 w-3.5"/> Send
                               </button>
@@ -1509,6 +1543,7 @@ const SearchPage = () => {
                   ))}
                 </div>
               </div>
+            </div>
             </div>
           </div>
         </main>
