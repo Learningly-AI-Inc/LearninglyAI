@@ -229,7 +229,11 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
     setMemeError(null)
     try {
       const topic = currentDocument?.title || 'Studying'
-      const res = await fetch('/api/meme', { method: 'POST', body: JSON.stringify({ topic }) })
+      const res = await fetch('/api/meme', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic }) 
+      })
       if (!res.ok) {
         throw new Error('Failed to generate meme')
       }
@@ -334,12 +338,12 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
        </div>
       
              {/* Tabs */}
-       <div className="p-3">
-        <div className="flex rounded-lg bg-gray-100 p-0.5 mb-3">
+      <div className="p-3">
+       <div className="flex rounded-lg bg-gray-100 p-0.5 mb-3 overflow-x-auto flex-nowrap touch-pan-x overscroll-x-contain">
           {tabs.map((tab) => (
-                         <button
+                        <button
                key={tab.id}
-               className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
+              className={`flex-none shrink-0 whitespace-nowrap px-2 py-1.5 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
                  activeTab === tab.id 
                    ? 'bg-white text-blue-600 shadow-sm' 
                    : 'text-gray-600 hover:text-gray-900'
