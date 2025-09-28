@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Send, Bot, Copy, ThumbsUp, ThumbsDown, RotateCcw, Sparkles, Search, Plus, Trash2, Mic, Square, ChevronRight, Zap, Brain, X, Menu, FileText, Edit2, Save, Check, XCircle } from "lucide-react"
+import { Send, Bot, Copy, ThumbsUp, ThumbsDown, RotateCcw, Sparkles, Search, Plus, Trash2, Mic, Square, ChevronRight, Zap, Brain, X, Menu, FileText, Edit2, Save, Check, XCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { motion, AnimatePresence } from "framer-motion"
@@ -48,7 +48,7 @@ const SearchPage = () => {
   // Local state for UI
   const [messages, setMessages] = React.useState<Message[]>([])
   const [currentMessage, setCurrentMessage] = React.useState('')
-  const [attachedDocs, setAttachedDocs] = React.useState<Array<{ id: string; name: string; url: string }>>([])
+  const [attachedDocs, setAttachedDocs] = React.useState<Array<{ id: string; name: string; url: string; status: 'uploading' | 'ready' | 'error' }>>([])
   const [isTyping, setIsTyping] = React.useState(false)
   const [selectedModel, setSelectedModel] = React.useState<'gemini-2.5-flash' | 'gpt-5-mini' | 'gpt-5' | 'gpt-5-nano' | 'gemini-2.5-pro' | 'gemini-2.5-flash-lite' | 'gpt-5-thinking-pro'>('gemini-2.5-flash')
   const [conversations, setConversations] = React.useState<Conversation[]>([])
@@ -1351,6 +1351,12 @@ const SearchPage = () => {
                               <div key={doc.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-white shadow-sm text-xs">
                                 <div className="w-3 h-3 rounded-full bg-red-500" />
                                 <span className="truncate max-w-[180px]" title={doc.name}>{doc.name}</span>
+                                {doc.status === 'uploading' && (
+                                  <Loader2 className="h-3 w-3 animate-spin text-slate-500" />
+                                )}
+                                {doc.status === 'error' && (
+                                  <span className="text-red-600">Failed</span>
+                                )}
                                 <button
                                   onClick={() => setAttachedDocs(prev => prev.filter(d => d.id !== doc.id))}
                                   className="ml-1 text-slate-500 hover:text-slate-700"
@@ -1504,6 +1510,12 @@ const SearchPage = () => {
                               const form = new FormData()
                               form.append('file', file)
                               try {
+                                // Add a temporary uploading chip
+                                const tempId = `temp-${Date.now()}`
+                                setAttachedDocs(prev => [
+                                  ...prev,
+                                  { id: tempId, name: file.name, url: '', status: 'uploading' }
+                                ])
                                 const res = await fetch('/api/search/upload', { method: 'POST', body: form })
                                 if (!res.ok) {
                                   const err = await res.json().catch(() => ({}))
@@ -1512,13 +1524,14 @@ const SearchPage = () => {
                                 const data = await res.json()
                                 // Capture uploaded doc for attachment chip and context
                                 if (data?.documentId) {
-                                  setAttachedDocs(prev => [
-                                    ...prev,
-                                    { id: data.documentId, name: data?.metadata?.title || file.name, url: data.fileUrl || '' }
-                                  ])
+                                  setAttachedDocs(prev => prev
+                                    .filter(d => d.id !== tempId)
+                                    .concat({ id: data.documentId, name: data?.metadata?.title || file.name, url: data.fileUrl || '', status: 'ready' }))
                                 }
                                 toast.success('Document uploaded')
                               } catch (err: any) {
+                                // Mark the temp chip as error
+                                setAttachedDocs(prev => prev.map(d => d.status === 'uploading' ? { ...d, status: 'error' } : d))
                                 toast.error(err.message || 'Failed to upload')
                               } finally {
                                 if (inputEl) inputEl.value = ''
