@@ -89,8 +89,9 @@ const ReadingPage = () => {
           </div>
         </div>
 
-        {/* Main Content */}
-        <main className="w-full max-w-6xl mx-auto px-6 py-16">
+        {/* Main Content (slightly reduced overall scale/spacing) */}
+        <div className="origin-top transform scale-[0.95]">
+        <main className="w-full max-w-6xl mx-auto px-6 py-12">
           {/* Upload Options */}
           <div className="flex flex-col items-center justify-center min-h-[60vh]">
             <div className="text-center mb-16">
@@ -128,6 +129,7 @@ const ReadingPage = () => {
           </div>
 
         </main>
+        </div>
       </div>
       
       {/* Upload Modal */}
