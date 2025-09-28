@@ -98,6 +98,8 @@ export const PricingSection: React.FC = () => {
     console.log('Creating Stripe checkout session for:', planId);
     
     try {
+      // Send yearly variant when yearly toggle is active for premium plan
+      const selectedPlan = isYearly && planId === 'premium' ? 'premium_yearly' : planId;
       // For landing page, create checkout session directly without requiring auth
       const response = await fetch('/api/subscriptions/create-checkout-guest', {
         method: 'POST',
@@ -105,7 +107,7 @@ export const PricingSection: React.FC = () => {
           'Content-Type': 'application/json',
         },
             body: JSON.stringify({
-              plan: planId,
+              plan: selectedPlan,
               successUrl: `${window.location.origin}/account/success?success=true&session_id={CHECKOUT_SESSION_ID}`,
               cancelUrl: `${window.location.origin}/pricing?canceled=true`,
             }),

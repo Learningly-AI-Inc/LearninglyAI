@@ -14,6 +14,8 @@ export const STRIPE_CONFIG = {
   priceIds: {
     freemium: process.env.STRIPE_FREEMIUM_PRICE_ID!,
     premium: process.env.STRIPE_PREMIUM_PRICE_ID!,
+    // Optional: yearly premium price (if configured)
+    premium_yearly: process.env.STRIPE_PREMIUM_YEARLY_PRICE_ID,
   },
   webhookUrl: 'https://learningly.ai/api/webhooks/stripe',
 } as const
@@ -66,6 +68,11 @@ export function getPriceIdByPlan(planName: string): string {
       return STRIPE_CONFIG.priceIds.freemium
     case 'premium':
       return STRIPE_CONFIG.priceIds.premium
+    case 'premium_yearly':
+      if (!STRIPE_CONFIG.priceIds.premium_yearly) {
+        throw new Error('Missing STRIPE_PREMIUM_YEARLY_PRICE_ID for yearly premium plan')
+      }
+      return STRIPE_CONFIG.priceIds.premium_yearly
     default:
       throw new Error(`Unknown plan: ${planName}`)
   }
@@ -78,6 +85,8 @@ export function getPlanByPriceId(priceId: string): string {
       return 'Freemium'
     case STRIPE_CONFIG.priceIds.premium:
       return 'Premium'
+    case STRIPE_CONFIG.priceIds.premium_yearly as string:
+      return 'Premium (Yearly)'
     default:
       throw new Error(`Unknown price ID: ${priceId}`)
   }

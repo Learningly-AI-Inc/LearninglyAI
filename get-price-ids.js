@@ -52,6 +52,7 @@ async function getPriceIds() {
     console.log('Copy the price IDs above to your .env.local file:');
     console.log('STRIPE_FREEMIUM_PRICE_ID=price_xxxxx');
     console.log('STRIPE_PREMIUM_PRICE_ID=price_xxxxx');
+    console.log('STRIPE_PREMIUM_YEARLY_PRICE_ID=price_xxxxx # if you have a yearly price');
     
   } catch (error) {
     console.error('Error fetching price IDs:', error.message);

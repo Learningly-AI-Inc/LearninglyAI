@@ -13,11 +13,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate plan
-    const validPlans = ['freemium', 'premium']
+    // Validate plan (support yearly variant)
+    const validPlans = ['freemium', 'premium', 'premium_yearly']
     if (!validPlans.includes(plan.toLowerCase())) {
       return NextResponse.json(
-        { error: 'Invalid plan. Must be freemium or premium' },
+        { error: 'Invalid plan. Must be freemium, premium, or premium_yearly' },
         { status: 400 }
       )
     }
@@ -48,13 +48,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify it's a monthly recurring price
-    if (!price.recurring || price.recurring.interval !== 'month') {
-      console.error('Price is not monthly recurring!')
+    // Verify it's a recurring price with allowed interval
+    const allowedIntervals = ['month', 'year']
+    if (!price.recurring || !allowedIntervals.includes(price.recurring.interval)) {
+      console.error('Price interval is not allowed!')
       return NextResponse.json(
         { 
-          error: 'Invalid billing interval. Only monthly subscriptions are supported.',
-          details: 'The selected plan must be billed monthly.'
+          error: 'Invalid billing interval. Only monthly or yearly subscriptions are supported.',
+          details: 'The selected plan must be billed monthly or yearly.'
         },
         { status: 400 }
       )

@@ -25,11 +25,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate plan
-    const validPlans = ['freemium', 'premium']
+    // Validate plan (support yearly variant)
+    const validPlans = ['freemium', 'premium', 'premium_yearly']
     if (!validPlans.includes(plan.toLowerCase())) {
       return NextResponse.json(
-        { error: 'Invalid plan. Must be freemium or premium' },
+        { error: 'Invalid plan. Must be freemium, premium, or premium_yearly' },
         { status: 400 }
       )
     }

@@ -13,6 +13,7 @@ STRIPE_WEBHOOK_SECRET=whsec_g7qIby25Th68PT80CP8mCT2zdRWYoEEG
 # Stripe Price IDs (NOT Product IDs)
 STRIPE_FREEMIUM_PRICE_ID=price_xxxxx # Get from running get-price-ids.js
 STRIPE_PREMIUM_PRICE_ID=price_xxxxx # Get from running get-price-ids.js
+STRIPE_PREMIUM_YEARLY_PRICE_ID=price_xxxxx # Optional: yearly premium price
 ```
 
 ## How to Get the Missing Values
@@ -66,6 +67,7 @@ STRIPE_SECRET_KEY=sk_test_51ABC123...
 STRIPE_WEBHOOK_SECRET=whsec_g7qIby25Th68PT80CP8mCT2zdRWYoEEG
 STRIPE_FREEMIUM_PRICE_ID=price_1ABC123...
 STRIPE_PREMIUM_PRICE_ID=price_1DEF456...
+STRIPE_PREMIUM_YEARLY_PRICE_ID=price_1YEAR789...
 ```
 
 ## After Setting Up Environment Variables
