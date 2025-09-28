@@ -1,11 +1,6 @@
 "use client"
 
 import * as React from "react"
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 
@@ -52,11 +47,27 @@ export function ImprovedWritingPage({
       )}
 
       <div className="flex-grow p-4 overflow-hidden">
-        <ResizablePanelGroup
-          direction={isMobile ? "vertical" : "horizontal"}
-          className="h-full"
-        >
-          <ResizablePanel defaultSize={80} minSize={55}>
+        {isMobile ? (
+          <div className="h-full flex flex-col gap-3">
+            <Card className="h-[60%] flex flex-col shadow-sm">
+              <CardHeader className="p-0">
+                {writingToolbar}
+              </CardHeader>
+              <Separator />
+              <CardContent className="p-0 flex-grow relative">
+                {richTextEditor}
+              </CardContent>
+              <Separator />
+              <div className="p-2 bg-gray-50">
+                {wordCounter}
+              </div>
+            </Card>
+            <div className="h-[40%]">
+              {aiSuggestionsPanel}
+            </div>
+          </div>
+        ) : (
+          <div className="h-full grid grid-cols-[minmax(0,1fr)_360px] gap-3">
             <Card className="h-full flex flex-col shadow-sm">
               <CardHeader className="p-0">
                 {writingToolbar}
@@ -70,14 +81,11 @@ export function ImprovedWritingPage({
                 {wordCounter}
               </div>
             </Card>
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={20} minSize={18}>
-            <div className="h-full p-0 pl-3">
+            <div className="h-full">
               {aiSuggestionsPanel}
             </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+          </div>
+        )}
       </div>
     </div>
   )
