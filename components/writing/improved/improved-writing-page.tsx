@@ -56,7 +56,7 @@ export function ImprovedWritingPage({
           direction={isMobile ? "vertical" : "horizontal"}
           className="h-full"
         >
-          <ResizablePanel defaultSize={75} minSize={45}>
+          <ResizablePanel defaultSize={80} minSize={55}>
             <Card className="h-full flex flex-col shadow-sm">
               <CardHeader className="p-0">
                 {writingToolbar}
@@ -72,7 +72,7 @@ export function ImprovedWritingPage({
             </Card>
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={25} minSize={20}>
+          <ResizablePanel defaultSize={20} minSize={18}>
             <div className="h-full p-0 pl-3">
               {aiSuggestionsPanel}
             </div>

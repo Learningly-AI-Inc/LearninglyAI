@@ -4,9 +4,10 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Sparkles, CheckCircle, X, RefreshCw, Eraser, Copy } from "lucide-react";
+import { Sparkles, CheckCircle, X, RefreshCw, Eraser, Copy, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import MarkdownRenderer from "@/components/ui/markdown-renderer";
+import { Badge } from "@/components/ui/badge";
 
 interface AISuggestionsPanelProps {
   selectedText: string;
@@ -175,80 +176,43 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
             <TabsContent value="grammar" className="h-full m-0">
               {isProcessing ? (
                 <div className="space-y-4 p-4">
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
                     <Skeleton className="h-4 w-4 rounded-full" />
                     <Skeleton className="h-4 w-32" />
                   </div>
-                  
-                  <div className="space-y-3">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-5/6" />
-                    <Skeleton className="h-4 w-4/5" />
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-4 w-5/6" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </div>
-                  
-                  <div className="space-y-2 mt-6">
-                    <Skeleton className="h-3 w-24" />
-                    <Skeleton className="h-3 w-20" />
-                  </div>
-                  
-                  <div className="text-center mt-6">
-                    <p className="text-gray-700 font-medium">Checking grammar...</p>
-                    <p className="text-gray-500 text-sm mt-1">Analyzing your text for errors</p>
-                  </div>
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-5/6" />
                 </div>
               ) : grammarIssues.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-3 p-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-gray-700">
-                      Found {grammarIssues.length} issue{grammarIssues.length !== 1 ? 's' : ''}
-                    </h4>
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={onAcceptAll}
-                      className="bg-gray-900 hover:bg-black text-white"
-                    >
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <Badge variant="outline" className="text-gray-700 border-gray-300"><AlertTriangle className="mr-1" /> Found {grammarIssues.length} issues</Badge>
+                    </div>
+                    <Button size="sm" variant="default" onClick={onAcceptAll} className="bg-gray-900 hover:bg-black text-white">
                       <CheckCircle className="h-4 w-4 mr-2" /> Fix All
                     </Button>
                   </div>
-                  <div className="space-y-3 max-h-[calc(100vh-400px)] overflow-y-auto">
+                  <div className="space-y-2 max-h-[calc(100vh-400px)] overflow-y-auto">
                     {grammarIssues.map((issue) => (
-                      <div key={issue.id} className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                        <div className="flex items-start justify-between mb-2">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            {issue.type}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => onReject(issue.id)}
-                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
+                      <div key={issue.id} className="flex items-start justify-between gap-2 rounded-md border px-3 py-2 bg-white">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="destructive">{issue.type}</Badge>
+                          </div>
+                          <div className="text-xs text-gray-700 truncate"><span className="line-through text-red-600 mr-2">{issue.original}</span><span className="text-green-700 font-medium">{issue.suggestion}</span></div>
                         </div>
-                        <p className="text-sm text-gray-600 mb-2">{issue.description}</p>
-                        <div className="space-y-1">
-                          <p className="text-xs text-red-600 line-through">{issue.original}</p>
-                          <p className="text-xs text-green-600 font-medium">{issue.suggestion}</p>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button size="sm" variant="outline" className="h-7 px-2 border-gray-300 text-green-700" onClick={() => onAccept(issue.suggestion)}>Accept</Button>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-red-600" onClick={() => onReject(issue.id)}>Deny</Button>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onAccept(issue.suggestion)}
-                          className="mt-2 w-full border-gray-300 text-gray-700 hover:bg-gray-50"
-                        >
-                          <CheckCircle className="h-3 w-3 mr-1" /> Apply Fix
-                        </Button>
                       </div>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-center h-[calc(100vh-320px)] border-2 border-dashed border-gray-300 rounded-lg bg-white/50 backdrop-blur-sm">
+                <div className="flex items-center justify-center h-[calc(100vh-320px)] border-2 border-dashed border-gray-300 rounded-lg bg-white/50">
                   <div className="text-center">
                     <div className="p-4 bg-green-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                       <CheckCircle className="h-8 w-8 text-green-600" />
