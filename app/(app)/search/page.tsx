@@ -1475,7 +1475,8 @@ const SearchPage = () => {
                             accept=".pdf,.txt,.docx"
                             className="hidden"
                             onChange={async (e) => {
-                              const file = e.target.files?.[0]
+                              const inputEl = e.currentTarget
+                              const file = inputEl?.files?.[0]
                               if (!file) return
                               const form = new FormData()
                               form.append('file', file)
@@ -1490,7 +1491,7 @@ const SearchPage = () => {
                               } catch (err: any) {
                                 toast.error(err.message || 'Failed to upload')
                               } finally {
-                                e.currentTarget.value = ''
+                                if (inputEl) inputEl.value = ''
                               }
                             }}
                           />

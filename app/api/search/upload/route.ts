@@ -10,45 +10,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const form = await request.formData()
-    const file = form.get('file') as File | null
+    const incoming = await request.formData()
+    const file = incoming.get('file') as File | null
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    const ext = (file.name.split('.').pop() || 'txt').toLowerCase()
-    const path = `${user.id}/${Date.now()}-${file.name}`
+    // Forward to the robust reading upload pipeline (extracts text and saves to reading_documents)
+    const fd = new FormData()
+    fd.append('file', file)
 
-    // Upload to a public bucket `user-content` (assumes exists with proper policy)
-    const { data: storageData, error: storageError } = await supabase.storage
-      .from('user-content')
-      .upload(path, await file.arrayBuffer(), {
-        contentType: file.type || 'application/octet-stream'
-      })
+    const forwardRes = await fetch(`${request.nextUrl.origin}/api/reading/upload`, {
+      method: 'POST',
+      body: fd,
+      headers: {
+        'Authorization': request.headers.get('Authorization') || '',
+        'Cookie': request.headers.get('Cookie') || ''
+      }
+    })
 
-    if (storageError) {
-      return NextResponse.json({ error: 'Upload failed', details: storageError.message }, { status: 500 })
+    if (!forwardRes.ok) {
+      const err = await forwardRes.json().catch(() => ({}))
+      return NextResponse.json({ error: 'Upstream upload failed', details: err.error || forwardRes.statusText }, { status: 500 })
     }
 
-    const publicUrl = supabase.storage.from('user-content').getPublicUrl(storageData.path).data.publicUrl
+    const readingData = await forwardRes.json()
 
-    // Insert into user_content
-    const { data: record, error: insertError } = await supabase
+    // Also register a lightweight entry in user_content so the search UI can list uploads
+    const ext = (file.name.split('.').pop() || 'txt').toLowerCase()
+    const { data: record } = await supabase
       .from('user_content')
       .insert({
         user_id: user.id,
         content_type: ext === 'pdf' ? 'pdf' : ext === 'docx' ? 'docx' : 'txt',
-        content_url: publicUrl,
+        content_url: readingData?.fileUrl || '',
         status: 'completed'
       })
       .select()
       .single()
 
-    if (insertError) {
-      return NextResponse.json({ error: 'Database insert failed', details: insertError.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ success: true, content: record })
+    return NextResponse.json({ success: true, ...readingData, content: record })
   } catch (error: any) {
     return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 })
   }
