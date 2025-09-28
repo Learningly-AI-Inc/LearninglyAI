@@ -213,6 +213,61 @@ export async function GET(request: NextRequest) {
       }, origin)
     }
 
+    // Ensure an application-level user record exists (id matches auth.users.id)
+    try {
+      const supabaseWithCookies = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() {
+              return response.cookies.getAll()
+            },
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
+            },
+          },
+        }
+      )
+
+      // Check if user exists in public.users; if not, create it
+      const userId = data.user!.id
+      const email = data.user!.email || ''
+      const fullName = (data.user as any)?.user_metadata?.full_name ||
+                       (data.user as any)?.user_metadata?.name ||
+                       'User'
+
+      const { data: existingUser, error: selectErr } = await supabaseWithCookies
+        .from('users')
+        .select('id')
+        .eq('id', userId)
+        .single()
+
+      if (selectErr && selectErr.code !== 'PGRST116') {
+        console.error('Error checking existing app user:', selectErr)
+      }
+
+      if (!existingUser) {
+        const { error: insertErr } = await supabaseWithCookies
+          .from('users')
+          .insert({
+            id: userId,
+            email,
+            full_name: fullName,
+            username: `user_${userId.substring(0, 8)}`,
+            role: 'self-learner',
+            created_at: data.user!.created_at,
+            last_login: data.session!.expires_at ? new Date(data.session!.expires_at * 1000).toISOString() : null,
+          })
+
+        if (insertErr) {
+          console.error('Failed to create app user record:', insertErr)
+        }
+      }
+    } catch (userCreateErr) {
+      console.error('Unexpected error ensuring app user record:', userCreateErr)
+    }
+
     // Log successful authentication and return response with cookies set
     logOAuthEvent('success', {
       userId: data.user?.id,
