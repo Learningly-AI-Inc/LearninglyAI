@@ -33,7 +33,7 @@ export async function subscriptionMiddleware(request: NextRequest) {
     if (usageActions.length > 0) {
       // Check usage limits before allowing the request
       for (const action of usageActions) {
-        const canProceed = await checkUsageLimit(user.id, action)
+        const canProceed = await checkUsageLimit(user.id, action, request.nextUrl.origin)
         if (!canProceed) {
           // Redirect to upgrade page with usage limit message
           const url = new URL('/pricing', request.url)
@@ -70,9 +70,9 @@ function getUsageActionsFromPath(pathname: string): string[] {
   return actions
 }
 
-async function checkUsageLimit(userId: string, action: string): Promise<boolean> {
+async function checkUsageLimit(userId: string, action: string, origin: string): Promise<boolean> {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/usage/check`, {
+    const response = await fetch(`${origin}/api/usage/check`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

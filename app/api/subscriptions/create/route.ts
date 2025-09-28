@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
     // Get price ID for the plan
     const priceId = getPriceIdByPlan(plan)
 
-    // Create checkout session via Stripe directly to avoid importing server secret into client bundle
-    const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/subscriptions/create-checkout-guest`, {
+    // Create checkout session via Stripe via same-origin to avoid cross-domain redirects
+    const res = await fetch(`${request.nextUrl.origin}/api/subscriptions/create-checkout-guest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plan, successUrl, cancelUrl })
