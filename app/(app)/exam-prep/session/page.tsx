@@ -173,7 +173,7 @@ function QuizSession({ topic }: { topic: string }) {
     return (
       <Card>
         <CardContent className="p-6 space-y-4">
-          <h3 className="text-lg font-semibold">Configure your exam</h3>
+          <h3 className="text-lg font-semibold">Configure your quiz</h3>
           <div className="grid grid-cols-2 gap-4 max-w-lg">
             <div>
               <label className="text-xs text-slate-500">Questions</label>
