@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react";
+import { Suspense, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ interface ExamConfig {
   examType: 'full-length' | 'rapid-fire' | 'both';
 }
 
-export default function FullExamPrepPage() {
+function FullExamPrepPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const modeParam = searchParams.get('mode');
@@ -661,5 +661,13 @@ export default function FullExamPrepPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function FullExamPrepPage() {
+  return (
+    <Suspense fallback={<div />}>
+      <FullExamPrepPageContent />
+    </Suspense>
   );
 }
