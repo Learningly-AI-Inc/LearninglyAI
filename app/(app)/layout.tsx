@@ -26,7 +26,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [openTour, setOpenTour] = React.useState(false)
-  const tourConsumedRef = React.useRef(false)
+  const hasOpenedRef = React.useRef(false)
+  const closingRef = React.useRef(false)
   const deviceSize = useDeviceSize()
   
   // Auto-collapse sidebar on smaller screens like laptops
@@ -38,12 +39,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [deviceSize])
 
-  // Start tour when URL contains ?tour=1 or ?tour=start (only once per page load)
+  // Start tour when URL contains ?tour=1 or ?tour=start (guard against double-open)
   React.useEffect(() => {
     const tour = searchParams.get('tour')
-    if (tour && !openTour && !tourConsumedRef.current) {
-      tourConsumedRef.current = true
+    if (tour && !openTour && !hasOpenedRef.current && !closingRef.current) {
       // Small delay to ensure layout/sidebar are painted
+      hasOpenedRef.current = true
       const id = setTimeout(() => setOpenTour(true), 150)
       return () => clearTimeout(id)
     }
@@ -52,13 +53,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Handle tour close - clean up URL parameter and stay on dashboard
   const handleTourClose = React.useCallback(() => {
     setOpenTour(false)
-    // Prevent auto-open re-triggering if URL still has ?tour during the same tick
-    tourConsumedRef.current = true
+    closingRef.current = true
     // Remove the tour query parameter from URL
     const params = new URLSearchParams(searchParams.toString())
     params.delete('tour')
     const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname
     router.replace(newUrl)
+    // release the lock shortly after the URL is cleaned
+    setTimeout(() => {
+      closingRef.current = false
+      hasOpenedRef.current = false
+    }, 0)
   }, [pathname, searchParams, router])
 
   // Expose a global helper to programmatically start the tour if needed

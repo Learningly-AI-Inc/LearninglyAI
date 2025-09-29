@@ -112,6 +112,26 @@ export default function AppSidebar({
     }
   }
 
+  // Start interactive tour immediately when user clicks Quick Guide
+  const handleQuickGuide = () => {
+    try {
+      const start = (window as any)?.__startLearninglyTour
+      // If we're not on dashboard, navigate with query to auto-start
+      if (typeof window !== 'undefined' && window.location.pathname !== '/dashboard') {
+        router.push('/dashboard?tour=1')
+        return
+      }
+      // If global starter exists, call it; otherwise fallback to URL param
+      if (typeof start === 'function') {
+        start()
+      } else {
+        router.replace('/dashboard?tour=1')
+      }
+    } catch {
+      router.push('/dashboard?tour=1')
+    }
+  }
+
   // Determine if user is "new" (first 7 days since account creation)
   const isNewUser = (() => {
     try {
@@ -183,7 +203,7 @@ export default function AppSidebar({
 
         <SidebarSection title="Help & Tools" collapsed={sidebarCollapsed}>
           {(isNewUser || !user) && (
-            <SidebarItem collapsed={sidebarCollapsed} icon={<Bolt className="h-4 w-4"/>} label="Quick Guide" href="/help"/>
+            <SidebarItem collapsed={sidebarCollapsed} icon={<Bolt className="h-4 w-4"/>} label="Quick Guide" onClick={handleQuickGuide}/>
           )}
           <SidebarItem collapsed={sidebarCollapsed} icon={<Settings className="h-4 w-4"/>} label="Feedback" href="/feedback"/>
           <SidebarItem collapsed={sidebarCollapsed} icon={<Shield className="h-4 w-4"/>} label="Admin Panel" href="/admin"/>
