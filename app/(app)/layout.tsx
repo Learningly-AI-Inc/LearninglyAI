@@ -26,6 +26,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [openTour, setOpenTour] = React.useState(false)
+  const tourConsumedRef = React.useRef(false)
   const deviceSize = useDeviceSize()
   
   // Auto-collapse sidebar on smaller screens like laptops
@@ -37,10 +38,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [deviceSize])
 
-  // Start tour when URL contains ?tour=1 or ?tour=start
+  // Start tour when URL contains ?tour=1 or ?tour=start (only once per page load)
   React.useEffect(() => {
     const tour = searchParams.get('tour')
-    if (tour && !openTour) {
+    if (tour && !openTour && !tourConsumedRef.current) {
+      tourConsumedRef.current = true
       // Small delay to ensure layout/sidebar are painted
       const id = setTimeout(() => setOpenTour(true), 150)
       return () => clearTimeout(id)
@@ -50,6 +52,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Handle tour close - clean up URL parameter and stay on dashboard
   const handleTourClose = React.useCallback(() => {
     setOpenTour(false)
+    // Prevent auto-open re-triggering if URL still has ?tour during the same tick
+    tourConsumedRef.current = true
     // Remove the tour query parameter from URL
     const params = new URLSearchParams(searchParams.toString())
     params.delete('tour')
