@@ -14,6 +14,7 @@ interface NavigationItem {
   icon: React.ComponentType<{ className?: string }>;
   active?: boolean;
   comingSoon?: boolean;
+  dataTour?: string;
 }
 
 interface AppSidebarProps {
@@ -35,7 +36,7 @@ function SidebarSection({ title, children, collapsed }: { title: string; childre
   );
 }
 
-function SidebarItem({ icon, label, active, collapsed, href, onClick, comingSoon }: {
+function SidebarItem({ icon, label, active, collapsed, href, onClick, comingSoon, dataTour }: {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
@@ -43,11 +44,13 @@ function SidebarItem({ icon, label, active, collapsed, href, onClick, comingSoon
   href?: string;
   onClick?: () => void;
   comingSoon?: boolean;
+  dataTour?: string;
 }) {
   const content = (
     <button
       title={label}
       onClick={onClick}
+      data-tour={dataTour}
       className={`w-full ${collapsed ? "justify-center" : "justify-start"} flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
         active 
           ? "bg-gradient-to-r from-primary/15 to-primary/10 text-primary border border-primary/30 shadow-md backdrop-blur-sm" 
@@ -109,6 +112,20 @@ export default function AppSidebar({
     }
   }
 
+  // Determine if user is "new" (first 7 days since account creation)
+  const isNewUser = (() => {
+    try {
+      const createdAt = (user as any)?.user_metadata?.created_at || (user as any)?.created_at
+      if (!createdAt) return false
+      const created = new Date(createdAt)
+      const now = new Date()
+      const days = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)
+      return days <= 7
+    } catch {
+      return false
+    }
+  })()
+
   return (
       <aside
        className={`${sidebarCollapsed ? "w-16" : "w-[240px] lg:w-[280px]"} ${isMobile ? 'flex' : 'hidden md:flex'} flex-col border-r border-border/50 bg-gradient-to-br from-blue-50 via-indigo-50/80 to-purple-50/90 backdrop-blur-xl supports-[backdrop-filter]:bg-gradient-to-br supports-[backdrop-filter]:from-blue-50/90 supports-[backdrop-filter]:via-indigo-50/70 supports-[backdrop-filter]:to-purple-50/80 transition-[width] duration-300 z-40 h-screen fixed modern-shadow-lg`}
@@ -145,6 +162,7 @@ export default function AppSidebar({
               active={item.active}
               href={item.href}
               comingSoon={item.comingSoon}
+              dataTour={item.dataTour}
             />
           ))}
         </SidebarSection>
@@ -157,13 +175,16 @@ export default function AppSidebar({
               icon={<item.icon className="h-4 w-4"/>}
               label={item.label}
               href={item.href}
+              dataTour={item.dataTour}
             />
           ))}
         </SidebarSection>
 
 
         <SidebarSection title="Help & Tools" collapsed={sidebarCollapsed}>
-          <SidebarItem collapsed={sidebarCollapsed} icon={<Bolt className="h-4 w-4"/>} label="Quick Guide" href="/help"/>
+          {(isNewUser || !user) && (
+            <SidebarItem collapsed={sidebarCollapsed} icon={<Bolt className="h-4 w-4"/>} label="Quick Guide" href="/help"/>
+          )}
           <SidebarItem collapsed={sidebarCollapsed} icon={<Settings className="h-4 w-4"/>} label="Feedback" href="/feedback"/>
           <SidebarItem collapsed={sidebarCollapsed} icon={<Shield className="h-4 w-4"/>} label="Admin Panel" href="/admin"/>
         </SidebarSection>

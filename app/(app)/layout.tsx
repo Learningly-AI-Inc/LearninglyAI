@@ -15,13 +15,17 @@ import {
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import AppSidebar from "@/components/app-sidebar"
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { useDeviceSize } from "@/hooks/use-device-size"
 import { AuthProvider } from "@/components/auth/auth-provider"
+import { OnboardingTour } from "@/components/onboarding-tour"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const [openTour, setOpenTour] = React.useState(false)
   const deviceSize = useDeviceSize()
   
   // Auto-collapse sidebar on smaller screens like laptops
@@ -33,17 +37,45 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [deviceSize])
 
+  // Start tour when URL contains ?tour=1 or ?tour=start
+  React.useEffect(() => {
+    const tour = searchParams.get('tour')
+    if (tour && !openTour) {
+      // Small delay to ensure layout/sidebar are painted
+      const id = setTimeout(() => setOpenTour(true), 150)
+      return () => clearTimeout(id)
+    }
+  }, [searchParams, openTour])
+
+  // Handle tour close - clean up URL parameter and stay on dashboard
+  const handleTourClose = React.useCallback(() => {
+    setOpenTour(false)
+    // Remove the tour query parameter from URL
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('tour')
+    const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname
+    router.replace(newUrl)
+  }, [pathname, searchParams, router])
+
+  // Expose a global helper to programmatically start the tour if needed
+  React.useEffect(() => {
+    ;(window as any).__startLearninglyTour = () => setOpenTour(true)
+    return () => {
+      delete (window as any).__startLearninglyTour
+    }
+  }, [])
+
   const navigationItems = [
-    { icon: Home, label: "Dashboard", href: "/dashboard", active: pathname === '/dashboard' },
-    { icon: BookOpen, label: "Reading", href: "/reading", active: pathname === '/reading' },
-    { icon: PencilRuler, label: "Writing", href: "/writing", active: pathname === '/writing' },
-    { icon: ScanSearch, label: "Search", href: "/search", active: pathname === '/search' },
-    { icon: GraduationCap, label: "Exam Prep", href: "/exam-prep", active: pathname === '/exam-prep' },
+    { icon: Home, label: "Dashboard", href: "/dashboard", active: pathname === '/dashboard', dataTour: "dashboard" },
+    { icon: BookOpen, label: "Reading", href: "/reading", active: pathname === '/reading', dataTour: "reading" },
+    { icon: PencilRuler, label: "Writing", href: "/writing", active: pathname === '/writing', dataTour: "writing" },
+    { icon: ScanSearch, label: "Search", href: "/search", active: pathname === '/search', dataTour: "search" },
+    { icon: GraduationCap, label: "Exam Prep", href: "/exam-prep", active: pathname === '/exam-prep', dataTour: "exam-prep" },
   ]
 
   const workspaceItems = [
     { icon: User, label: "Profile", href: "/profile" },
-    { icon: Calendar, label: "Calendar", href: "/calendar" },
+    { icon: Calendar, label: "Calendar", href: "/calendar", dataTour: "calendar" },
     { icon: Settings, label: "Settings", href: "/settings" },
   ]
 
@@ -82,6 +114,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         >
           {children}
         </main>
+
+        {/* Global interactive tour (available on all app pages) */}
+        <OnboardingTour isOpen={openTour} onClose={handleTourClose} />
 
         {/* Mobile Sidebar */}
         <div className="md:hidden">
