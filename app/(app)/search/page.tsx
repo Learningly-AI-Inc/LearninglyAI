@@ -50,7 +50,7 @@ const SearchPage = () => {
   const [currentMessage, setCurrentMessage] = React.useState('')
   const [attachedDocs, setAttachedDocs] = React.useState<Array<{ id: string; name: string; url: string; status: 'uploading' | 'ready' | 'error' }>>([])
   const [isTyping, setIsTyping] = React.useState(false)
-  const [selectedModel, setSelectedModel] = React.useState<'gemini-2.5-flash' | 'gpt-5-mini' | 'gpt-5' | 'gpt-5-nano' | 'gemini-2.5-pro' | 'gemini-2.5-flash-lite' | 'gpt-5-thinking-pro'>('gemini-2.5-flash')
+  const [selectedModel, setSelectedModel] = React.useState<'gemini-2.5-flash' | 'gpt-5-mini' | 'gpt-5' | 'gpt-5-nano' | 'gemini-2.5-pro' | 'gemini-2.5-flash-lite' | 'gpt-5-thinking-pro' | 'grok-3' | 'deepseek-v3' | 'llama-3.1'>('gemini-2.5-flash')
   const [conversations, setConversations] = React.useState<Conversation[]>([])
   const [selectedConversationId, setSelectedConversationId] = React.useState<string | null>(null)
   const [isLoading, setIsLoading] = React.useState(false)
@@ -796,7 +796,7 @@ const SearchPage = () => {
 
 
   return (
-    <div className="h-screen w-full bg-gradient-to-b from-slate-50 to-white text-slate-900">
+    <div className="h-screen w-full bg-gradient-to-b from-blue-50 to-white text-slate-900">
       <div className="flex h-full w-full">
         {/* Conversation Sidebar - Collapsible (Desktop) */}
         <aside className={`hidden lg:flex ${conversationSidebarCollapsed ? 'w-16' : 'w-[260px]'} flex-col border-r bg-white transition-[width] duration-200 z-40`}>
@@ -1463,10 +1463,11 @@ const SearchPage = () => {
                                   ))}
                                 </div>
 
-                                {/* Other Providers (Claude, Grok, DeepSeek) - non-functional placeholders mapping to closest models */}
+                                {/* Other Providers (Llama, Claude, Grok, DeepSeek) – mapped to closest engines */}
                                 <div className="px-2 py-1">
                                   <div className="text-xs font-medium text-slate-500 px-2 py-1 mb-1">Other Providers</div>
                                   {[
+                                    { id: 'llama-3.1', name: 'Llama 3.1', map: 'gpt-5-mini' },
                                     { id: 'claude-3.7', name: 'Claude 3.7', map: 'gpt-5' },
                                     { id: 'grok-3', name: 'Grok 3', map: 'gpt-5-mini' },
                                     { id: 'deepseek-v3', name: 'DeepSeek V3', map: 'gpt-5-nano' }
@@ -1474,11 +1475,12 @@ const SearchPage = () => {
                                     <button
                                       key={model.id}
                                       onClick={() => {
-                                        setSelectedModel(model.map as any);
+                                        // Store the displayed provider id; API will map internally
+                                        setSelectedModel(model.id as any);
                                         setShowModelMenu(false);
                                       }}
                                       className={`w-full px-3 py-2.5 text-left hover:bg-slate-50 transition-colors rounded-lg ${
-                                        selectedModel === model.map ? 'bg-slate-100 text-slate-900' : 'text-slate-700'
+                                        (selectedModel === model.id || selectedModel === (model.map as any)) ? 'bg-slate-100 text-slate-900' : 'text-slate-700'
                                       }`}
                                     >
                                       <div className="flex items-center justify-between">
@@ -1486,7 +1488,7 @@ const SearchPage = () => {
                                           <div className="text-sm font-medium">{model.name}</div>
                                           <div className="text-xs text-slate-500">Maps to {model.map}</div>
                                         </div>
-                                        {selectedModel === model.map && (
+                                        {(selectedModel === model.id || selectedModel === (model.map as any)) && (
                                           <div className="w-2 h-2 rounded-full bg-slate-600"></div>
                                         )}
                                       </div>
@@ -1501,7 +1503,7 @@ const SearchPage = () => {
                         <label className="inline-flex items-center justify-center h-8 px-3 text-xs border border-slate-200 bg-white hover:bg-slate-50 rounded-md cursor-pointer w-full sm:w-auto">
                           <input
                             type="file"
-                            accept=".pdf,.txt,.docx"
+                            accept=".pdf,.txt,.docx,.png,.jpg,.jpeg"
                             className="hidden"
                             onChange={async (e) => {
                               const inputEl = e.currentTarget
@@ -1572,20 +1574,7 @@ const SearchPage = () => {
                     </div>
                   </div>
                 </div>
-                <div className="mx-auto max-w-4xl flex flex-col sm:flex-row gap-2 mt-2 px-1">
-                  {["Summarize this page","Generate 10 flashcards","Create a quiz"].map((t, i) => (
-                    <Button 
-                      key={i} 
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentMessage(t)}
-                      disabled={isTyping}
-                      className="text-xs px-3 py-1.5 h-8 border-slate-200 bg-white hover:bg-slate-50 w-full sm:w-auto"
-                    >
-                      {t}
-                    </Button>
-                  ))}
-                </div>
+                {/* Quick-phrase buttons removed per request */}
               </div>
             </div>
             </div>

@@ -91,8 +91,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate file type
-    const allowedExtensions = ['pdf', 'txt', 'docx'];
-    const allowedMimeTypes = ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const allowedExtensions = ['pdf', 'txt', 'docx', 'png', 'jpg', 'jpeg'];
+    const allowedMimeTypes = [
+      'application/pdf',
+      'text/plain',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/png',
+      'image/jpeg'
+    ];
     
     const isValidExtension = allowedExtensions.includes(fileExtension);
     const isValidMimeType = allowedMimeTypes.includes(file.type);
@@ -165,7 +171,8 @@ export async function POST(req: NextRequest) {
 
     try {
       if (fileExtension === 'pdf' || file.type === 'application/pdf' || 
-          fileExtension === 'docx' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+          fileExtension === 'docx' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+          fileExtension === 'png' || fileExtension === 'jpg' || fileExtension === 'jpeg' || file.type.startsWith('image/')) {
         console.log(`📄 Processing ${fileExtension.toUpperCase()} with webhook...`);
         
         try {
@@ -246,9 +253,9 @@ Note: The document has been processed through our webhook system and is availabl
           console.error('❌ Webhook processing error:', webhookError);
           
           // Fallback: Create a basic document entry even if processing fails
-          serverExtractedText = `PDF Document Analysis
+          serverExtractedText = `Document Analysis
 
-This PDF document has been successfully uploaded and is ready for analysis.
+This document has been successfully uploaded and is ready for analysis.
 
 Note: The document processing encountered an issue, but the file is available for reference. You can still:
 - Ask questions about the document

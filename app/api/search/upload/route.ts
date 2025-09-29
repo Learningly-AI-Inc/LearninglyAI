@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       .from('user_content')
       .insert({
         user_id: user.id,
-        content_type: ext === 'pdf' ? 'pdf' : ext === 'docx' ? 'docx' : 'txt',
+        content_type: ext === 'pdf' ? 'pdf' : ext === 'docx' ? 'docx' : (ext === 'png' || ext === 'jpg' || ext === 'jpeg') ? 'image' : 'txt',
         content_url: readingData?.fileUrl || '',
         status: 'completed'
       })
