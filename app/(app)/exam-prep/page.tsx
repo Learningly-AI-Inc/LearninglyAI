@@ -115,10 +115,16 @@ function ExamPrepSelection() {
   const [uploadedFiles, setUploadedFiles] = useState<Array<{ title?: string; fileUrl?: string; documentId?: string }>>([])
 
   const handleModeSelect = (mode: StudyMode["id"]) => {
-    setSelectedMode(mode);
-    if (mode === 'quiz') {
-      setShowUploader(true)
+    // Direct navigation per request
+    if (mode === 'full-length') {
+      router.push('/exam-prep/full-exam');
+      return;
     }
+    if (mode === 'quiz') {
+      router.push('/exam-prep/full-exam?mode=quiz');
+      return;
+    }
+    setSelectedMode(mode);
   };
 
   const handleStartStudy = async () => {
@@ -128,10 +134,7 @@ function ExamPrepSelection() {
 
     setIsLoading(true);
 
-    if (selectedMode === "full-length") {
-      router.push("/exam-prep/full-length");
-      return;
-    }
+    // full-length now navigates immediately on card click
 
     // Navigate to the study session (online exam)
     // Pass a lightweight flag; server-side will fetch uploaded files for the user
@@ -154,7 +157,7 @@ function ExamPrepSelection() {
               Take Full Exam Prep with Learningly
             </h1>
             <p className="text-base md:text-lg text-slate-600 max-w-2xl mx-auto">
-              Choose a streamlined path to practice: generate full PDF exams in your professor’s style or create a long, timed online exam.
+              Choose a streamlined path: go straight into Full-Length PDF prep or start an Online Exam.
             </p>
           </motion.div>
 
