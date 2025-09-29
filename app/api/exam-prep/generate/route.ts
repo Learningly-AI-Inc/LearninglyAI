@@ -351,7 +351,8 @@ export async function POST(request: NextRequest) {
     for (let examIndex = 0; examIndex < config.numExams; examIndex++) {
       for (const examType of examTypes) {
         const isRapidFire = examType === 'rapid-fire';
-        const questionsPerExam = isRapidFire ? Math.min(config.numMCQ, 10) : config.numMCQ; // Rapid-fire has fewer questions
+        // Respect MCQ-only unless instructions explicitly ask for mixed
+        const questionsPerExam = isRapidFire ? Math.min(config.numMCQ, 10) : config.numMCQ;
         const duration = isRapidFire ? Math.min(config.examDuration, 30) : config.examDuration; // Rapid-fire is shorter
         
         const examPrompt = `
@@ -434,7 +435,7 @@ DYNAMIC GENERATION RULES:
 6. Maintain the same question complexity and style as samples
 7. Use the same terminology and language patterns
 8. Questions should be appropriate for the ${duration}-minute duration
-9. ${isRapidFire ? 'For rapid-fire: Focus on quick recall and fundamental concepts' : 'For full-length: Include complex analytical questions'}
+ 9. ${isRapidFire ? 'For rapid-fire: Focus on quick recall and fundamental concepts and prefer MCQ unless instructions say otherwise' : 'For full-length: Include complex analytical questions; if professor style is MCQ-only, keep it MCQ-only'}
 
 Generate the exam now:`;
 
