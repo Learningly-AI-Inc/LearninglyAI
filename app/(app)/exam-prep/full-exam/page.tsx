@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,9 @@ interface ExamConfig {
 
 export default function FullExamPrepPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const modeParam = searchParams.get('mode');
+  const quizMode = modeParam === 'quiz';
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -59,7 +62,7 @@ export default function FullExamPrepPage() {
     examTitle: '',
     additionalInstructions: '',
     numExams: 10,
-    examType: 'both'
+    examType: quizMode ? 'rapid-fire' : 'both'
   });
   const [generationProgress, setGenerationProgress] = useState(0);
 
@@ -261,7 +264,7 @@ export default function FullExamPrepPage() {
                 {getStepIcon(currentStep)}
                 <div>
                   <h1 className="text-2xl font-bold text-slate-900">{getStepTitle(currentStep)}</h1>
-                  <p className="text-slate-600">Full-Length Exam Preparation</p>
+                  <p className="text-slate-600">{examConfig.examType === 'rapid-fire' ? 'Online Exam Setup' : 'Full-Length Exam Preparation'}</p>
                 </div>
               </div>
             </div>
@@ -436,9 +439,9 @@ export default function FullExamPrepPage() {
                       </Select>
                     </div>
 
-                    {/* Number of PDF Exams */}
+                    {/* Number of Exams / Quiz Sets */}
                     <div className="space-y-2">
-                      <Label htmlFor="numExams">Number of PDF Exams to Generate</Label>
+                      <Label htmlFor="numExams">{examConfig.examType === 'rapid-fire' ? 'Number of Quiz Sets to Generate' : 'Number of PDF Exams to Generate'}</Label>
                       <Select
                         value={examConfig.numExams.toString()}
                         onValueChange={(value) => setExamConfig(prev => ({...prev, numExams: parseInt(value)}))}
@@ -544,7 +547,7 @@ export default function FullExamPrepPage() {
                   <div className="bg-orange-50 p-4 rounded-lg">
                     <h4 className="font-medium text-orange-900 mb-2">Exam Summary</h4>
                     <ul className="text-sm text-orange-800 space-y-1">
-                      <li>• {examConfig.numExams} PDF exam(s) to generate</li>
+                      <li>• {examConfig.numExams} {examConfig.examType === 'rapid-fire' ? 'quiz set(s)' : 'PDF exam(s)'} to generate</li>
                       <li>• {examConfig.numMCQ} Multiple Choice Questions per exam</li>
                       <li>• {examConfig.examDuration} minutes duration per exam</li>
                       <li>• {examConfig.difficulty.charAt(0).toUpperCase() + examConfig.difficulty.slice(1)} difficulty level</li>
