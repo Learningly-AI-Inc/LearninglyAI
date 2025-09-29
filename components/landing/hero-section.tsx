@@ -32,14 +32,14 @@ export const HeroSection: React.FC = () => {
             <div className="text-center lg:text-left">
               <SlideIn direction="down" delay={0.1}>
                 <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight mb-3">
-                  Stop cramming. <span className="text-blue-500">Start learning smarter.</span>
+                  One app. <span className="text-blue-500">All your study tools.</span>
                 </h1>
               </SlideIn>
               
               <SlideIn direction="down" delay={0.3}>
                 <div className="max-w-xl mx-auto lg:mx-0 mb-8">
                   <p className="text-lg text-gray-300 leading-relaxed">
-                    Learningly helps you ace exams. Summarize, write, solve, and study—all in one platform.
+                    Read, write, search, manage schedule, and ace exams—smarter, faster, cheaper.
                   </p>
                 </div>
               </SlideIn>
@@ -83,16 +83,15 @@ export const HeroSection: React.FC = () => {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
             >
-              <video
-                autoPlay
-                muted
-                loop
+              <Image 
+                src="/learningly_dashboard.png" 
+                alt="Learningly dashboard preview"
+                width={1200}
+                height={800}
                 className="rounded-2xl shadow-2xl w-full h-auto"
                 style={{ maxWidth: '800px' }}
-              >
-                <source src="/videos/AI_Transforms_Learning_Chaos_to_Clarity.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
+                priority
+              />
             </motion.div>
           </div>
         </div>

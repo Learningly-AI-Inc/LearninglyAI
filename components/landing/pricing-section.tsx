@@ -1,11 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { Check, Star, X, Coffee, Zap, Crown, ArrowRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ShinyText } from '@/components/react-bits';
@@ -14,72 +12,73 @@ import { useSubscription } from '@/hooks/use-subscription';
 
 const plans = [
   {
-    id: "free",
-    name: "Free",
+    id: "free", // handled client-side to redirect to signup
+    name: "Starter",
     description: "Perfect for getting started",
     monthlyPrice: 0,
     yearlyPrice: 0,
     features: [
-      "10 AI requests per day",
-      "3 document uploads per day", 
-      "50 search queries per day",
-      "5 exam sessions per day",
+      "3 document uploads/week for reading",
+      "3 tries/week in the writing part",
+      "10 search queries/week",
+      "No exam sessions",
       "100MB storage",
-      "Basic summaries and quizzes",
-      "Email support",
+      "Basic summaries & quizzes",
+      "3 days auto calendar support",
     ],
     limitations: [],
     isPopular: false,
-    image: "/images/landing/pricing/pricing-free-plan.png",
-    icon: Star
+    icon: Star,
+    checkoutPlanId: "free",
   },
   {
-    id: "freemium",
-    name: "Freemium",
-    description: "Advanced features with expanded limits",
-    monthlyPrice: 20,
-    yearlyPrice: 200,
+    id: "pro",
+    name: "Pro",
+    description: "Best for active students who need more power",
+    monthlyPrice: 15,
+    yearlyPrice: 0,
     features: [
-      "100 AI requests per day",
-      "20 document uploads per day",
-      "500 search queries per day", 
-      "50 exam sessions per day",
+      "50 documents uploaded/day in reading",
+      "10,000 words/day in writing",
+      "200 search queries/day",
+      "20 exam sessions/day",
       "1GB storage",
+      "Advanced analytics & insights",
+      "Unlimited auto calendar",
       "Priority support",
-      "Advanced analytics",
-      "Custom AI models",
+      "Access to custom AI models",
     ],
     limitations: [],
     isPopular: true,
-    image: "/images/landing/pricing/pricing-premium-plan.png",
-    icon: Zap
+    icon: Zap,
+    // maps to server-side plan name
+    checkoutPlanId: "freemium",
   },
   {
-    id: "premium", 
-    name: "Premium",
-    description: "Unlimited access for power users",
-    monthlyPrice: 100,
-    yearlyPrice: 1000,
+    id: "elite", 
+    name: "Elite",
+    description: "Best Value — Save 45%",
+    monthlyPrice: 0,
+    yearlyPrice: 100,
     features: [
+      "Everything in Pro, plus:",
       "Unlimited AI requests",
       "Unlimited document uploads",
       "Unlimited search queries",
-      "Unlimited exam sessions", 
-      "10GB storage",
-      "Priority support",
-      "Custom AI models",
+      "Unlimited exam sessions",
+      "100GB storage",
       "Bulk processing",
       "API access",
+      "VIP support",
     ],
     limitations: [],
     isPopular: false,
-    image: "/images/landing/pricing/pricing-premium-plan.png",
-    icon: Crown
+    icon: Crown,
+    checkoutPlanId: "premium_yearly",
   }
 ];
 
 export const PricingSection: React.FC = () => {
-  const [isYearly, setIsYearly] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const { user } = useAuth();
   const { subscription, createCheckoutSession, loading: subscriptionLoading } = useSubscription();
@@ -98,8 +97,8 @@ export const PricingSection: React.FC = () => {
     console.log('Creating Stripe checkout session for:', planId);
     
     try {
-      // Send yearly variant when yearly toggle is active for premium plan
-      const selectedPlan = isYearly && planId === 'premium' ? 'premium_yearly' : planId;
+      // Map UI plan ids to server plan ids
+      const selectedPlan = planId === 'pro' ? 'freemium' : planId === 'elite' ? 'premium_yearly' : planId;
       // For landing page, create checkout session directly without requiring auth
       const response = await fetch('/api/subscriptions/create-checkout-guest', {
         method: 'POST',
@@ -155,26 +154,6 @@ export const PricingSection: React.FC = () => {
             <p className="text-lg text-gray-600 leading-relaxed mb-8">
               Unlock the full potential of AI-powered learning with our flexible subscription plans
             </p>
-            
-            {/* Billing Toggle */}
-            <div className="flex items-center justify-center space-x-4 mb-8">
-              <span className={cn("text-sm font-medium", !isYearly ? "text-gray-900" : "text-gray-500")}>
-                Monthly
-              </span>
-              <Switch
-                checked={isYearly}
-                onCheckedChange={setIsYearly}
-                className="data-[state=checked]:bg-blue-600"
-              />
-              <span className={cn("text-sm font-medium", isYearly ? "text-gray-900" : "text-gray-500")}>
-                Yearly
-              </span>
-              {isYearly && (
-                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
-                  Save 17%
-                </span>
-              )}
-            </div>
           </motion.div>
         </div>
 
@@ -191,7 +170,7 @@ export const PricingSection: React.FC = () => {
                 "relative flex flex-col rounded-2xl p-8 border-2 transition-all duration-300 h-full",
                 plan.isPopular
                   ? "bg-blue-600 border-blue-600 shadow-xl hover:shadow-2xl"
-                  : plan.name.toLowerCase() === currentPlan
+                  : (plan.id === 'pro' && currentPlan === 'freemium') || (plan.id === 'elite' && currentPlan === 'premium')
                     ? "bg-green-50 border-green-500 shadow-lg hover:shadow-xl"
                     : "bg-white border-gray-200 shadow-lg hover:shadow-xl"
               )}
@@ -238,17 +217,17 @@ export const PricingSection: React.FC = () => {
               </div>
 
               <div className="mb-8 text-center">
-                {plan.monthlyPrice === 0 ? (
+                {plan.monthlyPrice === 0 && plan.yearlyPrice === 0 ? (
                   <div className={cn("text-4xl font-bold", plan.isPopular ? "text-white" : "text-gray-900")}>
                     Free
                   </div>
                 ) : (
                   <div className="flex items-baseline justify-center">
                     <span className={cn("text-4xl font-bold", plan.isPopular ? "text-white" : "text-gray-900")}>
-                      ${isYearly ? plan.yearlyPrice : plan.monthlyPrice}
+                      ${plan.yearlyPrice ? plan.yearlyPrice : plan.monthlyPrice}
                     </span>
                     <span className={cn("ml-2 text-sm", plan.isPopular ? "text-blue-100" : "text-gray-600")}>
-                      / {isYearly ? 'year' : 'month'}
+                      / {plan.yearlyPrice ? 'year' : 'month'}
                     </span>
                   </div>
                 )}
@@ -268,12 +247,12 @@ export const PricingSection: React.FC = () => {
               <Button 
                 size="lg" 
                 onClick={() => handleUpgrade(plan.id)}
-                disabled={subscriptionLoading || loadingPlanId === plan.id || plan.name.toLowerCase() === currentPlan}
+                disabled={subscriptionLoading || loadingPlanId === plan.id || (plan.id === 'pro' && currentPlan === 'freemium') || (plan.id === 'elite' && currentPlan === 'premium')}
                 className={cn(
                   "w-full font-semibold py-3 transition-all duration-300",
                   plan.isPopular
                     ? "bg-white text-blue-600 hover:bg-gray-50"
-                    : plan.name.toLowerCase() === currentPlan
+                    : (plan.id === 'pro' && currentPlan === 'freemium') || (plan.id === 'elite' && currentPlan === 'premium')
                       ? "bg-green-500 text-white cursor-not-allowed"
                       : "bg-blue-600 text-white hover:bg-blue-700"
                 )}
@@ -285,9 +264,9 @@ export const PricingSection: React.FC = () => {
                   </>
                 ) : subscriptionLoading ? (
                   "Loading..."
-                ) : plan.name.toLowerCase() === currentPlan ? (
+                ) : (plan.id === 'pro' && currentPlan === 'freemium') || (plan.id === 'elite' && currentPlan === 'premium') ? (
                   "Current Plan"
-                ) : plan.name === "Free" ? (
+                ) : plan.id === "free" ? (
                   user ? "Get Started" : "Sign Up Free"
                 ) : (
                   <>

@@ -81,11 +81,11 @@ const testimonials = [
 ];
 
 const TestimonialCard = ({ name, degree, university, text, avatar }: typeof testimonials[0]) => (
-  <div className="relative h-full w-96 flex-shrink-0 rounded-2xl p-6 bg-gradient-to-br from-gray-900/50 to-gray-800/30 border border-white/10 shadow-lg hover:shadow-2xl hover:border-electric-blue/30 transition-all duration-300">
+  <div className="relative h-full w-96 flex-shrink-0 rounded-2xl p-6 bg-gradient-to-br from-gray-800/60 via-gray-900/70 to-black/80 border border-white/10 backdrop-blur-md shadow-xl hover:shadow-2xl hover:border-blue-400/40 transition-all duration-300">
     <div className="flex items-center gap-4 mb-4">
       <Avatar className="h-12 w-12">
         <AvatarImage src={avatar} alt={name} />
-        <AvatarFallback className="bg-gradient-to-r from-electric-blue to-purple text-white font-bold">
+        <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold">
           {name.split(' ').map(n => n[0]).join('')}
         </AvatarFallback>
       </Avatar>
@@ -94,7 +94,7 @@ const TestimonialCard = ({ name, degree, university, text, avatar }: typeof test
         <p className="text-sm text-gray-400">{degree}, {university}</p>
       </div>
     </div>
-    <p className="text-gray-300 text-base leading-relaxed">{text}</p>
+    <p className="text-gray-200 text-base leading-relaxed">{text}</p>
     <div className="mt-4 flex gap-1">
       {[...Array(5)].map((_, i) => (
         <Star key={i} size={16} className="fill-yellow-400 text-yellow-400" />
@@ -113,7 +113,7 @@ export const TestimonialsSection: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <span className="inline-block px-4 py-2 bg-gradient-to-r from-electric-blue to-purple text-white text-sm font-bold rounded-full mb-6">
+            <span className="inline-block px-4 py-2 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-white text-sm font-bold rounded-full mb-6">
               Real Student Stories
             </span>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-4">
@@ -122,7 +122,7 @@ export const TestimonialsSection: React.FC = () => {
                 text="achieving their goals" 
                 disabled={false} 
                 speed={3} 
-                className="text-transparent bg-clip-text bg-gradient-to-r from-electric-blue via-purple to-lime-green font-extrabold"
+                className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 font-extrabold"
               />
               {' '}with Learningly
             </h2>
@@ -138,8 +138,8 @@ export const TestimonialsSection: React.FC = () => {
               <TestimonialCard key={testimonial.name} {...testimonial} />
             ))}
           </Marquee>
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-1/4 bg-gradient-to-r from-background"></div>
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-1/4 bg-gradient-to-l from-background"></div>
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-1/4 bg-gradient-to-r from-black via-black/70 to-transparent"></div>
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-1/4 bg-gradient-to-l from-black via-black/70 to-transparent"></div>
         </div>
       </div>
     </section>
