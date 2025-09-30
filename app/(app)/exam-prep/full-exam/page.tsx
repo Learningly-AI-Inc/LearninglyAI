@@ -666,7 +666,14 @@ function FullExamPrepPageContent() {
 
 export default function FullExamPrepPage() {
   return (
-    <Suspense fallback={<div />}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading exam prep...</p>
+        </div>
+      </div>
+    }>
       <FullExamPrepPageContent />
     </Suspense>
   );
