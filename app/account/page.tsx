@@ -7,7 +7,7 @@ import { Toaster } from 'sonner'
 import { FadeContent } from '@/components/react-bits/fade-content'
 import { SlideIn } from '@/components/react-bits/slide-in'
 import ShinyText from '@/components/react-bits/shiny-text'
-import { BookOpen, Brain, Sparkles, Shield, Users, Zap } from 'lucide-react'
+import { BookOpen, Brain, Sparkles } from 'lucide-react'
 import { UnifiedAuthCard } from '@/components/auth'
 
 function AccountContent() {
@@ -84,11 +84,6 @@ function AccountContent() {
     }
   ]
 
-  const trustIndicators = [
-    { icon: Shield, label: "Secure & Private", color: "text-green-600" },
-    { icon: Users, label: "50k+ Users", color: "text-blue-600" },
-    { icon: Zap, label: "Fast Setup", color: "text-yellow-600" }
-  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 overflow-x-hidden">
@@ -143,19 +138,6 @@ function AccountContent() {
               ))}
             </div>
 
-            {/* Trust Indicators */}
-            <SlideIn direction="left" delay={0.6}>
-              <div className="pt-4 lg:pt-6 border-t border-gray-200">
-                <div className="flex flex-wrap gap-4 lg:gap-6">
-                  {trustIndicators.map((indicator, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <indicator.icon className={`h-4 w-4 lg:h-5 lg:w-5 ${indicator.color}`} />
-                      <span className="text-xs lg:text-sm font-medium text-gray-700">{indicator.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </SlideIn>
           </div>
 
           {/* Right Panel - Auth Form */}
