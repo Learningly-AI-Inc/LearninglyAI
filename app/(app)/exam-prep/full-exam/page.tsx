@@ -1,6 +1,8 @@
 "use client"
 
-import { Suspense, useState, useRef } from "react";
+export const dynamic = 'force-dynamic'
+
+import { Suspense, useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,11 +47,8 @@ interface ExamConfig {
   examType: 'full-length' | 'rapid-fire' | 'both';
 }
 
-function FullExamPrepPageContent() {
+function FullExamPrepPageContent({ quizMode }: { quizMode: boolean }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const modeParam = searchParams.get('mode');
-  const quizMode = modeParam === 'quiz';
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -64,6 +63,13 @@ function FullExamPrepPageContent() {
     numExams: 10,
     examType: quizMode ? 'rapid-fire' : 'both'
   });
+
+  useEffect(() => {
+    setExamConfig(prev => ({
+      ...prev,
+      examType: quizMode ? 'rapid-fire' : 'both'
+    }));
+  }, [quizMode]);
   const [generationProgress, setGenerationProgress] = useState(0);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -666,15 +672,25 @@ function FullExamPrepPageContent() {
 
 export default function FullExamPrepPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading exam prep...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading exam prep...</p>
+          </div>
         </div>
-      </div>
-    }>
-      <FullExamPrepPageContent />
+      }
+    >
+      <ExamPrepPageInner />
     </Suspense>
   );
+}
+
+function ExamPrepPageInner() {
+  const searchParams = useSearchParams();
+  const modeParam = searchParams.get('mode');
+  const quizMode = modeParam === 'quiz';
+
+  return <FullExamPrepPageContent quizMode={quizMode} />;
 }

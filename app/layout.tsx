@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import "@/components/writing/editor-styles.css"; // Import the editor styles
 import { cn } from "@/lib/utils";
@@ -92,7 +93,9 @@ export default function RootLayout({
       >
         <GlobalLoadingProvider>
           <div className="relative flex min-h-screen flex-col">
-            <div className="flex-1">{children}</div>
+            <Suspense fallback={null}>
+              <div className="flex-1">{children}</div>
+            </Suspense>
           </div>
           <Toaster />
         </GlobalLoadingProvider>

@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = 'force-dynamic'
+
 import React from "react"
 import { DocumentViewer } from "@/components/reading/document-viewer"
 import { DocumentProvider } from "@/components/reading/document-context"
