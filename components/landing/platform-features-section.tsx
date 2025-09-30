@@ -9,7 +9,6 @@ import {
   Search, 
   PenTool, 
   Brain, 
-  Calculator,
   ArrowRight,
   FileText,
   BarChart3
@@ -40,14 +39,6 @@ const features = [
     color: "text-green-400",
     bgColor: "bg-green-900/20",
     className: "lg:col-span-1"
-  },
-  {
-    icon: Calculator,
-    title: "STEM Solver & Search",
-    description: "Solve math problems step-by-step, search through your notes instantly, and get visual explanations for complex concepts.",
-    color: "text-red-400",
-    bgColor: "bg-red-900/20",
-    className: "lg:col-span-2"
   },
   {
     icon: Search,
