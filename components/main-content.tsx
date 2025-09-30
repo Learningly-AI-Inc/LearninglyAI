@@ -88,7 +88,7 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
   const initials = getInitials(displayName).toUpperCase()
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100/50">
+    <div className="min-h-screen bg-white">
       {/* Header */}
       <header className="h-[70px] border-b border-border/50 bg-white/80 backdrop-blur-xl px-6 flex items-center justify-between sticky top-0 z-30 modern-shadow">
         <div className="flex items-center gap-3">
@@ -125,7 +125,7 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
       {/* Dashboard Content */}
       <main className="p-6 space-y-8">
         <div className="space-y-2">
-          <h1 className="text-4xl font-bold gradient-text">
+          <h1 className="text-4xl font-bold text-blue-700">
             Welcome back, {firstName}
           </h1>
           <p className="text-lg text-muted-foreground">
@@ -143,7 +143,7 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
               transition={{ duration: 0.5, delay: 0.1 * index }}
               className={card.className}
             >
-              <Card className={`h-full group card-hover bg-gradient-to-br ${card.gradient} border border-white/20 backdrop-blur-sm modern-shadow-lg overflow-hidden relative`}>
+              <Card className={`h-full group card-hover bg-white border border-border/50 modern-shadow-lg overflow-hidden relative`}>
                 <Link href={card.href} className="block h-full p-6">
                   <div className="absolute top-4 right-4">
                     <Badge variant={card.badgeVariant} className="text-xs">
@@ -153,11 +153,11 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
                   
                   <div className="flex flex-col h-full">
                     <div className="flex items-start mb-4">
-                      <div className={`p-3 ${card.iconBg} rounded-xl mr-4 text-white shadow-lg`}>
+                      <div className={`p-3 bg-blue-600 rounded-xl mr-4 text-white shadow-lg`}>
                         <card.icon className="h-6 w-6" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-bold text-xl text-foreground mb-2 group-hover:gradient-text transition-all duration-300">
+                        <h4 className="font-bold text-xl text-foreground mb-2">
                           {card.title}
                         </h4>
                       </div>
@@ -169,16 +169,15 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
                     
                     <div className="mt-auto">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-primary group-hover:text-primary/80 transition-colors">
+                        <span className="text-sm font-semibold text-blue-700 group-hover:text-blue-600 transition-colors">
                           {card.cta}
                         </span>
-                        <ChevronRight className="h-5 w-5 text-primary group-hover:translate-x-1 transition-transform duration-300" />
+                        <ChevronRight className="h-5 w-5 text-blue-700 group-hover:translate-x-1 transition-transform duration-300" />
                       </div>
                     </div>
                   </div>
                   
-                  {/* Subtle gradient overlay on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                  
                 </Link>
               </Card>
             </motion.div>

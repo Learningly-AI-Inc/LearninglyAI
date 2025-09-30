@@ -108,7 +108,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <Suspense fallback={null}>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100/50">
+        <div className="min-h-screen bg-white">
           <AppSidebar
             sidebarCollapsed={sidebarCollapsed}
             setSidebarCollapsed={setSidebarCollapsed}
@@ -133,7 +133,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="md:hidden">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50 bg-white/80 backdrop-blur-sm border border-border/50 hover:bg-white/90 shadow-lg">
+                <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50 bg-white border border-border/50 hover:bg-slate-50 shadow-lg">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
