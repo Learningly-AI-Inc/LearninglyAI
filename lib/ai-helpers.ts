@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { getOpenAIClient } from './openai';
+import { getOpenAIClient, DEFAULT_MODEL } from './openai';
 
 // Initialize the Google Generative AI client with the API key
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '');
@@ -54,42 +54,49 @@ export async function logAIModelCall(
   }
 }
 
-// Function for paraphrasing text with a specific tone using GPT-5
+// Function for paraphrasing text with a specific tone using OpenAI, with Gemini fallback if unchanged
 async function paraphraseText(text: string, tone: string = 'formal'): Promise<string> {
   try {
-    const prompt = `You are a highly skilled assistant trained to paraphrase text. Please follow the instructions carefully:
+    const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9\s]/g, '').trim();
 
-1. **Maintain the Original Meaning**: Ensure that the paraphrased version retains the same meaning, context, and intent as the original text.
-2. **Keep Length Similar**: The length of the paraphrased text should remain approximately the same as the original. Do not significantly shorten or lengthen the content.
-3. **Natural and Clear**: Ensure that the paraphrased text sounds natural, coherent, and fluid. It should be easy to read and understand.
-4. **Optional Tone Adjustment**: If the user specifies, you may adjust the tone of the text (e.g., formal, casual, academic, etc.) but without altering the meaning.
-5. **Preserve Key Concepts**: Retain important terminology, facts, and concepts from the original text, especially if it's technical or factual content.
-6. **Use Markdown Formatting**: When appropriate, use markdown formatting to enhance readability (e.g., **bold** for emphasis, *italics* for stress, lists, etc.).
+    const systemPrompt = `You are a professional paraphraser. Rewrite text while preserving meaning.
+Requirements:
+- Keep a ${tone} tone.
+- Do not copy any sentence verbatim; restructure phrasing.
+- Maintain roughly the same length.
+- Output plain text only (no quotes, no lists, no headings).`;
 
-Paraphrase the following text using a ${tone} tone:
-
-"${text}"`;
+    const userPrompt = `Paraphrase this:
+${text}`;
 
     const openai = getOpenAIClient();
     const completion = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: DEFAULT_MODEL,
       messages: [
-        {
-          role: "user",
-          content: prompt
-        }
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
       ],
       max_completion_tokens: 2000
     });
 
-    const result = completion.choices[0]?.message?.content;
+    let result = completion.choices[0]?.message?.content?.trim() || '';
     if (!result) {
-      throw new Error('No response from GPT-5');
+      throw new Error('No response from OpenAI');
     }
-    
-    return result.trim();
+
+    // If the result is effectively identical to the input, try a Gemini fallback
+    if (normalize(result) === normalize(text)) {
+      const fallbackPrompt = `Rewrite the following text in a ${tone} tone. Do not repeat sentences verbatim. Change wording and sentence structure while keeping the same meaning. Return plain text only.\n\n${text}`;
+      const geminiRes = await geminiModel.generateContent(fallbackPrompt);
+      const geminiText = (await geminiRes.response.text()).trim();
+      if (geminiText && normalize(geminiText) !== normalize(text)) {
+        return geminiText;
+      }
+    }
+
+    return result;
   } catch (error) {
-    console.error('Error paraphrasing text with GPT-5:', error);
+    console.error('Error paraphrasing text:', error);
     throw new Error('Failed to paraphrase text');
   }
 }
@@ -221,7 +228,7 @@ export async function processWithAI(request: AIRequest): Promise<AIResponse> {
     
     // Log the AI model call if a userId is provided
     if (userId) {
-      const modelName = action === 'paraphrase' ? 'gpt-5' : 'gemini';
+      const modelName = action === 'paraphrase' ? 'openai' : 'gemini';
       await logAIModelCall(
         userId,
         modelName,
