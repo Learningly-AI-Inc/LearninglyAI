@@ -13,7 +13,7 @@ import { useSubscription } from '@/hooks/use-subscription';
 const plans = [
   {
     id: "free", // handled client-side to redirect to signup
-    name: "Starter",
+    name: "Free",
     description: "Perfect for getting started",
     monthlyPrice: 0,
     yearlyPrice: 0,
@@ -33,9 +33,9 @@ const plans = [
   },
   {
     id: "pro",
-    name: "Pro",
+    name: "Freemium",
     description: "Best for active students who need more power",
-    monthlyPrice: 15,
+    monthlyPrice: 20,
     yearlyPrice: 0,
     features: [
       "50 documents uploaded/day in reading",
@@ -56,7 +56,7 @@ const plans = [
   },
   {
     id: "elite", 
-    name: "Elite",
+    name: "Premium",
     description: "Best Value — Save 45%",
     monthlyPrice: 0,
     yearlyPrice: 100,
@@ -82,6 +82,7 @@ export const PricingSection: React.FC = () => {
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const { user } = useAuth();
   const { subscription, createCheckoutSession, loading: subscriptionLoading } = useSubscription();
+  const isTestMode = typeof window !== 'undefined' && !!(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '').includes('test');
 
   const handleUpgrade = async (planId: string) => {
     console.log('Landing page button clicked!', { planId, user: !!user });
@@ -98,7 +99,7 @@ export const PricingSection: React.FC = () => {
     
     try {
       // Map UI plan ids to server plan ids
-      const selectedPlan = planId === 'pro' ? 'freemium' : planId === 'elite' ? 'premium_yearly' : planId;
+      const selectedPlan = planId === 'pro' || planId === 'freemium' ? 'freemium' : planId === 'elite' || planId === 'premium' ? 'premium_yearly' : planId;
       // For landing page, create checkout session directly without requiring auth
       const response = await fetch('/api/subscriptions/create-checkout-guest', {
         method: 'POST',
@@ -142,6 +143,11 @@ export const PricingSection: React.FC = () => {
   return (
     <section id="pricing" className="py-24 bg-white">
       <div className="container mx-auto px-6">
+        {isTestMode && (
+          <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 text-yellow-800 px-4 py-3 text-sm">
+            Test Mode: Payments use Stripe test environment. Replace keys to go live.
+          </div>
+        )}
         <div className="text-center max-w-4xl mx-auto mb-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

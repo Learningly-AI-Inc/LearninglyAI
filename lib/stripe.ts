@@ -1,8 +1,7 @@
 import Stripe from 'stripe'
 
-// Initialize Stripe with your secret key
+// Initialize Stripe with your secret key. Use library default API version to avoid breaking changes.
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-08-27.basil',
   typescript: true,
 })
 

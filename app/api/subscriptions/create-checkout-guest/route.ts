@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 // Import Stripe server-side directly to avoid bundling server secrets into the client
 import Stripe from 'stripe'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2025-08-27.basil',
   typescript: true,
 })
-import { getPriceIdByPlan } from '@/lib/stripe'
+import { getPriceIdByPlan, STRIPE_CONFIG } from '@/lib/stripe'
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,8 +26,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get price ID for the plan
-    const priceId = getPriceIdByPlan(plan.toLowerCase())
+    // Resolve plan with fallback: if yearly premium ID is missing, fall back to monthly premium
+    const normalizedPlan = plan.toLowerCase()
+    const resolvedPlan = (normalizedPlan === 'premium_yearly' && !STRIPE_CONFIG.priceIds.premium_yearly)
+      ? 'premium'
+      : normalizedPlan
+
+    // Get price ID for the resolved plan with explicit validation
+    let priceId: string
+    try {
+      priceId = getPriceIdByPlan(resolvedPlan)
+    } catch (e: any) {
+      console.error('Price ID resolution failed:', e?.message || e)
+      return NextResponse.json(
+        { 
+          error: `Stripe price ID not configured for plan: ${resolvedPlan}. Please set the corresponding env var (e.g., STRIPE_FREEMIUM_PRICE_ID, STRIPE_PREMIUM_PRICE_ID, or STRIPE_PREMIUM_YEARLY_PRICE_ID).` 
+        },
+        { status: 400 }
+      )
+    }
+
+    if (!priceId || typeof priceId !== 'string' || !priceId.trim()) {
+      console.error('Empty or invalid price ID for plan:', resolvedPlan)
+      return NextResponse.json(
+        { error: 'Invalid Stripe price ID. Please verify your environment variables.' },
+        { status: 400 }
+      )
+    }
     
     console.log('Creating checkout session with price ID:', priceId)
 
@@ -81,7 +105,7 @@ export async function POST(request: NextRequest) {
       // Customer will be created automatically by Stripe
       // We'll handle user creation in the webhook
       metadata: {
-        plan: plan.toLowerCase(),
+        plan: resolvedPlan,
         source: 'landing_page',
         price_type: price.type,
         billing_interval: price.recurring.interval
@@ -92,9 +116,29 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ checkoutUrl: session.url })
   } catch (error) {
-    console.error('Error creating guest checkout session:', error)
+    const keyMode = (process.env.STRIPE_SECRET_KEY || '').startsWith('sk_live') ? 'live' : 'test'
+    const rawMsg = (error as any)?.raw?.message || (error as Error)?.message || String(error)
+    console.error('Error creating guest checkout session:', rawMsg)
+
+    // Helpful diagnostics for common misconfigurations
+    if (/No such price/i.test(rawMsg) || /resource_missing/i.test((error as any)?.type || '')) {
+      return NextResponse.json(
+        { 
+          error: `Stripe could not find the specified price. Ensure the price ID exists in the ${keyMode} environment and matches your env vars.`
+        },
+        { status: 400 }
+      )
+    }
+
+    if (/Invalid API Key provided/i.test(rawMsg)) {
+      return NextResponse.json(
+        { error: 'Invalid Stripe API key. Please verify STRIPE_SECRET_KEY.' },
+        { status: 401 }
+      )
+    }
+
     return NextResponse.json(
-      { error: 'Failed to create checkout session' },
+      { error: `Failed to create checkout session: ${rawMsg}` },
       { status: 500 }
     )
   }
