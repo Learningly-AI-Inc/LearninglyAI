@@ -45,6 +45,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
   onTabChange
 }) => {
   const [copySuccess, setCopySuccess] = useState(false);
+  const [expandedIssueIds, setExpandedIssueIds] = useState<Record<string, boolean>>({});
 
   const handleCopyText = async () => {
     try {
@@ -69,7 +70,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
   
   return (
     <Card className="shadow-sm rounded-lg h-full border bg-white overflow-hidden">
-      <CardHeader className="bg-white border-b">
+      <CardHeader className="bg-white border-b sticky top-0 z-10">
         <CardTitle className="flex items-center justify-between text-base">
           <div className="flex items-center">
             <span className="font-semibold text-gray-800">Output</span>
@@ -87,7 +88,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-0 h-full">
+      <CardContent className="p-0 h-full min-h-0">
         {/* Keep internal tab state but hide the visual tabs; the toolbar will control it */}
         <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col min-h-0">
           <div className="flex-1 px-4 pb-4 overflow-auto">
@@ -201,7 +202,16 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                           <div className="flex items-center gap-2 mb-1">
                             <Badge variant="destructive">{issue.type}</Badge>
                           </div>
-                          <div className="text-xs text-gray-700 truncate"><span className="line-through text-red-600 mr-2">{issue.original}</span><span className="text-green-700 font-medium">{issue.suggestion}</span></div>
+                          <div className={`text-xs text-gray-700 ${expandedIssueIds[issue.id] ? '' : 'truncate'}`}>
+                            <span className="line-through text-red-600 mr-2">{issue.original}</span>
+                            <span className="text-green-700 font-medium">{issue.suggestion}</span>
+                          </div>
+                          <button
+                            className="text-[11px] text-blue-600 hover:underline mt-1"
+                            onClick={() => setExpandedIssueIds((prev) => ({ ...prev, [issue.id]: !prev[issue.id] }))}
+                          >
+                            {expandedIssueIds[issue.id] ? 'Collapse' : 'View full'}
+                          </button>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <Button size="sm" variant="outline" className="h-7 px-2 border-gray-300 text-green-700" onClick={() => onAccept(issue.suggestion)}>Accept</Button>

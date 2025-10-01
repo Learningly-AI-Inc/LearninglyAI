@@ -31,6 +31,7 @@ const WritingPageClient = () => {
   const [tone, setTone] = useState<string>("Formal")
   const [englishType, setEnglishType] = useState<string>("American")
   const [isProcessing, setIsProcessing] = useState<boolean>(false)
+  const [processingAction, setProcessingAction] = useState<'paraphrase' | 'grammar' | 'shorten' | 'expand' | null>(null)
   const [collapseSuggestions, setCollapseSuggestions] = useState<boolean>(false)
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null)
   const [lastProcessedFeature, setLastProcessedFeature] = useState<string>("")
@@ -44,10 +45,10 @@ const WritingPageClient = () => {
   
   // Using Sonner toast directly
   
-  // Function to handle paraphrasing
-  const handleParaphrase = async () => {
-    // Use the entire editor content for paraphrasing
-    let textToParaphrase = editorContent;
+  // Function to handle paraphrasing (optionally re-paraphrase an existing suggestion)
+  const handleParaphrase = async (sourceText?: string) => {
+    // Use provided source text (e.g., current suggestion) or entire editor content
+    let textToParaphrase = sourceText ?? editorContent;
     
     // Strip HTML tags to get plain text for paraphrasing
     if (textToParaphrase) {
@@ -65,6 +66,7 @@ const WritingPageClient = () => {
     // Auto-switch to paraphrase tab
     setActiveTab("paraphrase");
     setIsProcessing(true);
+    setProcessingAction('paraphrase');
     
     try {
       console.log('Paraphrasing entire content with tone:', tone); // Debug log
@@ -87,10 +89,12 @@ const WritingPageClient = () => {
       setSuggestedText(data.result);
       setLastProcessedFeature("Paraphrase");
       setIsProcessing(false);
+      setProcessingAction(null);
       toast.info(`Entire content paraphrased successfully in ${tone} tone!`);
     } catch (error) {
       console.error("Error during paraphrasing:", error);
       setIsProcessing(false);
+      setProcessingAction(null);
       toast.error("An error occurred while paraphrasing. Please try again.");
     }
   };
@@ -135,6 +139,7 @@ const WritingPageClient = () => {
     // Auto-switch to grammar tab
     setActiveTab("grammar");
     setIsProcessing(true);
+    setProcessingAction('grammar');
     
     try {
       // Call our API for grammar checking
@@ -162,9 +167,11 @@ const WritingPageClient = () => {
         toast.success('No grammar issues found. Your text looks great!');
       }
       setIsProcessing(false);
+      setProcessingAction(null);
     } catch (error) {
       console.error("Error during grammar check:", error);
       setIsProcessing(false);
+      setProcessingAction(null);
       toast.error("An error occurred while checking grammar. Please try again.");
     }
   };
@@ -626,6 +633,7 @@ const WritingPageClient = () => {
           onLengthAdjustClick={openLengthAdjustDialog}
           selectedTone={tone}
           isProcessing={isProcessing}
+          processingAction={processingAction}
           hasContent={editorContent.trim().length > 0}
           lastProcessedFeature={lastProcessedFeature}
           onSelectOutput={(panel) => setActiveTab(panel)}
@@ -655,7 +663,7 @@ const WritingPageClient = () => {
               onReject={handleRejectSuggestion}
               onAcceptAll={handleAcceptAll}
               onClear={handleClearSuggestions}
-              onTryAgain={handleParaphrase}
+              onTryAgain={() => handleParaphrase(suggestedText || editorContent)}
               isProcessing={isProcessing}
               suggestedText={suggestedText}
               grammarIssues={grammarIssues}

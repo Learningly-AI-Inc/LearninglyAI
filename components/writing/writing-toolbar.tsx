@@ -37,6 +37,8 @@ interface WritingToolbarProps {
   onLengthAdjustClick: (action: 'shorten' | 'expand') => void;
   selectedTone: string;
   isProcessing: boolean;
+  // Which action is currently processing; used to scope spinners to the right button
+  processingAction?: 'paraphrase' | 'grammar' | 'shorten' | 'expand' | null;
   hasContent: boolean;
   lastProcessedFeature?: string;
   onSelectOutput: (panel: 'paraphrase' | 'grammar' | 'detector' | 'checker') => void;
@@ -53,6 +55,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
   onLengthAdjustClick,
   selectedTone,
   isProcessing,
+  processingAction,
   hasContent,
   lastProcessedFeature,
   onSelectOutput,
@@ -73,13 +76,13 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
                 size="sm"
                 onClick={onParaphrase}
                 disabled={isProcessing || !hasContent}
-                className="bg-gray-900 hover:bg-black text-white shadow-md hover:shadow-lg transition-all duration-200 border-0 px-3 py-2 h-9"
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-200 border-0 px-3 py-2 h-9"
                 onMouseDown={() => onSelectOutput('paraphrase')}
               >
-                {isProcessing ? (
+                {isProcessing && processingAction === 'paraphrase' ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Processing...
+                    Paraphrasing...
                   </>
                 ) : (
                   <>
@@ -103,11 +106,20 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
                 size="sm"
                 onClick={onCheckGrammar}
                 disabled={isProcessing || !hasContent}
-                className="bg-gray-800 hover:bg-gray-900 text-white shadow-md hover:shadow-lg transition-all duration-200 border-0 px-3 py-2 h-9"
+                className="bg-sky-600 hover:bg-sky-700 text-white shadow-md hover:shadow-lg transition-all duration-200 border-0 px-3 py-2 h-9"
                 onMouseDown={() => onSelectOutput('grammar')}
               >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Check Grammar
+                {isProcessing && processingAction === 'grammar' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Check Grammar
+                  </>
+                )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>

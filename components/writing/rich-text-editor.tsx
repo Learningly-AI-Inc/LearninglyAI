@@ -133,7 +133,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     <Card className="w-full border shadow-sm flex flex-col">
       <CardContent className="p-0 flex-grow flex flex-col">
         <div
-          className={`editor-wrapper ${readOnly ? "read-only" : ""} flex-grow flex flex-col`}
+          className={`editor-wrapper ${readOnly ? "read-only" : ""} flex-grow flex flex-col min-h-0`}
           style={{ 
             height: height,
             maxHeight: height,
@@ -144,7 +144,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             ref={editorRef}
             editorState={editorState}
             toolbarClassName="toolbar-class"
-            wrapperClassName="wrapper-class flex-grow flex flex-col"
+            wrapperClassName="wrapper-class flex-grow flex flex-col min-h-0"
             editorClassName="editor-class p-4 flex-grow overflow-auto"
             onEditorStateChange={onEditorStateChange}
             placeholder={placeholder}

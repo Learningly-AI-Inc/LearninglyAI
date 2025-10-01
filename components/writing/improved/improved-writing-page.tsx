@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 
 interface ImprovedWritingPageProps {
   header: React.ReactNode
@@ -67,24 +68,29 @@ export function ImprovedWritingPage({
             </div>
           </div>
         ) : (
-          <div className="h-full grid grid-cols-[minmax(0,1fr)_360px] gap-3 min-h-0">
-            <Card className="h-full flex flex-col shadow-sm">
-              <CardHeader className="p-0">
-                {writingToolbar}
-              </CardHeader>
-              <Separator />
-              <CardContent className="p-0 flex-grow relative">
-                {richTextEditor}
-              </CardContent>
-              <Separator />
-              <div className="p-2 bg-gray-50">
-                {wordCounter}
+          <ResizablePanelGroup direction="horizontal" className="h-full min-h-0 gap-3">
+            <ResizablePanel defaultSize={65} minSize={40} className="min-h-0">
+              <Card className="h-full flex flex-col shadow-sm">
+                <CardHeader className="p-0">
+                  {writingToolbar}
+                </CardHeader>
+                <Separator />
+                <CardContent className="p-0 flex-grow relative min-h-0">
+                  {richTextEditor}
+                </CardContent>
+                <Separator />
+                <div className="p-2 bg-gray-50">
+                  {wordCounter}
+                </div>
+              </Card>
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={35} minSize={24} className="min-h-0">
+              <div className="h-full min-h-0">
+                {aiSuggestionsPanel}
               </div>
-            </Card>
-            <div className="h-full min-h-0">
-              {aiSuggestionsPanel}
-            </div>
-          </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
         )}
       </div>
     </div>
