@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
-import { SubscriptionCard } from '@/components/subscription/subscription-card'
+import { SubscriptionCard } from '@/components/subscription/plan-card'
 import { Container } from '@/components/ui/container'
 import { Badge } from '@/components/ui/badge'
 import { Check, Zap, Crown, Star, ArrowRight } from 'lucide-react'
@@ -35,73 +35,47 @@ export default function PricingPage() {
   const fetchPlans = async () => {
     try {
       // For now, we'll use hardcoded plans since the database isn't set up yet
+      // New structure per request
       const mockPlans: SubscriptionPlan[] = [
         {
-          id: '1',
-          name: 'Free',
-          description: 'Perfect for getting started with basic AI-powered learning tools',
+          id: 'free',
+          name: 'Freemium',
+          description: 'Extremely limited access per month',
           price_cents: 0,
           currency: 'USD',
           interval: 'month',
-          features: {
-            ai_requests: 10,
-            document_uploads: 3,
-            search_queries: 50,
-          },
-          limits: {
-            storage_mb: 100,
-            max_file_size_mb: 10,
-            ai_requests: 10,
-            document_uploads: 3,
-            search_queries: 50,
-            exam_sessions: 5,
-          },
+          features: { ai_requests: 10, document_uploads: 1, search_queries: 20 },
+          limits: { storage_mb: 50, max_file_size_mb: 10, ai_requests: 10, document_uploads: 1, search_queries: 20, exam_sessions: 2 },
         },
         {
-          id: '2',
-          name: 'Freemium',
-          description: 'Advanced features with expanded limits for serious learners',
+          id: 'premium-monthly',
+          name: 'Premium (Monthly)',
+          description: 'Unlimited use per month',
           price_cents: 2000,
           currency: 'USD',
           interval: 'month',
-          features: {
-            ai_requests: 100,
-            document_uploads: 20,
-            search_queries: 500,
-            priority_support: true,
-          },
-          limits: {
-            storage_mb: 1000,
-            max_file_size_mb: 50,
-            ai_requests: 100,
-            document_uploads: 20,
-            search_queries: 500,
-            exam_sessions: 50,
-          },
+          features: { ai_requests: -1, document_uploads: -1, search_queries: -1, priority_support: true },
+          limits: { storage_mb: 5000, max_file_size_mb: 200, ai_requests: -1, document_uploads: -1, search_queries: -1, exam_sessions: -1 },
         },
         {
-          id: '3',
-          name: 'Premium',
-          description: 'Unlimited access with premium features for power users',
+          id: 'premium-yearly',
+          name: 'Premium (Yearly)',
+          description: 'Best value – limited to the first few weeks',
           price_cents: 10000,
           currency: 'USD',
+          interval: 'year',
+          features: { ai_requests: -1, document_uploads: -1, search_queries: -1, priority_support: true },
+          limits: { storage_mb: 10000, max_file_size_mb: 500, ai_requests: -1, document_uploads: -1, search_queries: -1, exam_sessions: -1 },
+        },
+        {
+          id: 'custom',
+          name: 'Custom Model',
+          description: 'Tailored models and enterprise setup – contact us',
+          price_cents: 0,
+          currency: 'USD',
           interval: 'month',
-          features: {
-            ai_requests: -1,
-            document_uploads: -1,
-            search_queries: -1,
-            priority_support: true,
-            custom_models: true,
-            bulk_processing: true,
-          },
-          limits: {
-            storage_mb: 10000,
-            max_file_size_mb: 500,
-            ai_requests: -1,
-            document_uploads: -1,
-            search_queries: -1,
-            exam_sessions: -1,
-          },
+          features: {},
+          limits: { storage_mb: 0, max_file_size_mb: 0, ai_requests: 0, document_uploads: 0, search_queries: 0, exam_sessions: 0 },
         },
       ]
       setPlans(mockPlans)
@@ -165,15 +139,35 @@ export default function PricingPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {plans.map((plan, index) => (
-            <SubscriptionCard
-              key={plan.id}
-              plan={plan}
-              isCurrentPlan={plan.name === currentPlan}
-              isPopular={plan.name === 'Freemium'}
-            />
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-6xl mx-auto">
+          {/* Freemium (free) */}
+          <SubscriptionCard
+            plan={plans.find(p => p.id === 'free')!}
+            isCurrentPlan={currentPlan.toLowerCase().includes('free')}
+            isPopular={false}
+            checkoutPlan={'freemium'}
+          />
+          {/* Premium Monthly – maps to previous freemium price per instruction */}
+          <SubscriptionCard
+            plan={plans.find(p => p.id === 'premium-monthly')!}
+            isCurrentPlan={currentPlan.toLowerCase().includes('freemium')}
+            isPopular={true}
+            checkoutPlan={'freemium'}
+          />
+          {/* Premium Yearly – maps to previous premium price */}
+          <SubscriptionCard
+            plan={plans.find(p => p.id === 'premium-yearly')!}
+            isCurrentPlan={currentPlan.toLowerCase().includes('premium')}
+            isPopular={false}
+            checkoutPlan={'premium_yearly'}
+          />
+          {/* Custom Model – contact */}
+          <SubscriptionCard
+            plan={plans.find(p => p.id === 'custom')!}
+            isCurrentPlan={false}
+            isPopular={false}
+            checkoutPlan={'contact'}
+          />
         </div>
 
         <div className="mt-16 text-center">

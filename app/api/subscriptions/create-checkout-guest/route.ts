@@ -4,7 +4,7 @@ import Stripe from 'stripe'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   typescript: true,
 })
-import { getPriceIdByPlan, STRIPE_CONFIG } from '@/lib/stripe'
+// Avoid importing helpers here to keep this route self-contained and robust
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,11 +26,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Resolve plan with fallback: if yearly premium ID is missing, fall back to monthly premium
+    // Resolve plan; per requirement, premium_yearly maps to premium price id
     const normalizedPlan = plan.toLowerCase()
-    const resolvedPlan = (normalizedPlan === 'premium_yearly' && !STRIPE_CONFIG.priceIds.premium_yearly)
-      ? 'premium'
-      : normalizedPlan
+    const resolvedPlan = normalizedPlan === 'premium_yearly' ? 'premium' : normalizedPlan
+
+    // Resolve Stripe price ID directly from env per plan
+    const getPriceIdByPlan = (p: string): string => {
+      const map: Record<string, string | undefined> = {
+        freemium: process.env.STRIPE_FREEMIUM_PRICE_ID,
+        premium: process.env.STRIPE_PREMIUM_PRICE_ID,
+      }
+      const id = map[p]
+      if (!id) throw new Error(`Missing price id for plan: ${p}`)
+      return id
+    }
 
     // Get price ID for the resolved plan with explicit validation
     let priceId: string

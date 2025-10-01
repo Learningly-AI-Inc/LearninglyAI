@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { subscriptionService } from '@/lib/subscription-service'
-import { getPriceIdByPlan } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase-server'
 
 export async function POST(request: NextRequest) {
@@ -43,8 +42,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get price ID for the plan
-    const priceId = getPriceIdByPlan(plan)
+    // No need to resolve price here; the guest route validates env and price IDs.
 
     // Create checkout session via Stripe via same-origin to avoid cross-domain redirects
     const res = await fetch(`${request.nextUrl.origin}/api/subscriptions/create-checkout-guest`, {
