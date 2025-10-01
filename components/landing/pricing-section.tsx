@@ -35,7 +35,7 @@ const plans = [
     id: "pro",
     name: "Freemium",
     description: "Best for active students who need more power",
-    monthlyPrice: 20,
+    monthlyPrice: 15,
     yearlyPrice: 0,
     features: [
       "50 documents uploaded/day in reading",

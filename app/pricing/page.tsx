@@ -51,7 +51,7 @@ export default function PricingPage() {
           id: 'premium-monthly',
           name: 'Premium (Monthly)',
           description: 'Unlimited use per month',
-          price_cents: 2000,
+          price_cents: 1500,
           currency: 'USD',
           interval: 'month',
           features: { ai_requests: -1, document_uploads: -1, search_queries: -1, priority_support: true },
