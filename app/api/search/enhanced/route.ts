@@ -135,9 +135,32 @@ export async function POST(request: NextRequest) {
     // Prepare system prompt with user personalization
     const systemPrompt = buildSystemPrompt(userRecord, userContent || [])
 
+    // Build conversation context with model-specific style hints
+    const modelStyleHint = (() => {
+      if (model.startsWith('gpt')) {
+        return 'Follow ChatGPT-style formatting: concise sections, headings when useful, bullet lists, and code blocks where appropriate.'
+      }
+      if (model.startsWith('gemini')) {
+        return 'Follow Gemini-style formatting: friendly tone, structured bullets, and short paragraphs optimized for readability.'
+      }
+      if (model.startsWith('claude')) {
+        return 'Follow Claude-style formatting: clear reasoning, numbered steps when explaining processes, and polite tone.'
+      }
+      if (model.startsWith('grok')) {
+        return 'Follow Grok-style formatting: succinct, direct, lightly witty but professional.'
+      }
+      if (model.startsWith('llama')) {
+        return 'Follow Llama-style formatting: straightforward, developer-friendly with examples when helpful.'
+      }
+      if (model.startsWith('deepseek')) {
+        return 'Follow DeepSeek-style formatting: crisp technical explanations and compact bullet points.'
+      }
+      return 'Use clear headings, bullets, and concise explanations.'
+    })()
+
     // Build conversation context
     const messages = [
-      { role: 'system', content: systemPrompt }
+      { role: 'system', content: systemPrompt + `\n\nOutput style: ${modelStyleHint}` }
     ]
 
     if (smartContextSections.length > 0) {

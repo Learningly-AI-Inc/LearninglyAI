@@ -224,6 +224,13 @@ const SearchPage = () => {
       return
     }
 
+    // Prevent sending while attachments are still uploading
+    const hasUploading = attachedDocs.some(d => d.status === 'uploading')
+    if (hasUploading) {
+      toast.info('Please wait for uploads to finish')
+      return
+    }
+
     console.log('💬 [SEARCH PAGE] Sending message:', {
       message: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
       model: selectedModel,
@@ -262,6 +269,11 @@ const SearchPage = () => {
       console.log('💬 [SEARCH PAGE] Making API request with model:', selectedModel)
       let response: Response
       try {
+        // Only include IDs of attachments that are fully ready
+        const readyAttachmentIds = attachedDocs
+          .filter(d => d.status === 'ready')
+          .map(d => d.id)
+
         response = await fetch('/api/search/enhanced', {
           method: 'POST',
           headers: {
@@ -271,7 +283,7 @@ const SearchPage = () => {
             message: message.trim(),
             conversationId: selectedConversationId,
             model: selectedModel,
-            attachedDocumentIds: attachedDocs.map(d => d.id)
+            attachedDocumentIds: readyAttachmentIds
           }),
           signal: controller.signal
         })
@@ -439,6 +451,10 @@ const SearchPage = () => {
 
   const handleSendMessage = () => {
     if (!currentMessage.trim() || isTyping || loading || !user?.id) return
+    if (attachedDocs.some(d => d.status === 'uploading')) {
+      toast.info('Please wait for uploads to finish')
+      return
+    }
     sendMessage(currentMessage.trim())
     setCurrentMessage('')
   }
@@ -1559,7 +1575,7 @@ const SearchPage = () => {
                             <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
                               <button
                                 onClick={handleSendMessage}
-                                disabled={!currentMessage.trim() || isTyping || loading || !user?.id}
+                                disabled={!currentMessage.trim() || isTyping || loading || !user?.id || attachedDocs.some(d => d.status === 'uploading')}
                                 className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1 text-xs px-3 py-1.5 rounded-full bg-slate-900 text-white hover:bg-slate-800 disabled:bg-slate-400 transition-colors shadow-sm"
                               >
                                 <Send className="h-3.5 w-3.5"/> Send

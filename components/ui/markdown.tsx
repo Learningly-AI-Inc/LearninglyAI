@@ -63,7 +63,7 @@ export function Markdown({children}: {children: string}) {
           ul: (p) => <ul className="list-disc pl-6 my-3 space-y-1 text-slate-900" {...p} />,
           ol: (p) => <ol className="list-decimal pl-6 my-3 space-y-1 text-slate-900" {...p} />,
           blockquote: (p) => (
-            <blockquote className="border-l-4 border-gray-300 pl-4 italic text-slate-700 my-3" {...p} />
+            <blockquote className="border-l-2 border-gray-200/70 pl-3 italic text-slate-700 my-3 bg-gray-50/40 rounded-md" {...p} />
           ),
           a: ({href, ...props}) => (
             <a
