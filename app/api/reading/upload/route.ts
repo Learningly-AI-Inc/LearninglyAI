@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   console.log('📤 Reading Upload API called');
   
   try {
-    // Parse form data
+    // Parse form data (small payloads only)
     let formData: FormData;
     try {
       formData = await req.formData();
@@ -29,15 +29,16 @@ export async function POST(req: NextRequest) {
       console.error('❌ Failed to parse FormData:', error);
       return NextResponse.json(
         { 
-          error: 'Invalid request format. Please ensure you are uploading a file.',
+          error: 'Invalid request format. Please ensure you are uploading a file or fileUrl.',
           details: 'FormData parsing failed'
         },
         { status: 400 }
       );
     }
 
-    // Extract file and optional extracted text
-    const file = formData.get('file') as File;
+    // Accept either a File or a public fileUrl pointing to Supabase storage
+    const file = formData.get('file') as File | null;
+    const fileUrlFromClient = (formData.get('fileUrl') as string | null) || null;
     const rawExtractedText = formData.get('extractedText') as string;
     const pageCount = formData.get('pageCount') as string;
     
@@ -47,30 +48,28 @@ export async function POST(req: NextRequest) {
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove other control characters
       .trim() : '';
     
-    if (!file) {
-      console.error('❌ No file in request');
+    if (!file && !fileUrlFromClient) {
+      console.error('❌ No file or fileUrl in request');
       return NextResponse.json(
         { 
           error: 'No file provided',
-          details: 'Please select a file to upload'
+          details: 'Please select a file to upload or provide a fileUrl'
         },
         { status: 400 }
       );
     }
 
-    console.log('📁 File received:', {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      lastModified: file.lastModified
-    });
+    let fileName = file ? file.name : (fileUrlFromClient ? fileUrlFromClient.split('/').pop() || 'document.pdf' : 'document.pdf');
+    let fileType = file ? file.type : 'application/pdf';
+    let fileSize = file ? file.size : 0;
+    console.log('📁 Incoming upload:', { via: file ? 'binary' : 'url', fileName, fileType, fileSize });
 
     // Extract file extension first
-    const fileExtension = file.name.toLowerCase().split('.').pop() || '';
+    const fileExtension = fileName.toLowerCase().split('.').pop() || '';
 
     // Validate file size (20MB limit)
     const maxSize = 20 * 1024 * 1024; // 20MB
-    if (file.size > maxSize) {
+    if (file && file.size > maxSize) {
       console.error('❌ File too large:', file.size);
       return NextResponse.json(
         { 
@@ -81,7 +80,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (file.size === 0) {
+    if (file && file.size === 0) {
       console.error('❌ Empty file');
       return NextResponse.json(
         { 
@@ -93,8 +92,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate minimum file size for PDFs
-    if (fileExtension === 'pdf' && file.size < 500) { // Less than 500 bytes is likely corrupt
-      console.error('❌ PDF file too small:', file.size);
+    if (fileExtension === 'pdf' && ((file && file.size < 500) || (!file && fileSize > 0 && fileSize < 500))) { // Less than 500 bytes is likely corrupt
+      console.error('❌ PDF file too small:', file ? file.size : fileSize);
       return NextResponse.json(
         { 
           error: 'Invalid PDF file',
@@ -115,11 +114,11 @@ export async function POST(req: NextRequest) {
     ];
     
     const isValidExtension = allowedExtensions.includes(fileExtension);
-    const isValidMimeType = allowedMimeTypes.includes(file.type);
+    const isValidMimeType = file ? allowedMimeTypes.includes(file.type) : true;
     
     console.log('🔍 File validation:', {
       extension: fileExtension,
-      mimeType: file.type,
+      mimeType: fileType,
       isValidExtension,
       isValidMimeType
     });
@@ -129,7 +128,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { 
           error: 'Unsupported file type',
-          details: `Only PDF, TXT, and DOCX files are supported. Found: ${fileExtension} (${file.type})`
+          details: `Only PDF, TXT, and DOCX files are supported. Found: ${fileExtension} (${fileType})`
         },
         { status: 400 }
       );
@@ -150,21 +149,49 @@ export async function POST(req: NextRequest) {
 
     console.log('✅ User authenticated:', user.id);
 
-    // Convert file to buffer
-    let buffer: Buffer;
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      buffer = Buffer.from(arrayBuffer);
-      console.log('✅ File converted to buffer:', buffer.length, 'bytes');
-    } catch (error) {
-      console.error('❌ Failed to read file:', error);
-      return NextResponse.json(
-        { 
-          error: 'Failed to read file',
-          details: 'Could not process the uploaded file'
-        },
-        { status: 500 }
-      );
+    // Obtain the file buffer (from binary upload or by downloading from Supabase via fileUrl)
+    let buffer: Buffer | null = null;
+    let storagePathFromUrl: string | null = null;
+    let filePublicUrl: string | null = null;
+
+    if (file) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        buffer = Buffer.from(arrayBuffer);
+        console.log('✅ File converted to buffer:', buffer.length, 'bytes');
+      } catch (error) {
+        console.error('❌ Failed to read file:', error);
+        return NextResponse.json(
+          { 
+            error: 'Failed to read file',
+            details: 'Could not process the uploaded file'
+          },
+          { status: 500 }
+        );
+      }
+    } else if (fileUrlFromClient) {
+      // Parse storage path from Supabase public URL
+      try {
+        const parts = fileUrlFromClient.split('/');
+        const bucketIdx = parts.findIndex(p => p === 'reading-documents');
+        if (bucketIdx !== -1 && bucketIdx < parts.length - 1) {
+          storagePathFromUrl = parts.slice(bucketIdx + 1).join('/');
+        } else {
+          throw new Error('Invalid Supabase URL format');
+        }
+        const { data: downloadData, error: downloadError } = await supabase.storage
+          .from('reading-documents')
+          .download(storagePathFromUrl);
+        if (downloadError || !downloadData) throw downloadError;
+        const arrayBuffer = await downloadData.arrayBuffer();
+        buffer = Buffer.from(arrayBuffer);
+        fileSize = buffer.length;
+        filePublicUrl = fileUrlFromClient;
+        console.log('✅ Downloaded file from storage:', storagePathFromUrl, 'bytes:', buffer.length);
+      } catch (e) {
+        console.error('❌ Failed to download file from storage:', e);
+        return NextResponse.json({ error: 'Failed to retrieve file from storage' }, { status: 500 });
+      }
     }
 
     // Extract text based on file type
@@ -184,20 +211,22 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      if (fileExtension === 'pdf' || file.type === 'application/pdf' || 
-          fileExtension === 'docx' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-          fileExtension === 'png' || fileExtension === 'jpg' || fileExtension === 'jpeg' || file.type.startsWith('image/')) {
+      if (fileExtension === 'pdf' || fileType === 'application/pdf' || 
+          fileExtension === 'docx' || fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+          fileExtension === 'png' || fileExtension === 'jpg' || fileExtension === 'jpeg' || fileType.startsWith('image/')) {
         console.log(`📄 Processing ${fileExtension.toUpperCase()} with webhook...`);
         
         try {
           // Create a File object from the buffer for the webhook
-          const fileBlob = new File([buffer], file.name, { type: file.type });
+          const arrayBufferForBlob = ((buffer as Buffer).buffer.slice((buffer as Buffer).byteOffset, (buffer as Buffer).byteOffset + (buffer as Buffer).byteLength)) as ArrayBuffer
+          const blob = new Blob([arrayBufferForBlob as any], { type: fileType })
+          const fileBlob = new File([blob as any], fileName, { type: fileType });
           
           // Use the webhook to process the PDF
           const webhookResult = await uploadKnowledgeBaseAs(fileBlob, {
-            filename: file.name,
+            filename: fileName,
             userId: user.id,
-            description: `Reading document upload: ${file.name}`
+            description: `Reading document upload: ${fileName}`
           });
           
           if (webhookResult.success && webhookResult.data) {
@@ -283,11 +312,14 @@ The document is now available in our system and ready for your questions.`;
           processingNotes.push(`Webhook processing failed: ${webhookError.message}`);
         }
         
-      } else if (fileExtension === 'txt' || file.type === 'text/plain') {
+      } else if (fileExtension === 'txt' || fileType === 'text/plain') {
         console.log('📝 Processing TXT...');
         
         try {
-          serverExtractedText = buffer.toString('utf-8');
+          if (!buffer) {
+            throw new Error('Missing file buffer')
+          }
+          serverExtractedText = (buffer as Buffer).toString('utf-8');
           serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000));
           
           console.log('✅ TXT processed:', {
@@ -326,60 +358,66 @@ The document is now available in our system and ready for your questions.`;
       );
     }
 
-    // Create unique filename for Supabase storage
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const storagePath = `${user.id}/${timestamp}-${safeFileName}`;
-
-    console.log('📤 Uploading to Supabase storage:', storagePath);
-
-    // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('reading-documents')
-      .upload(storagePath, buffer, {
-        contentType: file.type,
-        upsert: false
-      });
-
-    if (uploadError) {
-      console.error('❌ Supabase upload error:', uploadError);
-      return NextResponse.json(
-        { 
-          error: 'Failed to upload file to storage',
-          details: uploadError.message
-        },
-        { status: 500 }
-      );
+    // Determine storage path and public URL
+    let storagePath: string;
+    let fileUrl: string;
+    if (storagePathFromUrl) {
+      // Already uploaded by client; reuse
+      storagePath = storagePathFromUrl;
+      // If not provided, generate public URL
+      if (!filePublicUrl) {
+        const { data: urlData } = supabase.storage
+          .from('reading-documents')
+          .getPublicUrl(storagePath);
+        fileUrl = urlData.publicUrl;
+      } else {
+        fileUrl = filePublicUrl;
+      }
+      console.log('🔁 Using existing storage file:', storagePath);
+    } else {
+      // Upload to Supabase storage
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+      storagePath = `${user.id}/${timestamp}-${safeFileName}`;
+      console.log('📤 Uploading to Supabase storage:', storagePath);
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('reading-documents')
+        .upload(storagePath, buffer!, {
+          contentType: fileType,
+          upsert: false
+        });
+      if (uploadError) {
+        console.error('❌ Supabase upload error:', uploadError);
+        return NextResponse.json(
+          { 
+            error: 'Failed to upload file to storage',
+            details: uploadError.message
+          },
+          { status: 500 }
+        );
+      }
+      console.log('✅ File uploaded to Supabase storage:', uploadData.path);
+      const { data: urlData } = supabase.storage
+        .from('reading-documents')
+        .getPublicUrl(storagePath);
+      if (!urlData?.publicUrl) {
+        console.error('❌ Failed to generate public URL');
+        return NextResponse.json({ error: 'Failed to generate file URL' }, { status: 500 });
+      }
+      fileUrl = urlData.publicUrl;
     }
-
-    console.log('✅ File uploaded to Supabase storage:', uploadData.path);
-
-    // Get public URL for the uploaded file
-    const { data: urlData } = supabase.storage
-      .from('reading-documents')
-      .getPublicUrl(storagePath);
-
-    if (!urlData?.publicUrl) {
-      console.error('❌ Failed to generate public URL');
-      return NextResponse.json(
-        { error: 'Failed to generate file URL' },
-        { status: 500 }
-      );
-    }
-
-    const fileUrl = urlData.publicUrl;
 
     // Store document metadata in database
     const { data: documentRecord, error: dbError } = await supabase
       .from('reading_documents')
       .insert({
         user_id: user.id,
-        title: file.name.replace(/\.(pdf|txt|docx)$/i, ''),
-        original_filename: file.name,
+        title: fileName.replace(/\.(pdf|txt|docx)$/i, ''),
+        original_filename: fileName,
         file_path: storagePath,
         file_type: fileExtension,
-        file_size: file.size,
-        mime_type: file.type,
+        file_size: fileSize,
+        mime_type: fileType,
         extracted_text: useClientText ? (extractedText || '') : (serverExtractedText || ''),
         page_count: useClientText ? parseInt(pageCount) || 1 : serverPageCount,
         text_length: useClientText ? (extractedText ? extractedText.length : 0) : (serverExtractedText ? serverExtractedText.length : 0),
@@ -404,11 +442,11 @@ The document is now available in our system and ready for your questions.`;
 
     // Generate response metadata
     const metadata = {
-      title: file.name.replace(/\.(pdf|txt|docx)$/i, ''),
-      originalFileName: file.name,
-      fileSize: file.size,
+      title: fileName.replace(/\.(pdf|txt|docx)$/i, ''),
+      originalFileName: fileName,
+      fileSize: fileSize,
       fileType: fileExtension,
-      mimeType: file.type,
+      mimeType: fileType,
       pages: pageCount,
       textLength: extractedText ? extractedText.length : 0,
       uploadedAt: new Date().toISOString(),
