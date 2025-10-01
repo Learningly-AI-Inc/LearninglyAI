@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { uploadKnowledgeBaseAs, webhookDebugger } from '@/api-config';
 
+// Ensure large form-data uploads are handled by Node runtime and allow bigger bodies
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 120
+// Note: Next.js may ignore this for App Router in some environments, but
+// keeping it helps when the route is executed as a Node API handler.
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '30mb'
+    }
+  }
+}
+
 export async function POST(req: NextRequest) {
   console.log('📤 Reading Upload API called');
   
