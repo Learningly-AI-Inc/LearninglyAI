@@ -68,13 +68,13 @@ export default function TakeExamPage() {
   const finished = index + 1 >= total && showResult
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50 to-amber-50">
+    <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-slate-100">
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>{exam.examTitle}</CardTitle>
+                <CardTitle className="tracking-tight">{exam.examTitle}</CardTitle>
                 <div className="text-sm text-slate-600">Duration: {exam.duration} minutes</div>
               </div>
               <Button variant="outline" onClick={() => router.push('/exam-prep')}>Exit</Button>
@@ -86,14 +86,19 @@ export default function TakeExamPage() {
           <CardContent className="space-y-6">
             {!finished ? (
               <>
-                <div className="text-lg font-medium">Question {index + 1} of {total}</div>
-                <div className="text-base">{q?.question}</div>
+                <div className="text-sm text-slate-600">Question {index + 1} of {total}</div>
+                <div className="text-base leading-relaxed">{q?.question}</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {q?.options?.map((opt, i) => {
                     const label = ['A', 'B', 'C', 'D'][i] || String(i + 1)
                     const value = `${label}`
                     return (
-                      <Button key={i} variant={selected === value ? 'default' : 'outline'} onClick={() => setSelected(value)} className="justify-start">
+                      <Button
+                        key={i}
+                        variant={selected === value ? 'default' : 'outline'}
+                        onClick={() => setSelected(value)}
+                        className={`justify-start text-left ${selected === value ? '' : 'hover:bg-slate-50'}`}
+                      >
                         <span className="mr-2 font-semibold">{label}.</span> {opt}
                       </Button>
                     )
@@ -110,7 +115,7 @@ export default function TakeExamPage() {
                       {selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? 'Correct!' : `Incorrect. Answer: ${q?.correctAnswer}`}
                     </div>
                     {q?.explanation && (
-                      <div className="text-sm text-slate-700">Explanation: {q.explanation}</div>
+                      <div className="text-sm text-slate-700 leading-relaxed">Explanation: {q.explanation}</div>
                     )}
                     <div className="flex justify-end">
                       <Button onClick={next}>Next</Button>
