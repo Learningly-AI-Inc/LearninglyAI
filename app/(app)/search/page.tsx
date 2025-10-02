@@ -1336,10 +1336,10 @@ const SearchPage = () => {
             </div>
           </div>
 
-          {/* Composer pinned to viewport bottom */}
-          <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200">
+          {/* Composer pinned to viewport bottom; doesn't block sidebar */}
+          <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
             <div className="px-3 sm:px-4 py-4">
-              <div className="mx-auto max-w-3xl">
+              <div className="mx-auto max-w-3xl pointer-events-auto">
                 <div className="bg-white/95 border rounded-[28px] px-4 py-3 shadow-sm">
                   <div className="flex items-end gap-3">
                     <div className="flex-1 px-1 sm:px-2 py-2">
