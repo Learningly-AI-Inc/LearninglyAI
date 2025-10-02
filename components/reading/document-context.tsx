@@ -1,6 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
+import { useSupabase } from '@/hooks/use-supabase';
 
 interface DocumentData {
   id: string;
@@ -81,6 +82,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     message: ''
   });
   const lastDocumentIdRef = useRef<string | null>(null);
+  const supabaseClient = useSupabase();
   
 
   const addMessage = React.useCallback((message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
@@ -262,15 +264,66 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       
     } catch (error: any) {
       console.error('💥 Upload failed:', error);
-      
-      setUploadProgress({
-        stage: 'error',
-        progress: 0,
-        message: error.message || 'Upload failed'
-      });
 
-      // Re-throw to be handled by the component
-      throw error;
+      // If body too large on Vercel (413), fall back to direct Storage upload -> fileUrl processing
+      const isPayloadTooLarge = /413|payload\s*too\s*large/i.test(error?.message || '')
+      if (isPayloadTooLarge) {
+        try {
+          setUploadProgress({ stage: 'uploading', progress: 40, message: 'Uploading to storage…' })
+
+          const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+          const path = `${Date.now()}-${safeName}`
+          const { data: uploadData, error: uploadError } = await supabaseClient.storage
+            .from('reading-documents')
+            .upload(path, file, { upsert: false })
+          if (uploadError) throw uploadError
+
+          const { data: urlData } = supabaseClient.storage
+            .from('reading-documents')
+            .getPublicUrl(path)
+
+          if (!urlData?.publicUrl) throw new Error('Failed to get public URL')
+
+          setUploadProgress({ stage: 'processing', progress: 60, message: 'Processing document…' })
+
+          const fd = new FormData()
+          fd.append('fileUrl', urlData.publicUrl)
+          const resp2 = await fetch('/api/reading/upload', { method: 'POST', body: fd })
+          if (!resp2.ok) {
+            let errData: any = null
+            try { errData = await resp2.json() } catch {}
+            throw new Error(errData?.error || errData?.details || `Upload failed with status ${resp2.status}`)
+          }
+          const data = await resp2.json()
+
+          const extractedText = data.text || ''
+          const pageCount = data.metadata?.pages || 1
+          const documentData: DocumentData = {
+            id: data.documentId,
+            title: data.metadata.title,
+            text: extractedText,
+            metadata: {
+              ...data.metadata,
+              pages: pageCount,
+              textLength: extractedText.length
+            },
+          }
+
+          setUploadProgress({ stage: 'complete', progress: 100, message: 'Upload complete!' })
+          setDocument(documentData)
+          setIsChatOpen(true)
+
+          await new Promise(resolve => setTimeout(resolve, 500))
+          return { fileUrl: data.fileUrl, documentId: data.documentId, title: data.metadata?.title || file.name }
+        } catch (fallbackError: any) {
+          console.error('💥 Fallback upload failed:', fallbackError)
+          setUploadProgress({ stage: 'error', progress: 0, message: fallbackError.message || 'Upload failed' })
+          throw fallbackError
+        }
+      }
+
+      setUploadProgress({ stage: 'error', progress: 0, message: error.message || 'Upload failed' })
+      throw error
     } finally {
       setIsLoading(false);
     }
