@@ -10,6 +10,8 @@ import { DocumentProvider } from "@/components/reading/document-context";
 import { FileUploaderComponent } from "@/components/reading/file-uploader";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 interface GeneratedExam {
   examTitle: string
@@ -26,15 +28,24 @@ export default function ExamPrepPage() {
   const [duration, setDuration] = useState(60)
   const [title, setTitle] = useState('Practice Exam')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [mode, setMode] = useState<'online' | 'pdf'>('online')
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
+  const [instructions, setInstructions] = useState('Choose the best answer for each question.')
 
   async function generate() {
     try {
       setIsGenerating(true)
       const documentIds = uploadedDocs.map(d => d.documentId!).filter(Boolean)
+      if (mode === 'pdf') {
+        // Route to full-length PDF builder page for richer PDF generation flows
+        router.push('/exam-prep/full-length')
+        return
+      }
+
       const res = await fetch('/api/exam-prep/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentIds, count, durationMinutes: duration, title })
+        body: JSON.stringify({ documentIds, count, durationMinutes: duration, title, difficulty, instructions })
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -109,11 +120,41 @@ export default function ExamPrepPage() {
               <Input id="duration" type="number" min={10} max={240} value={duration} onChange={(e)=>setDuration(parseInt(e.target.value || '0'))} />
               <p className="text-xs text-slate-500">Set a realistic timebox to mimic test pace.</p>
             </div>
+            <div className="space-y-2 sm:col-span-1">
+              <Label>Exam type</Label>
+              <Select value={mode} onValueChange={(v)=>setMode(v as any)}>
+                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="online">Full-length online exam</SelectItem>
+                  <SelectItem value="pdf">Full-length PDF exam</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-500">PDF opens the advanced PDF builder.</p>
+            </div>
+            {mode === 'online' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Difficulty</Label>
+                  <Select value={difficulty} onValueChange={(v)=>setDifficulty(v as any)}>
+                    <SelectTrigger><SelectValue placeholder="Select difficulty" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="easy">Easy</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="hard">Hard</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Specific instructions (optional)</Label>
+                  <Textarea value={instructions} onChange={(e)=>setInstructions(e.target.value)} rows={3} placeholder="Any topics to emphasize, style preferences, or special constraints" />
+                </div>
+              </>
+            )}
           </CardContent>
           <CardFooter className="p-6 pt-0 flex items-center justify-between">
             <p className="text-xs text-slate-500">You can adjust settings anytime before generating.</p>
             <Button onClick={generate} disabled={uploadedDocs.length === 0 || isGenerating}>
-              {isGenerating ? 'Generating…' : 'Generate Exam'}
+              {isGenerating ? 'Generating…' : (mode === 'pdf' ? 'Open PDF Builder' : 'Generate Exam')}
             </Button>
           </CardFooter>
         </Card>

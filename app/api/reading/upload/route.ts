@@ -11,7 +11,7 @@ export const maxDuration = 120
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '30mb'
+      sizeLimit: '35mb'
     }
   }
 }
@@ -67,14 +67,14 @@ export async function POST(req: NextRequest) {
     // Extract file extension first
     const fileExtension = fileName.toLowerCase().split('.').pop() || '';
 
-    // Validate file size (20MB limit)
-    const maxSize = 20 * 1024 * 1024; // 20MB
+    // Validate file size (30MB limit)
+    const maxSize = 30 * 1024 * 1024; // 30MB
     if (file && file.size > maxSize) {
       console.error('❌ File too large:', file.size);
       return NextResponse.json(
         { 
           error: 'File too large',
-          details: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds the 20MB limit`
+          details: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds the 30MB limit`
         },
         { status: 400 }
       );

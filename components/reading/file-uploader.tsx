@@ -20,7 +20,7 @@ const SUPPORTED_TYPES = {
   'docx': { mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', label: 'DOCX' }
 };
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB
 
 export function FileUploaderComponent({ onClose, onUploaded }: FileUploaderProps) {
   const router = useRouter()
@@ -36,7 +36,7 @@ export function FileUploaderComponent({ onClose, onUploaded }: FileUploaderProps
     }
     
     if (selectedFile.size > MAX_FILE_SIZE) {
-      return `File size (${Math.round(selectedFile.size / 1024 / 1024)}MB) exceeds 20MB limit`
+      return `File size (${Math.round(selectedFile.size / 1024 / 1024)}MB) exceeds 30MB limit`
     }
     
     // Check file extension
@@ -184,7 +184,7 @@ export function FileUploaderComponent({ onClose, onUploaded }: FileUploaderProps
               Drag & drop your document here or click to browse
             </p>
             <p className="text-gray-500 text-sm mb-4">
-              Supports PDF, TXT, DOCX • Max 20MB
+              Supports PDF, TXT, DOCX • Max 30MB
             </p>
             <input
               ref={fileInputRef}

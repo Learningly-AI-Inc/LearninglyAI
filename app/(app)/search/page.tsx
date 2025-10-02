@@ -54,7 +54,7 @@ const SearchPage = () => {
   const [conversations, setConversations] = React.useState<Conversation[]>([])
   const [selectedConversationId, setSelectedConversationId] = React.useState<string | null>(null)
   const [isLoading, setIsLoading] = React.useState(false)
-  const [sidebarOpen, setSidebarOpen] = React.useState(true)
+  const [sidebarOpen, setSidebarOpen] = React.useState(false)
   const [conversationSidebarCollapsed, setConversationSidebarCollapsed] = React.useState(false)
   const [showModelMenu, setShowModelMenu] = React.useState(false)
   const [abortController, setAbortController] = React.useState<AbortController | null>(null)
@@ -814,8 +814,8 @@ const SearchPage = () => {
   return (
     <div className="h-screen w-full bg-gradient-to-b from-blue-50 to-white text-slate-900">
       <div className="flex h-full w-full">
-        {/* Conversation Sidebar - Collapsible (Desktop) */}
-        <aside className={`hidden lg:flex ${conversationSidebarCollapsed ? 'w-16' : 'w-[260px]'} flex-col border-r bg-white transition-[width] duration-200 z-40`}>
+        {/* Conversation Sidebar - Disabled on desktop for single-column layout */}
+        <aside className="hidden">
           <div className="flex items-center gap-2 px-3 h-12 border-b flex-shrink-0">
             {!conversationSidebarCollapsed && (
               <div className="font-medium text-sm">Conversations</div>
@@ -970,9 +970,9 @@ const SearchPage = () => {
           </div>
         </aside>
 
-        {/* Mobile Conversation Sidebar - Overlay */}
+        {/* Conversation Sidebar - Overlay (all breakpoints) */}
         {sidebarOpen && (
-          <div className="lg:hidden fixed inset-0 z-50">
+          <div className="fixed inset-0 z-50">
             {/* Backdrop */}
             <div 
               className="absolute inset-0 bg-black/20" 
@@ -1129,7 +1129,7 @@ const SearchPage = () => {
           <div className="h-12 bg-white border-b flex items-center gap-3 px-4">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)} 
-              className="lg:hidden rounded-lg p-2 hover:bg-slate-100" 
+              className="rounded-lg p-2 hover:bg-slate-100" 
               aria-label="Toggle conversation sidebar"
             >
               <Menu className="h-4 w-4" />
@@ -1145,8 +1145,6 @@ const SearchPage = () => {
 
           {/* Scrollable content area */}
           <div className="flex-1 overflow-y-auto px-3 sm:px-4 pt-3 relative" style={{ paddingBottom: '200px' }}>
-            {/* Bottom fade indicator */}
-            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
             <div className="mx-auto max-w-3xl">
               {!selectedConversationId && messages.length === 0 && (
                 <div className="flex items-center justify-center min-h-[60vh] sm:min-h-[65vh] text-center select-none">
@@ -1338,8 +1336,8 @@ const SearchPage = () => {
             </div>
           </div>
 
-          {/* Composer (sticky bottom like ChatGPT) */}
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-white/95 to-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/90 border-t border-slate-200">
+          {/* Composer pinned to viewport bottom */}
+          <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200">
             <div className="px-3 sm:px-4 py-4">
               <div className="mx-auto max-w-3xl">
                 <div className="bg-white/95 border rounded-[28px] px-4 py-3 shadow-sm">
