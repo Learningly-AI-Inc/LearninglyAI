@@ -55,7 +55,7 @@ export function ImprovedWritingPage({
                 {writingToolbar}
               </CardHeader>
               <Separator />
-              <CardContent className="p-0 flex-grow relative">
+              <CardContent className="p-0 flex-grow relative overflow-auto min-h-0">
                 {richTextEditor}
               </CardContent>
               <Separator />
@@ -75,7 +75,7 @@ export function ImprovedWritingPage({
                   {writingToolbar}
                 </CardHeader>
                 <Separator />
-                <CardContent className="p-0 flex-grow relative min-h-0">
+                <CardContent className="p-0 flex-grow relative min-h-0 overflow-auto">
                   {richTextEditor}
                 </CardContent>
                 <Separator />
