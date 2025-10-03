@@ -272,7 +272,11 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
           setUploadProgress({ stage: 'uploading', progress: 40, message: 'Uploading to storage…' })
 
           const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
-          const path = `${Date.now()}-${safeName}`
+          // Prefix with user ID to satisfy storage RLS policies in production
+          const { data: authData, error: authError } = await supabaseClient.auth.getUser()
+          if (authError || !authData?.user?.id) throw new Error('Not authenticated')
+          const userPrefix = authData.user.id
+          const path = `${userPrefix}/${Date.now()}-${safeName}`
           const { data: uploadData, error: uploadError } = await supabaseClient.storage
             .from('reading-documents')
             .upload(path, file, { upsert: false })
