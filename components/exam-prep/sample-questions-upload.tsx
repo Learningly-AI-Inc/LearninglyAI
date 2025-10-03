@@ -72,10 +72,10 @@ export function SampleQuestionsUpload({
 }: SampleQuestionsUploadProps) {
   const [dragActive, setDragActive] = React.useState(false)
   const [uploadLimits, setUploadLimits] = React.useState<UploadLimits>({
-    maxFiles: 10,
-    maxSizePerFile: 50,
+    maxFiles: 5,
+    maxSizePerFile: 100,
     currentCount: uploadedFiles.length,
-    remainingFiles: 10 - uploadedFiles.length
+    remainingFiles: 5 - uploadedFiles.length
   })
 
   // Update limits when uploadedFiles changes
@@ -379,12 +379,12 @@ export function SampleQuestionsUpload({
     setSelectedFiles(prev => {
       if (prev.includes(fileId)) {
         return prev.filter(id => id !== fileId)
-      } else if (prev.length < 10) {
+      } else if (prev.length < 5) {
         return [...prev, fileId]
       } else {
         toast({
           title: "Selection Limit Reached",
-          description: "You can select up to 10 files for generation.",
+          description: "You can select up to 5 files for generation.",
           variant: "destructive"
         })
         return prev
@@ -575,7 +575,7 @@ export function SampleQuestionsUpload({
                 <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               </Button>
               <Badge variant="outline">
-                {selectedFiles.length}/10 selected
+                {selectedFiles.length}/5 selected
               </Badge>
             </div>
           </div>

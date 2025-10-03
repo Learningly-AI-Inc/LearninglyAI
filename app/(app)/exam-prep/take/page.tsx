@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,8 @@ export default function TakeExamPage() {
   const [selected, setSelected] = useState<string>('')
   const [score, setScore] = useState(0)
   const [showResult, setShowResult] = useState(false)
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     try {
@@ -35,8 +37,22 @@ export default function TakeExamPage() {
       if (!raw) return
       const parsed = JSON.parse(raw) as ExamData
       setExam(parsed)
+      const durationSeconds = Math.max(1, Math.floor((parsed.duration || 0) * 60))
+      setSecondsLeft(durationSeconds)
     } catch {}
   }, [])
+
+  // Countdown timer that persists during the session
+  useEffect(() => {
+    if (secondsLeft === null) return
+    if (secondsLeft <= 0) {
+      setShowResult(true)
+      return
+    }
+    timerRef.current && clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => setSecondsLeft((s) => (s !== null ? s - 1 : s)), 1000)
+    return () => { timerRef.current && clearTimeout(timerRef.current) }
+  }, [secondsLeft])
 
   const q = useMemo(() => exam?.questions?.[index], [exam, index])
 
@@ -48,8 +64,16 @@ export default function TakeExamPage() {
     )
   }
 
-  const total = exam.questions.length || 1
-  const pct = Math.round((index / total) * 100)
+  if (exam.questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-slate-600">No questions were generated from your documents. Please try again with clearer materials.</div>
+      </div>
+    )
+  }
+
+  const total = Math.max(0, exam.questions.length || 0)
+  const pct = total > 0 ? Math.round((index / total) * 100) : 0
 
   function submit() {
     if (!q || !selected) return
@@ -65,19 +89,29 @@ export default function TakeExamPage() {
     setIndex(i => i + 1)
   }
 
-  const finished = index + 1 >= total && showResult
+  const timeUp = secondsLeft !== null && secondsLeft <= 0
+  const finished = timeUp || (index + 1 >= total && showResult)
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-slate-100">
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="tracking-tight">{exam.examTitle}</CardTitle>
                 <div className="text-sm text-slate-600">Duration: {exam.duration} minutes</div>
               </div>
-              <Button variant="outline" onClick={() => router.push('/exam-prep')}>Exit</Button>
+                <div className="flex items-center gap-4">
+                  {secondsLeft !== null && (
+                    <div className="text-sm font-mono tabular-nums text-slate-700">
+                      {Math.max(0, Math.floor(secondsLeft / 60)).toString().padStart(2, '0')}
+                      :
+                      {Math.max(0, secondsLeft % 60).toString().padStart(2, '0')}
+                    </div>
+                  )}
+                  <Button variant="outline" onClick={() => router.push('/exam-prep')}>Exit</Button>
+                </div>
             </div>
             <div className="mt-4">
               <Progress value={pct} />

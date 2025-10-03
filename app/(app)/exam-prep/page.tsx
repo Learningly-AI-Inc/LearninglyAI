@@ -112,12 +112,12 @@ export default function ExamPrepPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="count">Questions</Label>
-              <Input id="count" type="number" min={5} max={50} value={count} onChange={(e)=>setCount(parseInt(e.target.value || '0'))} />
+              <Input id="count" type="number" min={5} max={50} value={count} onChange={(e)=>setCount(Math.max(5, Math.min(50, parseInt(e.target.value || '0') || 0)))} />
               <p className="text-xs text-slate-500">Tip: 10–30 works well for focused practice.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="duration">Duration (min)</Label>
-              <Input id="duration" type="number" min={10} max={240} value={duration} onChange={(e)=>setDuration(parseInt(e.target.value || '0'))} />
+              <Input id="duration" type="number" min={10} max={240} value={duration} onChange={(e)=>setDuration(Math.max(10, Math.min(240, parseInt(e.target.value || '0') || 0)))} />
               <p className="text-xs text-slate-500">Set a realistic timebox to mimic test pace.</p>
             </div>
             <div className="space-y-2 sm:col-span-1">
