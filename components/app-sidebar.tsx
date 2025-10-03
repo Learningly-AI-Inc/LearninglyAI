@@ -46,16 +46,42 @@ function SidebarItem({ icon, label, active, collapsed, href, onClick, comingSoon
   comingSoon?: boolean;
   dataTour?: string;
 }) {
-  const content = (
+  const baseClasses = `w-full ${collapsed ? "justify-center" : "justify-start"} flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
+    active 
+      ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm" 
+      : "text-slate-700 hover:text-blue-700 hover:bg-slate-50 hover:shadow-sm"
+  } ${comingSoon ? "opacity-75" : ""}`
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        title={label}
+        data-tour={dataTour}
+        className={baseClasses}
+      >
+        {icon}
+        {!collapsed && (
+          <div className="flex items-center gap-2 flex-1">
+            <span className="truncate">{label}</span>
+            {comingSoon && (
+              <Badge variant="outline" className="text-xs scale-75">
+                <Clock className="w-3 h-3 mr-1" />
+                Soon
+              </Badge>
+            )}
+          </div>
+        )}
+      </Link>
+    )
+  }
+
+  return (
     <button
       title={label}
       onClick={onClick}
       data-tour={dataTour}
-      className={`w-full ${collapsed ? "justify-center" : "justify-start"} flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
-        active 
-          ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm" 
-          : "text-slate-700 hover:text-blue-700 hover:bg-slate-50 hover:shadow-sm"
-      } ${comingSoon ? "opacity-75" : ""}`}
+      className={baseClasses}
     >
       {icon}
       {!collapsed && (
@@ -70,17 +96,7 @@ function SidebarItem({ icon, label, active, collapsed, href, onClick, comingSoon
         </div>
       )}
     </button>
-  );
-
-  if (href) {
-    return (
-      <Link href={href}>
-        {content}
-      </Link>
-    );
-  }
-
-  return content;
+  )
 }
 
 export default function AppSidebar({

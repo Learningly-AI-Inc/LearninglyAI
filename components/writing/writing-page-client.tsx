@@ -312,6 +312,48 @@ const WritingPageClient = () => {
     }
   };
 
+  // Scroll to and highlight the first occurrence of an issue in the editor
+  const revealIssueInEditor = (issue: GrammarIssue) => {
+    try {
+      if (typeof document === 'undefined') return;
+      const container = document.querySelector('.editor-class') as HTMLElement | null;
+      if (!container) return;
+      const plain = (editorContent || '').replace(/<[^>]*>?/gm, '');
+      if (!plain || !issue?.original) return;
+      // Build a flexible regex to account for inline tags between words
+      const flexiblePattern = issue.original
+        .split(' ')
+        .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('\\s+(?:<[^>]*>\\s*)*');
+      const regex = new RegExp(flexiblePattern, 'i');
+      const html = editorContent || '';
+      const match = html.match(regex);
+      if (!match) return;
+      const startIndex = match.index ?? 0;
+      // Create a temporary marker
+      const before = html.slice(0, startIndex);
+      const marked = `<span data-gi="1" class="bg-yellow-100 outline outline-1 outline-yellow-300">${match[0]}</span>`;
+      const after = html.slice(startIndex + match[0].length);
+      setEditorContent(before + marked + after);
+      setEditorKey(prev => prev + 1);
+      // Scroll to marker after re-render
+      setTimeout(() => {
+        const el = container.querySelector('[data-gi="1"]') as HTMLElement | null;
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Remove highlight after a moment
+          setTimeout(() => {
+            el.classList.remove('bg-yellow-100');
+            el.classList.remove('outline');
+            el.removeAttribute('data-gi');
+          }, 1500);
+        }
+      }, 50);
+    } catch {
+      // best-effort only
+    }
+  };
+
   // Function to handle rejecting suggestions
   const handleRejectSuggestion = (issueId?: string) => {
     if (issueId) {
@@ -669,6 +711,7 @@ const WritingPageClient = () => {
               grammarIssues={grammarIssues}
               activeTab={activeTab}
               onTabChange={setActiveTab}
+              onRevealIssue={revealIssueInEditor}
             />
           </div>
         </div>

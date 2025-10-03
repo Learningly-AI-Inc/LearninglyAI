@@ -21,6 +21,7 @@ interface AISuggestionsPanelProps {
   grammarIssues: GrammarIssue[];
   activeTab: string;
   onTabChange: (tab: string) => void;
+  onRevealIssue?: (issue: GrammarIssue) => void;
 }
 
 interface GrammarIssue {
@@ -42,7 +43,8 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
   suggestedText,
   grammarIssues = [],
   activeTab,
-  onTabChange
+  onTabChange,
+  onRevealIssue
 }) => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [expandedIssueIds, setExpandedIssueIds] = useState<Record<string, boolean>>({});
@@ -129,12 +131,14 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                 </div>
               ) : suggestedText ? (
                 <div className="space-y-4">
-                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 max-h-72 overflow-auto">
                     <h4 className="text-sm font-semibold text-gray-700 mb-2">Suggestion</h4>
-                    <MarkdownRenderer 
-                      content={suggestedText}
-                      className="prose prose-sm max-w-none"
-                    />
+                    <div className="max-h-60 overflow-auto">
+                      <MarkdownRenderer 
+                        content={suggestedText}
+                        className="prose prose-sm max-w-none"
+                      />
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -186,7 +190,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                   <Skeleton className="h-10 w-5/6" />
                 </div>
               ) : grammarIssues.length > 0 ? (
-                <div className="space-y-3 p-3">
+                <div className="space-y-3 p-3 h-full min-h-0 flex flex-col">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-gray-700">
                       <Badge variant="outline" className="text-gray-700 border-gray-300"><AlertTriangle className="mr-1" /> Found {grammarIssues.length} issues</Badge>
@@ -195,7 +199,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                       <CheckCircle className="h-4 w-4 mr-2" /> Fix All
                     </Button>
                   </div>
-                  <div className="space-y-2 max-h-[calc(100vh-400px)] overflow-y-auto">
+                  <div className="space-y-2 flex-1 overflow-y-auto">
                     {grammarIssues.map((issue) => (
                       <div key={issue.id} className="flex items-start justify-between gap-2 rounded-md border px-3 py-2 bg-white">
                         <div className="flex-1 min-w-0">
@@ -208,7 +212,10 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                           </div>
                           <button
                             className="text-[11px] text-blue-600 hover:underline mt-1"
-                            onClick={() => setExpandedIssueIds((prev) => ({ ...prev, [issue.id]: !prev[issue.id] }))}
+                            onClick={() => {
+                              setExpandedIssueIds((prev) => ({ ...prev, [issue.id]: !prev[issue.id] }));
+                              onRevealIssue?.(issue);
+                            }}
                           >
                             {expandedIssueIds[issue.id] ? 'Collapse' : 'View full'}
                           </button>

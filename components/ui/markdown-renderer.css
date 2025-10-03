@@ -1,5 +1,7 @@
 /* Markdown Renderer Styles */
 .markdown-content {
+  max-height: inherit;
+  overflow: visible;
   /* Ensure proper list rendering */
   ul, ol {
     display: block;
