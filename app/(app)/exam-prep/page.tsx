@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DocumentProvider } from "@/components/reading/document-context";
 import { FileUploaderComponent } from "@/components/reading/file-uploader";
+import { StudyMaterialsUploader } from "@/components/exam-prep/study-materials-uploader";
+import { useUsageLimits } from "@/hooks/use-usage-limits";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
@@ -22,8 +24,8 @@ interface GeneratedExam {
 
 export default function ExamPrepPage() {
   const router = useRouter();
-  const [showUploader, setShowUploader] = useState(false)
-  const [uploadedDocs, setUploadedDocs] = useState<Array<{ documentId?: string }>>([])
+  const { withUsageCheck } = useUsageLimits();
+  const [uploadedDocs, setUploadedDocs] = useState<Array<{ documentId?: string; name?: string }>>([])
   const [count, setCount] = useState(20)
   const [duration, setDuration] = useState(60)
   const [title, setTitle] = useState('Practice Exam')
@@ -33,6 +35,7 @@ export default function ExamPrepPage() {
   const [instructions, setInstructions] = useState('Choose the best answer for each question.')
   const [sampleQuestions, setSampleQuestions] = useState<Array<{ documentId?: string; name?: string }>>([])
   const [showSampleUploader, setShowSampleUploader] = useState(false)
+  const [showStudyMaterialsUploader, setShowStudyMaterialsUploader] = useState(false)
 
   async function generate() {
     try {
@@ -86,7 +89,7 @@ export default function ExamPrepPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-base">Study Materials</CardTitle>
-                <CardDescription>Use high‑quality sources for better question quality.</CardDescription>
+                <CardDescription>Upload PDF, DOCX, or TXT files. Drag & drop multiple files or click to browse.</CardDescription>
               </div>
               <Badge variant={uploadedDocs.length > 0 ? "secondary" : "outline"}>
                 {uploadedDocs.length > 0 ? `${uploadedDocs.length} file${uploadedDocs.length > 1 ? 's' : ''}` : 'No files'}
@@ -96,12 +99,41 @@ export default function ExamPrepPage() {
           <Separator />
           <CardContent className="p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-700">Upload PDF, DOCX, or TXT files.</p>
-              <Button size="sm" variant="outline" onClick={() => setShowUploader(true)}>Upload</Button>
+              <div>
+                <p className="text-sm text-slate-700">Upload single or multiple files (up to 10 files, 100MB each).</p>
+                <p className="text-xs text-slate-500 mt-1">Drag & drop multiple files for faster uploads, or click to browse.</p>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => setShowStudyMaterialsUploader(true)}
+              >
+                Upload Files
+              </Button>
             </div>
             <div className="text-sm text-slate-600">
-              {uploadedDocs.length === 0 ? 'No documents uploaded yet.' : `${uploadedDocs.length} document(s) ready.`}
+              {uploadedDocs.length === 0 ? 'No study materials uploaded yet.' : `${uploadedDocs.length} study material(s) ready.`}
             </div>
+            {uploadedDocs.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs text-slate-500">Uploaded study materials:</p>
+                <div className="space-y-1">
+                  {uploadedDocs.map((doc, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-white border rounded text-sm">
+                      <span className="text-slate-700">{doc.name || `Document ${index + 1}`}</span>
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => setUploadedDocs(prev => prev.filter((_, i) => i !== index))}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -216,17 +248,6 @@ export default function ExamPrepPage() {
         </Card>
       </div>
 
-      {showUploader && (
-        <DocumentProvider>
-          <FileUploaderComponent
-            onClose={() => setShowUploader(false)}
-            onUploaded={(result) => {
-              setUploadedDocs(prev => [...prev, { documentId: result.documentId }])
-              setShowUploader(false)
-            }}
-          />
-        </DocumentProvider>
-      )}
 
       {showSampleUploader && (
         <DocumentProvider>
@@ -238,6 +259,17 @@ export default function ExamPrepPage() {
             }}
           />
         </DocumentProvider>
+      )}
+
+      {showStudyMaterialsUploader && (
+        <StudyMaterialsUploader
+          onClose={() => setShowStudyMaterialsUploader(false)}
+          onUploaded={(results) => {
+            setUploadedDocs(prev => [...prev, ...results.map(r => ({ documentId: r.documentId, name: r.title }))])
+            setShowStudyMaterialsUploader(false)
+          }}
+          maxFiles={10}
+        />
       )}
     </div>
   );

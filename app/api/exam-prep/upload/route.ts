@@ -31,11 +31,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // Check file size (max 100MB)
+    const maxSize = 100 * 1024 * 1024; // 100MB
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'File size must be less than 10MB' },
+        { error: 'File size must be less than 100MB' },
         { status: 400 }
       );
     }
@@ -234,6 +234,8 @@ export async function POST(request: NextRequest) {
       url: urlData.publicUrl,
       filename: file.name,
       fileId: fileRecord?.id,
+      documentId: fileRecord?.id, // For compatibility with StudyMaterialsUploader
+      title: file.name, // For compatibility with StudyMaterialsUploader
       webhookProcessed: webhookResult?.success || false,
       webhookError: webhookResult?.error || null
     });

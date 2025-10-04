@@ -129,10 +129,10 @@ export class UsageTracker {
       const subscription = await subscriptionService.getUserSubscriptionWithPlan(userId)
       const usage = await subscriptionService.getCurrentUsage(userId)
       
-      // Default to free plan if no subscription
+      // Default to free plan if no subscription (1 free trial as per requirements)
       const limits = subscription?.subscription_plans?.limits || {
         ai_requests: 10,
-        document_uploads: 3,
+        document_uploads: 1, // 1 free trial upload
         search_queries: 50,
         exam_sessions: 5,
       }
@@ -162,7 +162,7 @@ export class UsageTracker {
     } catch (error) {
       console.error('Error getting usage stats:', error)
       return {
-        documents: { used: 0, limit: 3, percentage: 0 },
+        documents: { used: 0, limit: 1, percentage: 0 },
         aiRequests: { used: 0, limit: 10, percentage: 0 },
         searchQueries: { used: 0, limit: 50, percentage: 0 },
         examSessions: { used: 0, limit: 5, percentage: 0 },

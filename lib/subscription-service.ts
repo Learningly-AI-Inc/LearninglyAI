@@ -462,10 +462,10 @@ export class SubscriptionService {
       const subscription = await this.getUserSubscriptionWithPlan(userId)
       const currentUsage = await this.getCurrentUsage(userId)
       
-      // If no subscription, use free plan limits
+      // If no subscription, use free plan limits (1 free trial as per requirements)
       const limits = subscription?.subscription_plans?.limits || {
         ai_requests: 10,
-        document_uploads: 3,
+        document_uploads: 1, // 1 free trial upload
         search_queries: 50,
         exam_sessions: 5,
       }

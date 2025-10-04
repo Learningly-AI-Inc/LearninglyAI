@@ -155,8 +155,8 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         throw new Error('File is empty');
       }
 
-      if (file.size > 30 * 1024 * 1024) {
-        throw new Error('File size exceeds 30MB limit');
+      if (file.size > 100 * 1024 * 1024) {
+        throw new Error('File size exceeds 100MB limit');
       }
 
       const allowedExtensions = ['pdf', 'txt', 'docx'];
