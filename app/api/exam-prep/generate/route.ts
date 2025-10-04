@@ -355,8 +355,8 @@ Section:\n${sections[i]}`
       } catch {}
     }
 
-    // If strict pass already got enough grounded questions, use them
-    if (strictCollected.length >= Math.min(5, count)) {
+    // If strict pass already got the full requested amount, use them
+    if (strictCollected.length >= count) {
       const exam = {
         examTitle: body.title || 'Practice Exam',
         instructions: body.instructions || 'Choose the best answer for each question.',
@@ -375,7 +375,8 @@ CRITICAL RULES:
 3. Do NOT ask about the document itself (pages, sections, format)
 4. Focus on the actual subject matter in the document (e.g., if it's about functional architecture, ask about functional architecture concepts)
 5. Each question needs 4 options (A-D) with one correct answer
-6. Return valid JSON only`
+6. Return valid JSON only
+7. Exactly ${count} questions are required. Do not produce more or fewer.`
 
     const userPrompt = `Generate EXACTLY ${count} multiple-choice questions based on the following document content. 
 These questions should test understanding of the concepts and facts presented in this document.
@@ -430,6 +431,7 @@ Output format (strict JSON):
 
     // Simple normalization without filtering
     const questions = Array.isArray(parsedExam?.questions) ? parsedExam.questions : []
+    // Seed with any grounded strict questions already collected
     const mappedQuestions = questions
       .filter((q: any) => q && Array.isArray(q.options) && q.options.length >= 4)
         .map((q: any, i: number) => {
@@ -450,11 +452,14 @@ Output format (strict JSON):
       })
         .slice(0, count)
 
+    // Merge strictCollected first to preserve well-grounded items
+    const mergedInitial = [...strictCollected, ...mappedQuestions].slice(0, count)
+
     let normalized = {
       examTitle: body.title || 'Practice Exam',
       instructions: body.instructions || 'Choose the best answer for each question.',
       duration: durationMinutes,
-      questions: mappedQuestions
+      questions: mergedInitial
     }
 
     // Simple top-up if we didn't get enough questions

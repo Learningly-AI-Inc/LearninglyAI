@@ -131,9 +131,10 @@ export default function TakeExamPage() {
                         key={i}
                         variant={selected === value ? 'default' : 'outline'}
                         onClick={() => setSelected(value)}
-                        className={`justify-start text-left ${selected === value ? '' : 'hover:bg-slate-50'}`}
+                        className={`w-full h-auto min-h-[3rem] py-3 justify-start items-start text-left whitespace-normal break-words text-wrap leading-snug ${selected === value ? '' : 'hover:bg-slate-50'}`}
                       >
-                        <span className="mr-2 font-semibold">{label}.</span> {opt}
+                        <span className="mr-3 font-semibold shrink-0">{label}.</span>
+                        <span className="flex-1 break-words">{opt}</span>
                       </Button>
                     )
                   })}
