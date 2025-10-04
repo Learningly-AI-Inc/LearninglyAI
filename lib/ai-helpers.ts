@@ -101,27 +101,73 @@ ${text}`;
   }
 }
 
-// Function for grammar checking
+// Function to normalize issue types to our expected values
+function normalizeIssueType(type: string): "grammar" | "spelling" | "style" | "clarity" {
+  if (!type) return 'grammar';
+  
+  const normalizedType = type.toLowerCase().trim();
+  
+  // Map various possible issue types to our four categories
+  if (normalizedType.includes('spell') || normalizedType.includes('typo') || normalizedType.includes('misspell')) {
+    return 'spelling';
+  }
+  
+  if (normalizedType.includes('style') || normalizedType.includes('word choice') || normalizedType.includes('tone') || 
+      normalizedType.includes('formal') || normalizedType.includes('informal') || normalizedType.includes('repetition')) {
+    return 'style';
+  }
+  
+  if (normalizedType.includes('clarity') || normalizedType.includes('unclear') || normalizedType.includes('confusing') ||
+      normalizedType.includes('ambiguous') || normalizedType.includes('vague')) {
+    return 'clarity';
+  }
+  
+  // Default to grammar for everything else (grammar, syntax, punctuation, etc.)
+  return 'grammar';
+}
+
+// Function for comprehensive grammar checking with multiple passes
 async function checkGrammar(text: string): Promise<GrammarIssue[]> {
   try {
-    const prompt = `Analyze the following text for grammar, spelling, style, and clarity issues. 
+    const prompt = `You are an expert grammar and style checker. Perform a COMPREHENSIVE analysis of the following text to identify ALL issues in a single pass.
+
+    CRITICAL REQUIREMENTS:
+    1. Find EVERY issue - don't miss any spelling, grammar, style, or clarity problems
+    2. Be thorough and systematic - check each word, phrase, and sentence
+    3. Include issues like: spelling errors, grammar mistakes, awkward phrasing, unclear sentences, style inconsistencies, punctuation errors, word choice issues, sentence structure problems
+    4. For each issue, provide the EXACT problematic text as it appears in the original
+    5. Give clear, concise suggestions that improve the text
+    6. Categorize each issue accurately
+    7. BE CONSISTENT - if you've already identified and fixed issues in this text, don't find new ones unless they are genuinely different problems
+
     For each issue found, provide:
-    1. The problematic text
+    1. The exact problematic text (copy it precisely from the original)
     2. A suggested correction
-    3. The type of issue (grammar, spelling, style, or clarity)
-    4. A brief explanation of the issue
-    
+    3. The type of issue - MUST be exactly one of: "grammar", "spelling", "style", or "clarity"
+    4. A brief explanation of why this is an issue
+
+    IMPORTANT: The "type" field must be exactly one of these four values:
+    - "grammar": For grammar errors, syntax issues, punctuation problems
+    - "spelling": For misspelled words, typos
+    - "style": For word choice, tone, repetition, formality issues
+    - "clarity": For unclear, confusing, or ambiguous sentences
+
     Format your response as a JSON array with the following structure:
     [
       {
-        "original": "problem text",
+        "original": "exact problematic text from original",
         "suggestion": "corrected text",
-        "type": "grammar|spelling|style|clarity",
-        "description": "explanation of the issue"
+        "type": "grammar",
+        "description": "brief explanation of the issue"
       }
     ]
     
-    If no issues are found, return an empty array: []
+    IMPORTANT: 
+    - Find ALL issues in one comprehensive pass
+    - Use the exact text from the original for "original" field
+    - If no issues are found, return an empty array: []
+    - Be systematic and thorough - don't rush the analysis
+    - BE CONSISTENT - don't find new issues if the text has already been checked and fixed
     
     Text to analyze:
     "${text}"`;
@@ -137,11 +183,20 @@ async function checkGrammar(text: string): Promise<GrammarIssue[]> {
         const jsonStr = jsonMatch[0];
         const issues: Omit<GrammarIssue, 'id'>[] = JSON.parse(jsonStr);
         
-        // Add IDs to each issue
-        return issues.map(issue => ({
-          ...issue,
-          id: uuidv4()
-        }));
+        // Add IDs to each issue and validate
+        const validatedIssues = issues
+          .filter(issue => issue.original && issue.suggestion && issue.original !== issue.suggestion)
+          .map(issue => {
+            // Normalize issue type to match our expected values
+            const normalizedType = normalizeIssueType(issue.type);
+            return {
+              ...issue,
+              type: normalizedType,
+              id: uuidv4()
+            };
+          });
+        
+        return validatedIssues;
       }
       return [];
     } catch (parseError) {
@@ -199,9 +254,7 @@ async function checkGrammarWithTrinka(text: string): Promise<GrammarIssue[]> {
       const typeCandidate = String((issue?.type ?? issue?.category ?? issue?.issue_type ?? 'grammar')).toLowerCase();
       const descriptionCandidate = issue?.description ?? issue?.message ?? issue?.explanation ?? issue?.reason ?? '';
 
-      const normalizedType = (['grammar', 'spelling', 'style', 'clarity'].includes(typeCandidate)
-        ? typeCandidate
-        : 'grammar') as GrammarIssue['type'];
+      const normalizedType = normalizeIssueType(typeCandidate);
 
       const originalStr = String(originalCandidate || '').trim();
       const suggestionStr = String((suggestionCandidate || originalCandidate || '')).trim();

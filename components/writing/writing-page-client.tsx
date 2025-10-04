@@ -28,6 +28,10 @@ const WritingPageClient = () => {
   const [selectedText, setSelectedText] = useState<string>("")
   const [suggestedText, setSuggestedText] = useState<string>("")
   const [grammarIssues, setGrammarIssues] = useState<GrammarIssue[]>([])
+  const [highlightedContent, setHighlightedContent] = useState<string>("")
+  const [currentIssueIndex, setCurrentIssueIndex] = useState<number>(-1)
+  const [lastGrammarCheckHash, setLastGrammarCheckHash] = useState<string>("")
+  const [lastGrammarCheckResult, setLastGrammarCheckResult] = useState<'no-issues' | 'had-issues' | null>(null)
   const [tone, setTone] = useState<string>("Formal")
   const [englishType, setEnglishType] = useState<string>("American")
   const [isProcessing, setIsProcessing] = useState<boolean>(false)
@@ -136,6 +140,23 @@ const WritingPageClient = () => {
       return;
     }
 
+    // Check if we've already processed this exact content
+    const currentContentHash = createContentHash(textToCheck);
+    if (currentContentHash === lastGrammarCheckHash && lastGrammarCheckResult === 'no-issues') {
+      toast.info("This content has already been checked and has no grammar issues.");
+      setActiveTab("grammar");
+      return;
+    }
+    
+    // If we've already processed this content and it had issues, but now has no issues,
+    // it means the user fixed them, so show no issues
+    if (currentContentHash === lastGrammarCheckHash && lastGrammarCheckResult === 'had-issues' && grammarIssues.length === 0) {
+      toast.success("No grammar issues found. Your text looks great!");
+      setActiveTab("grammar");
+      setLastGrammarCheckResult('no-issues');
+      return;
+    }
+
     // Auto-switch to grammar tab
     setActiveTab("grammar");
     setIsProcessing(true);
@@ -160,10 +181,22 @@ const WritingPageClient = () => {
       if (data.grammarIssues && data.grammarIssues.length > 0) {
         setGrammarIssues(data.grammarIssues);
         setLastProcessedFeature("Grammar Check");
-        toast.info(`Found ${data.grammarIssues.length} grammar issue${data.grammarIssues.length > 1 ? 's' : ''} to review`);
+        setLastGrammarCheckHash(currentContentHash); // Track this content
+        setLastGrammarCheckResult('had-issues'); // Mark that this content had issues
+        
+        // Apply visual highlights to the editor content
+        const highlighted = highlightGrammarIssues(editorContent, data.grammarIssues);
+        setHighlightedContent(highlighted);
+        setEditorKey(prev => prev + 1); // Force re-render with highlights
+        
+        toast.info(`Found ${data.grammarIssues.length} grammar issue${data.grammarIssues.length > 1 ? 's' : ''} to review. Issues are highlighted in the editor.`);
       } else {
         setGrammarIssues([]);
+        setHighlightedContent("");
+        setCurrentIssueIndex(-1);
         setLastProcessedFeature("Grammar Check (No issues)");
+        setLastGrammarCheckHash(currentContentHash); // Mark this content as checked
+        setLastGrammarCheckResult('no-issues'); // Mark that this content has no issues
         toast.success('No grammar issues found. Your text looks great!');
       }
       setIsProcessing(false);
@@ -179,6 +212,96 @@ const WritingPageClient = () => {
   // Helper function to strip HTML tags for text matching
   const stripHtmlTags = (html: string) => {
     return html.replace(/<[^>]*>?/gm, '');
+  };
+
+  // Simple hash function to track content changes
+  const createContentHash = (text: string) => {
+    const cleanText = stripHtmlTags(text).toLowerCase().replace(/\s+/g, ' ').trim();
+    let hash = 0;
+    for (let i = 0; i < cleanText.length; i++) {
+      const char = cleanText.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString();
+  };
+
+  // Function to highlight grammar issues in the editor content
+  const highlightGrammarIssues = (content: string, issues: GrammarIssue[]) => {
+    if (!issues || issues.length === 0) {
+      return content;
+    }
+
+    let highlightedContent = content;
+    const issueHighlights: Array<{start: number, end: number, issue: GrammarIssue}> = [];
+
+    // Find all issue positions and sort by start position
+    issues.forEach((issue, index) => {
+      const regex = buildHtmlInterleavedRegex(issue.original);
+      const match = highlightedContent.match(regex);
+      if (match && match.index !== undefined) {
+        issueHighlights.push({
+          start: match.index,
+          end: match.index + match[0].length,
+          issue: { ...issue, id: `${issue.id}-${index}` }
+        });
+      }
+    });
+
+    // Sort by start position (descending to avoid offset issues)
+    issueHighlights.sort((a, b) => b.start - a.start);
+
+    // Apply highlights from end to beginning
+    issueHighlights.forEach((highlight, index) => {
+      const { start, end, issue } = highlight;
+      const before = highlightedContent.slice(0, start);
+      const issueText = highlightedContent.slice(start, end);
+      const after = highlightedContent.slice(end);
+      
+      const issueTypeClass = {
+        'grammar': 'bg-red-100 border-b-2 border-red-400',
+        'spelling': 'bg-orange-100 border-b-2 border-orange-400', 
+        'style': 'bg-yellow-100 border-b-2 border-yellow-400',
+        'clarity': 'bg-blue-100 border-b-2 border-blue-400'
+      }[issue.type] || 'bg-gray-100 border-b-2 border-gray-400';
+
+      const highlightedIssue = `<span class="grammar-issue ${issueTypeClass}" data-issue-id="${issue.id}" data-issue-type="${issue.type}" title="${issue.description}">${issueText}</span>`;
+      
+      highlightedContent = before + highlightedIssue + after;
+    });
+
+    return highlightedContent;
+  };
+
+  // Function to navigate to next/previous issue
+  const navigateToIssue = (direction: 'next' | 'prev') => {
+    if (grammarIssues.length === 0) return;
+    
+    const newIndex = direction === 'next' 
+      ? (currentIssueIndex + 1) % grammarIssues.length
+      : (currentIssueIndex - 1 + grammarIssues.length) % grammarIssues.length;
+    
+    setCurrentIssueIndex(newIndex);
+    const issue = grammarIssues[newIndex];
+    
+    // Scroll to and highlight the issue
+    setTimeout(() => {
+      const issueElement = document.querySelector(`[data-issue-id="${issue.id}"]`);
+      if (issueElement) {
+        issueElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Add temporary highlight
+        issueElement.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
+        setTimeout(() => {
+          issueElement.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
+        }, 2000);
+      }
+    }, 100);
+  };
+
+  // Function to clear all highlights
+  const clearHighlights = () => {
+    setHighlightedContent("");
+    setCurrentIssueIndex(-1);
   };
 
   // Build an HTML-tolerant regex that matches the target text even if
@@ -262,6 +385,10 @@ const WritingPageClient = () => {
       setEditorContent(updatedContent);
       setEditorKey(prev => prev + 1);
       setGrammarIssues([]);
+      setHighlightedContent("");
+      setCurrentIssueIndex(-1);
+      setLastGrammarCheckHash(""); // Reset hash since content changed
+      setLastGrammarCheckResult(null); // Reset result since content changed
       setSelectedText("");
       setLastSelectedText(""); // Clear backup
       toast.success(`All ${appliedCount} grammar issue${appliedCount > 1 ? 's' : ''} fixed successfully!`);
@@ -329,6 +456,8 @@ const WritingPageClient = () => {
             setSuggestedText("");
             setSelectedText("");
             setLastSelectedText(""); // Clear backup too
+            setLastGrammarCheckHash(""); // Reset hash since content changed
+            setLastGrammarCheckResult(null); // Reset result since content changed
             toast.success("Text paraphrased successfully!");
           } else if (issue) {
             // Only remove the specific grammar issue that was accepted
@@ -336,8 +465,19 @@ const WritingPageClient = () => {
             setGrammarIssues(updatedGrammarIssues);
             setSelectedText("");
             
+            // Update highlights for remaining issues
+            if (updatedGrammarIssues.length > 0) {
+              const newHighlighted = highlightGrammarIssues(updatedContent, updatedGrammarIssues);
+              setHighlightedContent(newHighlighted);
+            } else {
+              setHighlightedContent("");
+              setCurrentIssueIndex(-1);
+              setLastGrammarCheckHash(""); // Reset hash since content changed
+              setLastGrammarCheckResult(null); // Reset result since content changed
+            }
+            
             // Success message for grammar
-            const remainingCount = grammarIssues.length - 1;
+            const remainingCount = updatedGrammarIssues.length;
             if (remainingCount > 0) {
               toast.success(`Grammar issue fixed! ${remainingCount} remaining.`);
             } else {
@@ -403,15 +543,25 @@ const WritingPageClient = () => {
       // Remove only the specific grammar issue
       const updatedGrammarIssues = grammarIssues.filter(gi => gi.id !== issueId);
       setGrammarIssues(updatedGrammarIssues);
+      
+      // Update highlights for remaining issues
       if (updatedGrammarIssues.length > 0) {
+        const newHighlighted = highlightGrammarIssues(editorContent, updatedGrammarIssues);
+        setHighlightedContent(newHighlighted);
         toast.info(`Grammar issue ignored. ${updatedGrammarIssues.length} remaining.`);
       } else {
+        setHighlightedContent("");
+        setCurrentIssueIndex(-1);
+        setLastGrammarCheckResult('no-issues'); // Mark as no issues since all were ignored
         toast.success("Grammar issue ignored. All issues resolved.");
       }
     } else {
       // Clear all suggestions (for paraphrase rejection)
       setSuggestedText("");
       setGrammarIssues([]);
+      setHighlightedContent("");
+      setCurrentIssueIndex(-1);
+      setLastGrammarCheckResult(null); // Reset result when clearing all
       setSelectedText("");
     }
   };
@@ -420,6 +570,10 @@ const WritingPageClient = () => {
   const handleClearSuggestions = () => {
     setSuggestedText("");
     setGrammarIssues([]);
+    setHighlightedContent("");
+    setCurrentIssueIndex(-1);
+    setLastGrammarCheckHash(""); // Reset hash when clearing suggestions
+    setLastGrammarCheckResult(null); // Reset result when clearing suggestions
     setLastProcessedFeature("");
   };
 
@@ -637,6 +791,9 @@ const WritingPageClient = () => {
   const handleEditorChange = (html: string, raw: any) => {
     setEditorContent(html);
     setEditorRawContent(raw);
+    // Reset grammar check hash when content changes manually
+    setLastGrammarCheckHash("");
+    setLastGrammarCheckResult(null);
   };
 
   // Function to get selected text from editor
@@ -729,7 +886,7 @@ const WritingPageClient = () => {
       richTextEditor={
         <RichTextEditor
           key={`editor-${editorKey}`}
-          initialContent={editorContent}
+          initialContent={highlightedContent || editorContent}
           onChange={handleEditorChange}
           height="100%"
           onSelectedTextChange={setSelectedText}
@@ -755,6 +912,8 @@ const WritingPageClient = () => {
               activeTab={activeTab}
               onTabChange={setActiveTab}
               onRevealIssue={revealIssueInEditor}
+              currentIssueIndex={currentIssueIndex}
+              onNavigateIssue={navigateToIssue}
             />
           </div>
         </div>

@@ -22,6 +22,8 @@ interface AISuggestionsPanelProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   onRevealIssue?: (issue: GrammarIssue) => void;
+  currentIssueIndex?: number;
+  onNavigateIssue?: (direction: 'next' | 'prev') => void;
 }
 
 interface GrammarIssue {
@@ -44,7 +46,9 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
   grammarIssues = [],
   activeTab,
   onTabChange,
-  onRevealIssue
+  onRevealIssue,
+  currentIssueIndex = -1,
+  onNavigateIssue
 }) => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [expandedIssueIds, setExpandedIssueIds] = useState<Record<string, boolean>>({});
@@ -194,22 +198,90 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-gray-700">
                       <Badge variant="outline" className="text-gray-700 border-gray-300"><AlertTriangle className="mr-1" /> Found {grammarIssues.length} issues</Badge>
+                      {grammarIssues.length > 0 && currentIssueIndex >= 0 && (
+                        <Badge variant="secondary" className="text-blue-700 bg-blue-100">
+                          {currentIssueIndex + 1} of {grammarIssues.length}
+                        </Badge>
+                      )}
                     </div>
-                    <Button size="sm" variant="default" onClick={onAcceptAll} className="bg-gray-900 hover:bg-black text-white">
-                      <CheckCircle className="h-4 w-4 mr-2" /> Fix All
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {grammarIssues.length > 1 && onNavigateIssue && (
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => onNavigateIssue('prev')}
+                            className="h-7 px-2 border-gray-300"
+                            title="Previous issue"
+                          >
+                            ←
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => onNavigateIssue('next')}
+                            className="h-7 px-2 border-gray-300"
+                            title="Next issue"
+                          >
+                            →
+                          </Button>
+                        </div>
+                      )}
+                      <Button size="sm" variant="default" onClick={onAcceptAll} className="bg-gray-900 hover:bg-black text-white">
+                        <CheckCircle className="h-4 w-4 mr-2" /> Fix All
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-2 flex-1 overflow-y-auto">
-                    {grammarIssues.map((issue) => (
-                      <div key={issue.id} className="flex items-start justify-between gap-2 rounded-md border px-3 py-2 bg-white">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="destructive">{issue.type}</Badge>
-                          </div>
-                          <div className={`text-xs text-gray-700 ${expandedIssueIds[issue.id] ? '' : 'truncate'}`}>
-                            <span className="line-through text-red-600 mr-2">{issue.original}</span>
-                            <span className="text-green-700 font-medium">{issue.suggestion}</span>
-                          </div>
+                    {grammarIssues.map((issue) => {
+                      // Color coding for different issue types
+                      const getIssueColors = (type: string) => {
+                        switch (type) {
+                          case 'grammar':
+                            return {
+                              badge: 'bg-red-100 text-red-800 border-red-200',
+                              original: 'text-red-600',
+                              badgeText: 'Grammar'
+                            };
+                          case 'spelling':
+                            return {
+                              badge: 'bg-orange-100 text-orange-800 border-orange-200',
+                              original: 'text-orange-600',
+                              badgeText: 'Spelling'
+                            };
+                          case 'style':
+                            return {
+                              badge: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                              original: 'text-yellow-600',
+                              badgeText: 'Style'
+                            };
+                          case 'clarity':
+                            return {
+                              badge: 'bg-blue-100 text-blue-800 border-blue-200',
+                              original: 'text-blue-600',
+                              badgeText: 'Clarity'
+                            };
+                          default:
+                            return {
+                              badge: 'bg-gray-100 text-gray-800 border-gray-200',
+                              original: 'text-gray-600',
+                              badgeText: 'Issue'
+                            };
+                        }
+                      };
+
+                      const colors = getIssueColors(issue.type);
+
+                      return (
+                        <div key={issue.id} className="flex items-start justify-between gap-2 rounded-md border px-3 py-2 bg-white">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge className={`${colors.badge} border`}>{colors.badgeText}</Badge>
+                            </div>
+                            <div className={`text-xs text-gray-700 ${expandedIssueIds[issue.id] ? '' : 'truncate'}`}>
+                              <span className={`line-through ${colors.original} mr-2`}>{issue.original}</span>
+                              <span className="text-green-700 font-medium">{issue.suggestion}</span>
+                            </div>
                           <button
                             className="text-[11px] text-blue-600 hover:underline mt-1"
                             onClick={() => {
@@ -225,7 +297,8 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                           <Button size="sm" variant="ghost" className="h-7 px-2 text-red-600" onClick={() => onReject(issue.id)}>Deny</Button>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ) : (
