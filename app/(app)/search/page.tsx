@@ -18,6 +18,7 @@ interface Message {
   timestamp: Date
   sources?: string[]
   isTyping?: boolean
+  attachments?: Array<{ id: string; name: string }>
 }
 
 interface Conversation {
@@ -241,7 +242,10 @@ const SearchPage = () => {
       id: `user-${Date.now()}`,
       type: 'user',
       content: message.trim(),
-      timestamp: new Date()
+      timestamp: new Date(),
+      attachments: attachedDocs
+        .filter(d => d.status === 'ready')
+        .map(d => ({ id: d.id, name: d.name }))
     }
 
     setMessages(prev => [...prev, userMessage])
@@ -1188,6 +1192,17 @@ const SearchPage = () => {
                     {message.type === 'user' ? (
                       <div className="flex justify-end mb-8">
                         <div className="bg-slate-200 text-slate-700 rounded-2xl px-4 py-2 text-sm max-w-[80%] group/user">
+                          {/* Show attachments above the user's message bubble */}
+                          {message.attachments && message.attachments.length > 0 && (
+                            <div className="mb-2 flex flex-wrap gap-2">
+                              {message.attachments.map((att) => (
+                                <div key={att.id} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-white shadow-sm text-xs">
+                                  <div className="w-3 h-3 rounded-full bg-red-500" />
+                                  <span className="truncate max-w-[180px]" title={att.name}>{att.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           {editingMessageId === message.id ? (
                             <div className="w-full">
                               {/* ChatGPT-style editing interface */}
@@ -1311,7 +1326,7 @@ const SearchPage = () => {
                                 </>
                               )}
                               
-                              {/* Sources */}
+                              {/* Sources + show attachments similarly for assistant if desired (sources already shown) */}
                               {message.sources && message.sources.length > 0 && (
                                 <div className="mt-4 pt-3 border-t border-slate-100">
                                   <p className="text-xs text-slate-500 mb-2">Sources:</p>

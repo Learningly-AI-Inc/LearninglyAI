@@ -181,6 +181,38 @@ const WritingPageClient = () => {
     return html.replace(/<[^>]*>?/gm, '');
   };
 
+  // Build an HTML-tolerant regex that matches the target text even if
+  // there are inline tags, whitespace differences, or typographic quotes/dashes
+  const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const charToPattern = (ch: string) => {
+    if (/\s/.test(ch)) return '\\s+';
+    if (ch === "'") return "[\\u2018\\u2019']"; // straight/smart single quotes
+    if (ch === '"') return '[\\u201C\\u201D\"]'; // straight/smart double quotes
+    if (ch === '-') return '[-\\u2013\\u2014]'; // hyphen/en dash/em dash
+    return escapeRegex(ch);
+  };
+  const buildHtmlInterleavedRegex = (text: string) => {
+    const inter = Array.from(text).map((ch) => charToPattern(ch)).join('(?:<[^>]*>\\s*)*');
+    // Allow tags/whitespace before the first char and after the last
+    const pattern = '(?:<[^>]*>\\s*)*' + inter + '(?:<[^>]*>\\s*)*';
+    return new RegExp(pattern, 'i');
+  };
+  const normalizeSuggestion = (s: string) => {
+    if (!s) return s;
+    // Treat bracketed removal instructions as delete
+    const trimmed = s.trim();
+    if (/^\[.*remove.*\]$/i.test(trimmed) || /^\(.*remove.*\)$/i.test(trimmed)) return '';
+    return trimmed;
+  };
+  const replaceHtmlTolerantOnce = (html: string, target: string, replacement: string) => {
+    try {
+      const regex = buildHtmlInterleavedRegex(target);
+      return html.replace(regex, replacement);
+    } catch {
+      return html;
+    }
+  };
+
   // Function to handle accepting all grammar suggestions
   const handleAcceptAll = async () => {
     if (grammarIssues.length === 0) return;
@@ -207,10 +239,18 @@ const WritingPageClient = () => {
               .join('\\s+(?:<[^>]*>\\s*)*');
             
             updatedContent = updatedContent.replace(
-              new RegExp(flexiblePattern),
+              new RegExp(flexiblePattern, 'i'),
               issue.suggestion
             );
             appliedCount++;
+          } else {
+            // Final fallback: robust HTML-tolerant, char-by-char interleaved matching
+            const safeSuggestion = normalizeSuggestion(issue.suggestion);
+            const replaced = replaceHtmlTolerantOnce(updatedContent, issue.original, safeSuggestion);
+            if (replaced !== updatedContent) {
+              updatedContent = replaced;
+              appliedCount++;
+            }
           }
         }
       } catch (error) {
@@ -259,9 +299,16 @@ const WritingPageClient = () => {
               .join('\\s+(?:<[^>]*>\\s*)*');
             
             updatedContent = editorContent.replace(
-              new RegExp(flexiblePattern),
+              new RegExp(flexiblePattern, 'i'),
               newText
             );
+          } else {
+            // Strategy 3: Robust fallback that tolerates tags and typography across characters
+            const safeNewText = normalizeSuggestion(newText);
+            const replaced = replaceHtmlTolerantOnce(editorContent, textToReplace, safeNewText);
+            if (replaced !== editorContent) {
+              updatedContent = replaced;
+            }
           }
         }
         
@@ -320,12 +367,8 @@ const WritingPageClient = () => {
       if (!container) return;
       const plain = (editorContent || '').replace(/<[^>]*>?/gm, '');
       if (!plain || !issue?.original) return;
-      // Build a flexible regex to account for inline tags between words
-      const flexiblePattern = issue.original
-        .split(' ')
-        .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-        .join('\\s+(?:<[^>]*>\\s*)*');
-      const regex = new RegExp(flexiblePattern, 'i');
+      // Build a robust HTML-tolerant regex to account for inline tags and typography
+      const regex = buildHtmlInterleavedRegex(issue.original);
       const html = editorContent || '';
       const match = html.match(regex);
       if (!match) return;

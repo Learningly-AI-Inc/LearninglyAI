@@ -35,7 +35,7 @@ export interface GrammarIssue {
 // Function to log AI API calls to the database
 export async function logAIModelCall(
   userId: string, 
-  modelName: 'gemini' | 'openai' | 'gpt-5', 
+  modelName: 'gemini' | 'openai' | 'gpt-5' | 'trinka', 
   requestPayload: any, 
   responsePayload: any
 ) {
@@ -154,6 +154,74 @@ async function checkGrammar(text: string): Promise<GrammarIssue[]> {
   }
 }
 
+// Trinka provider integration with safe fallback to Gemini
+async function checkGrammarWithTrinka(text: string): Promise<GrammarIssue[]> {
+  const trinkaApiKey = process.env.TRINKA_API_KEY || process.env.NEXT_PUBLIC_TRINKA_API_KEY || '';
+  const trinkaEndpoint = process.env.TRINKA_API_URL_GRAMMAR || '';
+
+  if (!trinkaApiKey || !trinkaEndpoint) {
+    // Missing configuration; fall back to existing Gemini-based checker
+    return await checkGrammar(text);
+  }
+
+  try {
+    const response = await fetch(trinkaEndpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${trinkaApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ text })
+    });
+
+    if (!response.ok) {
+      try {
+        const errText = await response.text();
+        console.error('Trinka grammar API error:', response.status, errText);
+      } catch {
+        console.error('Trinka grammar API error status:', response.status);
+      }
+      return await checkGrammar(text);
+    }
+
+    const data: any = await response.json();
+
+    // Try to locate an issues array across common shapes
+    const rawIssues: any[] = Array.isArray(data?.issues) ? data.issues
+      : Array.isArray(data?.data?.issues) ? data.data.issues
+      : Array.isArray(data?.results) ? data.results
+      : Array.isArray(data) ? data
+      : [];
+
+    const mapped: GrammarIssue[] = rawIssues.map((issue: any) => {
+      const originalCandidate = issue?.original ?? issue?.error ?? issue?.error_text ?? issue?.context ?? issue?.text ?? issue?.source ?? '';
+      const suggestionCandidate = issue?.suggestion ?? issue?.replacement ?? issue?.fix ?? issue?.correction ?? issue?.target ?? '';
+      const typeCandidate = String((issue?.type ?? issue?.category ?? issue?.issue_type ?? 'grammar')).toLowerCase();
+      const descriptionCandidate = issue?.description ?? issue?.message ?? issue?.explanation ?? issue?.reason ?? '';
+
+      const normalizedType = (['grammar', 'spelling', 'style', 'clarity'].includes(typeCandidate)
+        ? typeCandidate
+        : 'grammar') as GrammarIssue['type'];
+
+      const originalStr = String(originalCandidate || '').trim();
+      const suggestionStr = String((suggestionCandidate || originalCandidate || '')).trim();
+
+      return {
+        id: uuidv4(),
+        original: originalStr,
+        suggestion: suggestionStr,
+        type: normalizedType,
+        description: String(descriptionCandidate || '').trim()
+      } as GrammarIssue;
+    }).filter((gi: GrammarIssue) => gi.original && gi.suggestion && gi.original !== gi.suggestion);
+
+    return mapped;
+  } catch (error) {
+    console.error('Error calling Trinka grammar API:', error);
+    return await checkGrammar(text);
+  }
+}
+
 // Function for shortening text
 async function shortenText(text: string, percentage: number = 50): Promise<string> {
   try {
@@ -213,7 +281,11 @@ export async function processWithAI(request: AIRequest): Promise<AIResponse> {
         result = await paraphraseText(text, tone);
         break;
       case 'grammar':
-        grammarIssues = await checkGrammar(text);
+        if ((process.env.TRINKA_API_KEY || process.env.NEXT_PUBLIC_TRINKA_API_KEY) && process.env.TRINKA_API_URL_GRAMMAR) {
+          grammarIssues = await checkGrammarWithTrinka(text);
+        } else {
+          grammarIssues = await checkGrammar(text);
+        }
         result = text; // Return original text
         break;
       case 'shorten':
@@ -228,7 +300,12 @@ export async function processWithAI(request: AIRequest): Promise<AIResponse> {
     
     // Log the AI model call if a userId is provided
     if (userId) {
-      const modelName = action === 'paraphrase' ? 'openai' : 'gemini';
+      let modelName: 'gemini' | 'openai' | 'gpt-5' | 'trinka' = 'gemini';
+      if (action === 'paraphrase') {
+        modelName = 'openai';
+      } else if (action === 'grammar' && ((process.env.TRINKA_API_KEY || process.env.NEXT_PUBLIC_TRINKA_API_KEY) && process.env.TRINKA_API_URL_GRAMMAR)) {
+        modelName = 'trinka';
+      }
       await logAIModelCall(
         userId,
         modelName,
