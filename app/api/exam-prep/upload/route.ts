@@ -144,12 +144,32 @@ export async function POST(request: NextRequest) {
         console.log('Webhook result data structure:', JSON.stringify(webhookResult.data, null, 2));
         
         if (webhookResult.data && Array.isArray(webhookResult.data) && webhookResult.data.length > 0) {
-          extractedText = webhookResult.data[0].extracted_text || '';
+          extractedText = webhookResult.data[0].extracted_text || webhookResult.data[0].text || webhookResult.data[0].content || '';
           console.log('Extracted text length:', extractedText.length);
         } else if (webhookResult.data && typeof webhookResult.data === 'object') {
           // Handle case where data is not an array
-          extractedText = webhookResult.data.extracted_text || '';
+          extractedText = webhookResult.data.extracted_text || webhookResult.data.text || webhookResult.data.content || '';
           console.log('Extracted text from object:', extractedText.length);
+        }
+
+        // If webhook returned nothing, use local fallback extractors
+        if (!extractedText || extractedText.trim().length === 0) {
+          try {
+            const nameLower = (file.name || '').toLowerCase()
+            if (nameLower.endsWith('.pdf')) {
+              const { default: PDFParse } = await import('pdf-parse')
+              const pdfData = await PDFParse(Buffer.from(arrayBuffer)) as any
+              extractedText = String(pdfData.text || '').trim()
+            } else if (nameLower.endsWith('.docx')) {
+              const mammoth = await import('mammoth')
+              const result = await mammoth.extractRawText({ arrayBuffer })
+              extractedText = String(result.value || '').trim()
+            } else if (nameLower.endsWith('.txt')) {
+              extractedText = Buffer.from(arrayBuffer).toString('utf-8')
+            }
+          } catch (fallbackErr) {
+            console.error('Fallback extraction failed:', fallbackErr)
+          }
         }
 
         // Update the database with extracted content and processing status
@@ -164,8 +184,8 @@ export async function POST(request: NextRequest) {
           const { error: updateError } = await supabase
             .from('exam_files')
             .update({
-              extracted_content: extractedText || null,
-              processing_status: extractedText ? 'completed' : 'failed',
+              extracted_content: extractedText && extractedText.trim().length > 0 ? extractedText : null,
+              processing_status: extractedText && extractedText.trim().length > 0 ? 'completed' : 'failed',
               updated_at: new Date().toISOString()
             })
             .eq('id', fileRecord.id);

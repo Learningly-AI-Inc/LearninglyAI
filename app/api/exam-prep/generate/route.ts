@@ -71,6 +71,8 @@ function sanitizeSourceContent(text: string): string {
       .replace(/Get\s+help\s+with\s+document\-related\s+tasks/gi, '')
       .replace(/Discuss\s+the\s+document's\s+purpose/gi, '')
       .replace(/Review\s+the\s+document\s+for\s+errors/gi, '')
+      // Extra UI/boilerplate phrases that can poison prompts
+      .replace(/(drag\s+and\s+drop|choose\s+files|click\s+to\s+upload|processing\s+status|file\s+upload|file\s+deletion|we\s+can\s+help\s+you|help\s+the\s+user|ai\s+will\s+analyze|analysis\s+complete|upload\s+guidelines)/gi, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim()
 
@@ -101,6 +103,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No extracted text available from uploaded documents' }, { status: 400 })
     }
 
+    console.log('📚 Document extraction:', {
+      examFiles: textsA.length,
+      readingDocs: textsB.length,
+      totalTexts: texts.length,
+      firstTextPreview: texts[0]?.slice(0, 500)
+    })
+
     // Sanitize each document separately; drop boilerplate-only docs
     const sanitizedDocs = texts
       .map(t => sanitizeSourceContent(t))
@@ -109,74 +118,200 @@ export async function POST(req: NextRequest) {
     const rawCombined = sourceDocs.join('\n\n---\n\n').slice(0, 100_000)
     const combined = rawCombined
 
-    // Normalization helpers for grounding checks
-    const normalizeForEvidence = (s: string) =>
-      String(s || '')
-        .toLowerCase()
-        .replace(/[“”„‟‶\u201C\u201D]/g, '"')
-        .replace(/[‘’‛\u2018\u2019]/g, "'")
-        .replace(/[^a-z0-9\s'"-]+/g, ' ') // keep alphanum and simple quotes/hyphens
-        .replace(/\s+/g, ' ')
-        .trim()
+    console.log('📄 Content for generation:', {
+      sanitizedCount: sanitizedDocs.length,
+      totalLength: combined.length,
+      preview: combined.slice(0, 1000)
+    })
 
-    const normalizedSource = normalizeForEvidence(combined)
+    // Helpers for strict grounding
+    const normalize = (s: string) => String(s || '')
+      .toLowerCase()
+      .replace(/[“”„‟‶\u201C\u201D]/g, '"')
+      .replace(/[‘’‛\u2018\u2019]/g, "'")
+      .replace(/[^a-z0-9\s'"-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
 
-    const STOPWORDS = new Set([
-      'the','a','an','and','or','but','of','to','in','on','for','with','by','as','is','are','was','were','be','being','been','at','from','that','this','these','those','it','its','their','there','which','who','whom','what','when','where','why','how','into','than','then','so','such','may','can','could','would','should'
-    ])
-
-    const evidenceAppearsInSource = (evidence: string): boolean => {
-      const ev = normalizeForEvidence(evidence).slice(0, 160)
-      if (ev.length < 12) return false
-      return normalizedSource.includes(ev)
+    const splitIntoChunks = (text: string, size = 8000): string[] => {
+      const chunks: string[] = []
+      for (let i = 0; i < text.length; i += size) chunks.push(text.slice(i, i + size))
+      return chunks
     }
 
-    const hasSufficientKeywordOverlap = (text: string): boolean => {
-      const tokens = normalizeForEvidence(text).split(' ').filter(t => t.length >= 4 && !STOPWORDS.has(t))
-      if (tokens.length === 0) return false
-      const unique = Array.from(new Set(tokens))
-      const present = unique.filter(t => normalizedSource.includes(t))
-      // Softer threshold: at least 2 meaningful terms and 30% presence
-      return present.length >= Math.min(2, unique.length) && (present.length / unique.length) >= 0.3
+    // Try to reuse the reading pipeline's context builder for higher-quality chunks
+    async function fetchReadingContextChunks(documentIds: string[]): Promise<string[]> {
+      if (!Array.isArray(documentIds) || documentIds.length === 0) return []
+      const base = req.nextUrl.origin
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': req.headers.get('Authorization') || '',
+        'Cookie': req.headers.get('Cookie') || ''
+      }
+      const collected: string[] = []
+      for (const docId of documentIds) {
+        try {
+          const res = await fetch(`${base}/api/reading/get-context`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              documentId: docId,
+              options: { maxTokens: 8000, includeMetadata: true, chunkSize: 1200, overlap: 200, strategy: 'smart' }
+            })
+          })
+          if (!res.ok) continue
+          const data = await res.json()
+          const cs = (data?.context?.chunks || []).map((c: any) => String(c?.content || '')).filter((s: string) => s.trim().length >= 40)
+          collected.push(...cs)
+        } catch {}
+      }
+      return collected
     }
 
-    // Build a concept inventory first to anchor generation to actual content
-    let conceptsJson: any = { concepts: [] }
-    try {
-      const conceptsCompletion = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        response_format: { type: 'json_object' },
-        temperature: 0.2,
-        messages: [
-          { role: 'system', content: 'Extract the core concepts and facts from study materials for exam creation. Return strict JSON.' },
-          { role: 'user', content: `From the materials below, identify up to 30 key concepts or facts that can be used to write exam questions. For each, include a one-sentence description and an exact short supporting quote (<=120 chars) copied from the text. Output JSON shape: {"concepts":[{"name":"","description":"","quote":""}]}.\n\nMaterials (truncated):\n${combined}` }
-        ]
+    // Much more aggressive meta-question filtering
+    const metaPattern = /(which\s+section|document\b|pdf\b|filename|table\s+of\s+contents|appendix|upload|processing|user\b|file\b|after\s+being\s+uploaded|primary\s+purpose\s+of\s+the\s+document|analyze|archived|deleted|printed|stored|saved|downloaded|drag\s+&?\s*drop|click\s+to\s+upload|choose\s+files|guidelines|status|extracted\s+content|processing\s+status)/i
+
+    // Strict, section-based generation that requires an exact quote from the section
+    const readingChunks = await fetchReadingContextChunks(body.documentIds || [])
+    const rawSections = (readingChunks.length > 0 ? readingChunks : splitIntoChunks(combined, 8000))
+    const sections = rawSections
+      .map((s) => sanitizeSourceContent(s))
+      .map((s) => {
+        // Remove any lines that look like UI/upload boilerplate
+        return s
+          .split('\n')
+          .filter(line => !/(drag\s+&?\s*drop|click\s+to\s+browse|choose\s+files|upload|processing|guidelines|status|file\s+(?:size|type|uploaded)|document\s+viewer)/i.test(line))
+          .join('\n')
+          .trim()
       })
-      const cj = conceptsCompletion.choices[0]?.message?.content || '{}'
-      conceptsJson = JSON.parse(cj)
-      if (!Array.isArray(conceptsJson?.concepts)) conceptsJson = { concepts: [] }
-    } catch {}
+      .filter(s => s && s.length > 100)
+    
+    console.log('📖 Sections for generation:', {
+      readingChunksCount: readingChunks.length,
+      totalSections: sections.length,
+      firstSectionPreview: sections[0]?.slice(0, 500)
+    })
+    
+    const normalizedSections = sections.map(c => normalize(c))
+    const perChunkBase = Math.max(1, Math.floor(count / Math.max(1, sections.length)))
+    let strictCollected: any[] = []
 
-    // Detect whether the provided content looks like a sample exam
-    const sampleDetect = detectSampleExamHeuristic(combined)
+    for (let i = 0; i < sections.length && strictCollected.length < count; i++) {
+      const remaining = count - strictCollected.length
+      const ask = Math.min(5, Math.max(1, Math.min(perChunkBase, remaining)))
+      try {
+        const sectionPrompt = `From ONLY the section below, create EXACTLY ${ask} multiple-choice questions. Each question MUST:
+- test a specific fact or concept from the section
+- include four options (A-D) and one correct answer letter
+- include an \"evidence\" field that is an exact short quote (<=120 chars) copied from the section that supports the correct answer
 
-    const systemPrompt = sampleDetect.isSample
-      ? 'You analyze sample exam questions and then create NEW multiple-choice questions that MIMIC their style, tone, and difficulty distribution. Do NOT copy questions verbatim. Keep MCQ format with 4 options (A-D). Use only topics/concepts present in the source. Never ask meta questions about the document (sections, pages, file names). For each question, include an "evidence" field: a short exact quote (<=120 chars) taken from the source text that supports the answer. If evidence cannot be quoted from the source, SKIP that question. Return ONLY strict JSON.'
-      : 'You generate multiple-choice questions strictly from the provided study materials. Focus on the core concepts, facts, definitions, and relationships present in the text. Never ask meta questions about the document itself. For each question, include an "evidence" field: a short exact quote (<=120 chars) taken from the source text that supports the answer. If evidence cannot be quoted from the source, SKIP that question. Return ONLY strict JSON.'
+CRITICAL RULES:
+- NEVER ask about "the document", "the file", "the PDF", or "after upload"
+- NEVER ask what should be done with documents (analyze, delete, archive, print, store)
+- ONLY ask about the actual subject matter/concepts/facts in the content below
+- If the section is about functional architecture, ask about functional architecture
+- If the section is about biology, ask about biology concepts
+- Focus on testing knowledge OF the content, not ABOUT the content
 
-    const addl = body.instructions ? `Additional instructions: ${body.instructions}\n` : ''
-    const userPrompt = sampleDetect.isSample
-      ? `The source appears to contain sample exam questions (score=${sampleDetect.score}). Infer the common style (phrasing patterns, length, difficulty) and generate EXACTLY ${count} NEW MCQs in a similar style. Duration: ${durationMinutes} minutes. Title: ${body.title || 'Practice Exam (Modeled on Sample)'}\n${addl}\nSTRICT OUTPUT SHAPE:\n{"questions":[{"id":"","type":"mcq","question":"","options":["","","",""],"correctAnswer":"A","explanation":"","topic":"","difficulty":"${difficulty}","evidence":""}]}\n\nSource (truncated):\n${combined}`
-      : `Create EXACTLY ${count} MCQs based ONLY on these materials. Difficulty: ${difficulty}. Duration: ${durationMinutes} minutes. Title: ${body.title || 'Practice Exam'}\n${addl}\nSTRICT OUTPUT SHAPE:\n{"questions":[{"id":"","type":"mcq","question":"","options":["","","",""],"correctAnswer":"A","explanation":"","topic":"","difficulty":"${difficulty}","evidence":""}]}\n\nSource content (truncated):\n${combined}`
+Return strict JSON: {"questions":[{"id":"","type":"mcq","question":"","options":["","","",""],"correctAnswer":"A","explanation":"","topic":"","difficulty":"${difficulty}","evidence":""}]}
+
+Section:\n${sections[i]}`
+
+        const bySection = await openai.chat.completions.create({
+          model: 'gpt-4o',
+          response_format: { type: 'json_object' },
+          temperature: 0.2,
+          messages: [
+            { role: 'system', content: 'You are an exam question writer. Generate questions that test understanding of the subject matter in the provided text. NEVER create questions about documents, files, uploads, or storage. Focus ONLY on testing knowledge of the concepts and facts presented in the content.' },
+            { role: 'user', content: sectionPrompt }
+          ]
+        })
+        const secRaw = bySection.choices[0]?.message?.content || '{}'
+        let secObj: any = {}
+        try { secObj = JSON.parse(secRaw) } catch { const m = secRaw.match(/\{[\s\S]*\}/); secObj = m ? JSON.parse(m[0]) : { questions: [] } }
+        const extra = (Array.isArray(secObj?.questions) ? secObj.questions : [])
+          .filter((q: any) => q && Array.isArray(q.options))
+          .filter((q: any) => !metaPattern.test(String(q.question || '')))
+          .map((q: any, j: number) => {
+            const cleanOption = (s: any) => String(s).replace(/^[A-D][).]\s*/i, '').trim()
+            const opts = q.options.slice(0, 4).map((o: any) => cleanOption(o))
+            const letter = String(q.correctAnswer || 'A').trim().toUpperCase().charAt(0)
+            const validLetter = ['A','B','C','D'].includes(letter) ? letter : 'A'
+            return {
+              id: String(q.id || `sec_${i}_${j + 1}`),
+              type: 'mcq',
+              question: String(q.question || '').trim(),
+              options: opts,
+              correctAnswer: validLetter,
+              explanation: String(q.explanation || ''),
+              difficulty: String(q.difficulty || difficulty),
+              topic: String(q.topic || ''),
+              evidence: String((q as any).evidence || '')
+            }
+          })
+          .filter((q: any) => {
+            const ev = normalize(q.evidence || '').slice(0, 160)
+            return ev.length >= 8 && normalizedSections[i].includes(ev)
+          })
+        strictCollected = [...strictCollected, ...extra].slice(0, count)
+      } catch {}
+    }
+
+    // If strict pass already got enough grounded questions, use them
+    if (strictCollected.length >= Math.min(5, count)) {
+      const exam = {
+        examTitle: body.title || 'Practice Exam',
+        instructions: body.instructions || 'Choose the best answer for each question.',
+        duration: durationMinutes,
+        questions: strictCollected.slice(0, count)
+      }
+      return NextResponse.json({ success: true, exam })
+    }
+
+    // Simple, direct generation from document content (fallback)
+    const systemPrompt = `You are an exam question generator. Your ONLY job is to create multiple-choice questions that test knowledge from the provided document content. 
+
+CRITICAL RULES:
+1. Every question MUST be about specific facts, concepts, or information found in the document
+2. Do NOT create generic questions about "helping users" or "document processing"
+3. Do NOT ask about the document itself (pages, sections, format)
+4. Focus on the actual subject matter in the document (e.g., if it's about functional architecture, ask about functional architecture concepts)
+5. Each question needs 4 options (A-D) with one correct answer
+6. Return valid JSON only`
+
+    const userPrompt = `Generate EXACTLY ${count} multiple-choice questions based on the following document content. 
+These questions should test understanding of the concepts and facts presented in this document.
+Difficulty: ${difficulty}
+
+IMPORTANT: The questions must be about the actual content below, not about generic topics.
+
+Document Content:
+${combined.slice(0, 50000)}
+
+Output format (strict JSON):
+{
+  "questions": [
+    {
+      "id": "q1",
+      "type": "mcq", 
+      "question": "...",
+      "options": ["...", "...", "...", "..."],
+      "correctAnswer": "A",
+      "explanation": "...",
+      "difficulty": "${difficulty}"
+    }
+  ]
+}`
+
+    console.log('🎯 Generating questions with prompt length:', userPrompt.length)
 
     // Ask the model to create a clean MCQ-only exam
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       response_format: { type: 'json_object' },
-      temperature: 0.4,
+      temperature: 0.3,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'system', content: `Concept inventory for grounding:\n${JSON.stringify(conceptsJson).slice(0, 8000)}` },
         { role: 'user', content: userPrompt }
       ]
     })
@@ -190,187 +325,115 @@ export async function POST(req: NextRequest) {
       parsedExam = match ? JSON.parse(match[0]) : { questions: [] }
     }
 
-    // Normalize structure and drop meta questions
-    const metaPattern = /(which\s+section|document\b|materials|pdf|filename|chapter\s+\d+|page\s+\d+|table\s+of\s+contents|appendix)/i
+    console.log('🔍 Parsed exam:', {
+      questionCount: parsedExam?.questions?.length || 0,
+      firstQuestion: parsedExam?.questions?.[0]?.question
+    })
+
+    // Simple normalization without filtering
     const questions = Array.isArray(parsedExam?.questions) ? parsedExam.questions : []
-    // Map raw questions first (without strict grounding) so we have a safe fallback
-    const initialMapped = questions
-      .filter((q: any) => q && Array.isArray(q.options))
-      .filter((q: any) => !metaPattern.test(String(q.question || '')))
-      .map((q: any, i: number) => {
-        const cleanOption = (s: any) => String(s).replace(/^[A-D][).]\s*/i, '').trim()
-        const opts = q.options.slice(0, 4).map((o: any) => cleanOption(o))
-        const letter = String(q.correctAnswer || 'A').trim().toUpperCase().charAt(0)
-        const validLetter = ['A','B','C','D'].includes(letter) ? letter : 'A'
-        return {
-          id: String(q.id || `q_${i + 1}`),
-          type: 'mcq',
-          question: String(q.question || '').trim(),
-          options: opts,
-          correctAnswer: validLetter,
-          explanation: String(q.explanation || ''),
-          difficulty: (q.difficulty || difficulty),
-          topic: String(q.topic || ''),
-          evidence: String((q as any).evidence || '')
+    const mappedQuestions = questions
+      .filter((q: any) => q && Array.isArray(q.options) && q.options.length >= 4)
+        .map((q: any, i: number) => {
+          const cleanOption = (s: any) => String(s).replace(/^[A-D][).]\s*/i, '').trim()
+          const opts = q.options.slice(0, 4).map((o: any) => cleanOption(o))
+          const letter = String(q.correctAnswer || 'A').trim().toUpperCase().charAt(0)
+          const validLetter = ['A','B','C','D'].includes(letter) ? letter : 'A'
+          return {
+            id: String(q.id || `q_${i + 1}`),
+            type: 'mcq',
+            question: String(q.question || '').trim(),
+            options: opts,
+            correctAnswer: validLetter,
+            explanation: String(q.explanation || ''),
+          difficulty: String(q.difficulty || difficulty),
+          topic: String(q.topic || '')
         }
       })
-
-    // Apply strict grounding to the mapped questions
-    const strictlyGrounded = initialMapped
-      .filter((q: any) => {
-        const evidenceOk = q.evidence ? evidenceAppearsInSource(q.evidence) : false
-        const overlapOk = hasSufficientKeywordOverlap(
-          `${q.question} ${Array.isArray(q.options) ? q.options.join(' ') : ''}`
-        )
-        return evidenceOk || overlapOk
-      })
+        .slice(0, count)
 
     let normalized = {
-      examTitle: String(parsedExam?.examTitle || body.title || 'Practice Exam'),
-      instructions: String(parsedExam?.instructions || 'Choose the best answer for each question.'),
-      duration: Number(parsedExam?.duration || durationMinutes),
-      questions: strictlyGrounded.slice(0, count)
+      examTitle: body.title || 'Practice Exam',
+      instructions: body.instructions || 'Choose the best answer for each question.',
+      duration: durationMinutes,
+      questions: mappedQuestions
     }
 
-    // If model returned fewer than requested, top up with another call asking for the remainder.
-    let attempts = 0
-    while (normalized.questions.length < count && attempts < 3) {
-      attempts += 1
+    // Simple top-up if we didn't get enough questions
+    if (normalized.questions.length < count) {
+      const missing = count - normalized.questions.length
+      console.log(`📝 Need ${missing} more questions, making additional request...`)
+      
+      const topUpPrompt = `Generate EXACTLY ${missing} MORE multiple-choice questions based on the following document content.
+These questions should test understanding of the concepts and facts presented in this document.
+Difficulty: ${difficulty}
+
+IMPORTANT: Create questions about the actual subject matter in the document, not generic topics.
+
+Document Content:
+${combined.slice(0, 50000)}
+
+Output format (strict JSON):
+{
+  "questions": [
+    {
+      "id": "q1",
+      "type": "mcq",
+      "question": "...",
+      "options": ["...", "...", "...", "..."],
+      "correctAnswer": "A",
+      "explanation": "...",
+      "difficulty": "${difficulty}"
+    }
+  ]
+}`
+
       try {
-        const missing = count - normalized.questions.length
-        const usedStems = normalized.questions.map((q: any) => String(q.question || '').slice(0, 140))
-        const topUpUserPrompt = `Create EXACTLY ${missing} additional MCQs grounded ONLY in the materials below. Do not repeat or paraphrase any of these existing question stems:\n- ${usedStems.join('\n- ')}\nEach question MUST include an \"evidence\" field that is an exact quote (<=120 chars) present in the materials. If you cannot quote evidence, SKIP that question.\nSTRICT OUTPUT SHAPE:\n{"questions":[{"id":"","type":"mcq","question":"","options":["","","",""],"correctAnswer":"A","explanation":"","topic":"","difficulty":"${difficulty}","evidence":""}]}\n\nMaterials (truncated):\n${combined}`
         const topUp = await openai.chat.completions.create({
           model: 'gpt-4o',
           response_format: { type: 'json_object' },
-          temperature: 0.4,
+          temperature: 0.3,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'system', content: `Concept inventory for grounding:\n${JSON.stringify(conceptsJson).slice(0, 8000)}` },
-            { role: 'user', content: topUpUserPrompt }
+            { role: 'user', content: topUpPrompt }
           ]
         })
-        const topRaw = topUp.choices[0]?.message?.content || '{}'
-        let topObj: any = {}
-        try { topObj = JSON.parse(topRaw) } catch { const m = topRaw.match(/\{[\s\S]*\}/); topObj = m ? JSON.parse(m[0]) : { questions: [] } }
-        const extra = (Array.isArray(topObj?.questions) ? topObj.questions : [])
-          .filter((q: any) => q && Array.isArray(q.options))
-          .filter((q: any) => !metaPattern.test(String(q.question || '')))
+        
+        const topUpRaw = topUp.choices[0]?.message?.content || '{}'
+        let topUpParsed: any = {}
+        try { 
+          topUpParsed = JSON.parse(topUpRaw) 
+        } catch { 
+          const m = topUpRaw.match(/\{[\s\S]*\}/)
+          topUpParsed = m ? JSON.parse(m[0]) : { questions: [] } 
+        }
+        
+        const extraQuestions = (Array.isArray(topUpParsed?.questions) ? topUpParsed.questions : [])
+          .filter((q: any) => q && Array.isArray(q.options) && q.options.length >= 4)
           .map((q: any, i: number) => {
             const cleanOption = (s: any) => String(s).replace(/^[A-D][).]\s*/i, '').trim()
             const opts = q.options.slice(0, 4).map((o: any) => cleanOption(o))
             const letter = String(q.correctAnswer || 'A').trim().toUpperCase().charAt(0)
             const validLetter = ['A','B','C','D'].includes(letter) ? letter : 'A'
             return {
-              id: String(q.id || `q_extra_${attempts}_${i + 1}`),
+              id: String(q.id || `q_${normalized.questions.length + i + 1}`),
               type: 'mcq',
               question: String(q.question || '').trim(),
               options: opts,
               correctAnswer: validLetter,
               explanation: String(q.explanation || ''),
-              difficulty: (q.difficulty || difficulty),
-              topic: String(q.topic || ''),
-              evidence: String((q as any).evidence || '')
+              difficulty: String(q.difficulty || difficulty),
+              topic: String(q.topic || '')
             }
           })
-          .filter((q: any) => {
-            const evidenceOk = q.evidence ? evidenceAppearsInSource(q.evidence) : false
-            const overlapOk = hasSufficientKeywordOverlap(
-              `${q.question} ${Array.isArray(q.options) ? q.options.join(' ') : ''}`
-            )
-            return evidenceOk || overlapOk
-          })
-        normalized = { ...normalized, questions: [...normalized.questions, ...extra].slice(0, count) }
-      } catch {}
-    }
-
-    // Final relaxation: if still short, do one last pass allowing optional evidence but enforcing keyword overlap
-    if (normalized.questions.length < count) {
-      try {
-        const missing = count - normalized.questions.length
-        const lastPrompt = `Create EXACTLY ${missing} additional MCQs strictly and directly based on the materials. If you include an evidence field, it must be an exact quote from the materials; otherwise you may leave it blank. STRICT OUTPUT SHAPE:\n{"questions":[{"id":"","type":"mcq","question":"","options":["","","",""],"correctAnswer":"A","explanation":"","topic":"","difficulty":"${difficulty}","evidence":""}]}\n\nMaterials (truncated):\n${combined}`
-        const final = await openai.chat.completions.create({
-          model: 'gpt-4o',
-          response_format: { type: 'json_object' },
-          temperature: 0.4,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'system', content: `Concept inventory for grounding:\n${JSON.stringify(conceptsJson).slice(0, 8000)}` },
-            { role: 'user', content: lastPrompt }
-          ]
-        })
-        const finalRaw = final.choices[0]?.message?.content || '{}'
-        let finalObj: any = {}
-        try { finalObj = JSON.parse(finalRaw) } catch { const m = finalRaw.match(/\{[\s\S]*\}/); finalObj = m ? JSON.parse(m[0]) : { questions: [] } }
-        const extra = (Array.isArray(finalObj?.questions) ? finalObj.questions : [])
-          .filter((q: any) => q && Array.isArray(q.options))
-          .filter((q: any) => !metaPattern.test(String(q.question || '')))
-          .map((q: any, i: number) => {
-            const cleanOption = (s: any) => String(s).replace(/^[A-D][).]\s*/i, '').trim()
-            const opts = q.options.slice(0, 4).map((o: any) => cleanOption(o))
-            const letter = String(q.correctAnswer || 'A').trim().toUpperCase().charAt(0)
-            const validLetter = ['A','B','C','D'].includes(letter) ? letter : 'A'
-            return {
-              id: String(q.id || `q_relax_${i + 1}`),
-              type: 'mcq',
-              question: String(q.question || '').trim(),
-              options: opts,
-              correctAnswer: validLetter,
-              explanation: String(q.explanation || ''),
-              difficulty: (q.difficulty || difficulty),
-              topic: String(q.topic || ''),
-              evidence: String((q as any).evidence || '')
-            }
-          })
-          .filter((q: any) => hasSufficientKeywordOverlap(`${q.question} ${Array.isArray(q.options) ? q.options.join(' ') : ''}`))
-        normalized = { ...normalized, questions: [...normalized.questions, ...extra].slice(0, count) }
-      } catch {}
-    }
-
-    // Absolute fallback: if nothing survived grounding, use the initial mapped (non-meta) items
-    if (normalized.questions.length === 0 && initialMapped.length > 0) {
-      normalized = { ...normalized, questions: initialMapped.slice(0, count) }
-    }
-
-    // Last-chance top-up: if still short, generate the remaining without strict evidence requirement
-    if (normalized.questions.length < count) {
-      try {
-        const missing = count - normalized.questions.length
-        const blueprintPrompt = `Create EXACTLY ${missing} additional multiple-choice questions grounded in the concepts and materials below. Each question must have 4 options (A-D) and a single correct letter. Difficulty: ${difficulty}. Keep questions focused on the concepts; avoid meta questions about the document. STRICT JSON OUTPUT:\n{"questions":[{"id":"","type":"mcq","question":"","options":["","","",""],"correctAnswer":"A","explanation":"","topic":"","difficulty":"${difficulty}","evidence":""}]}`
-        const last = await openai.chat.completions.create({
-          model: 'gpt-4o',
-          response_format: { type: 'json_object' },
-          temperature: 0.4,
-          messages: [
-            { role: 'system', content: 'You write high-quality exam questions strictly based on provided materials and concept inventory.' },
-            { role: 'system', content: `Concept inventory for grounding:\n${JSON.stringify(conceptsJson).slice(0, 8000)}` },
-            { role: 'user', content: `${blueprintPrompt}\n\nMaterials (truncated):\n${combined}` }
-          ]
-        })
-        const jr = last.choices[0]?.message?.content || '{}'
-        let jobj: any = {}
-        try { jobj = JSON.parse(jr) } catch { const m = jr.match(/\{[\s\S]*\}/); jobj = m ? JSON.parse(m[0]) : { questions: [] } }
-        const extra = (Array.isArray(jobj?.questions) ? jobj.questions : [])
-          .filter((q: any) => q && Array.isArray(q.options))
-          .map((q: any, i: number) => {
-            const cleanOption = (s: any) => String(s).replace(/^[A-D][).]\s*/i, '').trim()
-            const opts = q.options.slice(0, 4).map((o: any) => cleanOption(o))
-            const letter = String(q.correctAnswer || 'A').trim().toUpperCase().charAt(0)
-            const validLetter = ['A','B','C','D'].includes(letter) ? letter : 'A'
-            return {
-              id: String(q.id || `q_last_${i + 1}`),
-              type: 'mcq',
-              question: String(q.question || '').trim(),
-              options: opts,
-              correctAnswer: validLetter,
-              explanation: String(q.explanation || ''),
-              difficulty: (q.difficulty || difficulty),
-              topic: String(q.topic || ''),
-              evidence: String((q as any).evidence || '')
-            }
-          })
-        normalized = { ...normalized, questions: [...normalized.questions, ...extra].slice(0, count) }
-      } catch {}
+        
+        normalized = { 
+          ...normalized, 
+          questions: [...normalized.questions, ...extraQuestions].slice(0, count) 
+        }
+      } catch (error) {
+        console.error('❌ Top-up failed:', error)
+      }
     }
 
     const exam = { ...normalized, instructions: body.instructions || normalized.instructions }

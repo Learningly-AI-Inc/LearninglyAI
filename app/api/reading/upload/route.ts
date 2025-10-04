@@ -210,6 +210,66 @@ export async function POST(req: NextRequest) {
       console.log('🔍 Processing text on server side');
     }
 
+    // Helper: Run OCR (Adobe PDF Services) to convert image-based PDFs into searchable text
+    async function runAdobeOcrIfAvailable(pdfBuffer: Buffer): Promise<{ searchablePdf?: Buffer; note?: string } | null> {
+      try {
+        const sdk: any = await import('@adobe/pdfservices-node-sdk')
+        const { Readable } = await import('stream')
+        const clientId = process.env.PDF_SERVICES_CLIENT_ID || process.env.ADOBE_CLIENT_ID
+        const clientSecret = process.env.PDF_SERVICES_CLIENT_SECRET || process.env.ADOBE_CLIENT_SECRET
+
+        let resolvedClientId = clientId
+        let resolvedClientSecret = clientSecret
+
+        // Fallback: try reading credentials JSON if env vars are not set
+        if (!resolvedClientId || !resolvedClientSecret) {
+          try {
+            const fs = await import('fs/promises')
+            const path = await import('path')
+            const credPath = path.join(process.cwd(), 'pdfservices-api-credentials.json')
+            const raw = await fs.readFile(credPath, 'utf-8')
+            const json = JSON.parse(raw)
+            resolvedClientId = json?.client_id || json?.clientId || resolvedClientId
+            resolvedClientSecret = json?.client_secret || json?.clientSecret || resolvedClientSecret
+          } catch {}
+        }
+
+        if (!resolvedClientId || !resolvedClientSecret) {
+          return { note: 'OCR skipped: Adobe credentials missing' }
+        }
+
+        const credentials = new sdk.ServicePrincipalCredentials({ clientId: resolvedClientId, clientSecret: resolvedClientSecret })
+        const pdfServices = new sdk.PDFServices({ credentials })
+        const readStream = Readable.from(pdfBuffer)
+        const inputAsset = await pdfServices.upload({ readStream, mimeType: sdk.MimeType.PDF })
+
+        // Optional params (use US English and accurate mode)
+        let params: any = undefined
+        try {
+          params = new sdk.OCRParams({ ocrLocale: sdk.OCRSupportedLocale.EN_US, ocrType: sdk.OCRSupportedType.SEARCHABLE_IMAGE_EXACT })
+        } catch {}
+
+        const job = params ? new sdk.OCRJob({ inputAsset, params }) : new sdk.OCRJob({ inputAsset })
+        const pollingURL = await pdfServices.submit({ job })
+        const resp = await pdfServices.getJobResult({ pollingURL, resultType: sdk.OCRResult })
+        const resultAsset = resp.result.asset
+        const streamAsset = await pdfServices.getContent({ asset: resultAsset })
+
+        const chunks: Buffer[] = []
+        const rs: any = streamAsset.readStream
+        await new Promise<void>((resolve, reject) => {
+          rs.on('data', (c: Buffer) => chunks.push(c))
+          rs.on('end', () => resolve())
+          rs.on('error', (e: any) => reject(e))
+        })
+        const out = Buffer.concat(chunks)
+        return { searchablePdf: out, note: 'OCR used: Adobe PDF Services' }
+      } catch (e) {
+        console.error('⚠️ OCR attempt failed:', e)
+        return { note: 'OCR failed' }
+      }
+    }
+
     try {
       if (fileExtension === 'pdf' || fileType === 'application/pdf' || 
           fileExtension === 'docx' || fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
@@ -279,6 +339,42 @@ Note: The document has been processed through our webhook system and is availabl
               .trim();
             
             processingNotes.push(`Webhook processing completed successfully`);
+
+            // If webhook returned no usable text, attempt local fallback extraction
+            if (!serverExtractedText || serverExtractedText.trim().length === 0) {
+              try {
+                if (fileExtension === 'pdf' || fileType === 'application/pdf') {
+                  const { default: PDFParse } = await import('pdf-parse')
+                  const cleanBuffer = Buffer.from(buffer as Buffer)
+                  const pdfData = await PDFParse(cleanBuffer, { max: 0 }) as any
+                  serverExtractedText = String(pdfData.text || '').trim()
+                  serverPageCount = pdfData.numpages || serverPageCount
+                  processingNotes.push('Server PDF parsing fallback used')
+
+                  // If still empty, attempt OCR using Adobe then parse again
+                  if (!serverExtractedText) {
+                    const ocr = await runAdobeOcrIfAvailable(cleanBuffer)
+                    if (ocr?.searchablePdf) {
+                      const parsed = await PDFParse(ocr.searchablePdf, { max: 0 }) as any
+                      serverExtractedText = String(parsed.text || '').trim()
+                      serverPageCount = parsed.numpages || serverPageCount
+                      if (ocr.note) processingNotes.push(ocr.note)
+                    } else if (ocr?.note) {
+                      processingNotes.push(ocr.note)
+                    }
+                  }
+                } else if (fileExtension === 'docx' || fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                  const mammoth = await import('mammoth')
+                  const buf = buffer as Buffer
+                  const result = await mammoth.extractRawText({ buffer: buf })
+                  serverExtractedText = String(result.value || '').trim()
+                  serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000))
+                  processingNotes.push('DOCX text extraction via mammoth (fallback)')
+                }
+              } catch (fallbackErr: any) {
+                processingNotes.push(`Fallback extraction failed: ${fallbackErr?.message || String(fallbackErr)}`)
+              }
+            }
             
             console.log('📊 Webhook parsing results:', {
               pages: serverPageCount,
@@ -295,21 +391,41 @@ Note: The document has been processed through our webhook system and is availabl
         } catch (webhookError: any) {
           console.error('❌ Webhook processing error:', webhookError);
           
-          // Fallback: Create a basic document entry even if processing fails
-          serverExtractedText = `Document Analysis
+          // Fallback: Try local extraction before giving up
+          try {
+            if (fileExtension === 'pdf' || fileType === 'application/pdf') {
+              const { default: PDFParse } = await import('pdf-parse')
+              const cleanBuffer = Buffer.from(buffer as Buffer)
+              const pdfData = await PDFParse(cleanBuffer, { max: 0 }) as any
+              serverExtractedText = String(pdfData.text || '').trim()
+              serverPageCount = pdfData.numpages || 1
+              processingNotes.push('Webhook failed; used server PDF parsing fallback')
 
-This document has been successfully uploaded and is ready for analysis.
-
-Note: The document processing encountered an issue, but the file is available for reference. You can still:
-- Ask questions about the document
-- Request analysis of the content
-- Discuss the document's purpose or context
-- Get help with document-related tasks
-
-The document is now available in our system and ready for your questions.`;
-          
-          serverPageCount = 1;
-          processingNotes.push(`Webhook processing failed: ${webhookError.message}`);
+              // If still empty, attempt OCR using Adobe then parse again
+              if (!serverExtractedText) {
+                const ocr = await runAdobeOcrIfAvailable(cleanBuffer)
+                if (ocr?.searchablePdf) {
+                  const parsed = await PDFParse(ocr.searchablePdf, { max: 0 }) as any
+                  serverExtractedText = String(parsed.text || '').trim()
+                  serverPageCount = parsed.numpages || serverPageCount
+                  if (ocr.note) processingNotes.push(ocr.note)
+                } else if (ocr?.note) {
+                  processingNotes.push(ocr.note)
+                }
+              }
+            } else if (fileExtension === 'docx' || fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+              const mammoth = await import('mammoth')
+              const buf = buffer as Buffer
+              const result = await mammoth.extractRawText({ buffer: buf })
+              serverExtractedText = String(result.value || '').trim()
+              serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000))
+              processingNotes.push('Webhook failed; DOCX text extraction via mammoth')
+            } else {
+              processingNotes.push(`Webhook processing failed and no local extractor available for type: ${fileExtension}`)
+            }
+          } catch (fbErr: any) {
+            processingNotes.push(`Webhook failed; fallback extraction also failed: ${fbErr?.message || String(fbErr)}`)
+          }
         }
         
       } else if (fileExtension === 'txt' || fileType === 'text/plain') {
@@ -421,7 +537,7 @@ The document is now available in our system and ready for your questions.`;
         extracted_text: useClientText ? (extractedText || '') : (serverExtractedText || ''),
         page_count: useClientText ? parseInt(pageCount) || 1 : serverPageCount,
         text_length: useClientText ? (extractedText ? extractedText.length : 0) : (serverExtractedText ? serverExtractedText.length : 0),
-        processing_status: 'completed',
+        processing_status: (useClientText ? (extractedText && extractedText.trim().length > 0) : (serverExtractedText && serverExtractedText.trim().length > 0)) ? 'completed' : 'failed',
         processing_notes: processingNotes,
         public_url: fileUrl,
         metadata: {
@@ -447,8 +563,8 @@ The document is now available in our system and ready for your questions.`;
       fileSize: fileSize,
       fileType: fileExtension,
       mimeType: fileType,
-      pages: pageCount,
-      textLength: extractedText ? extractedText.length : 0,
+      pages: useClientText ? (parseInt(pageCount) || 1) : serverPageCount,
+      textLength: useClientText ? (extractedText ? extractedText.length : 0) : (serverExtractedText ? serverExtractedText.length : 0),
       uploadedAt: new Date().toISOString(),
       processingNotes,
       fileUrl: fileUrl,

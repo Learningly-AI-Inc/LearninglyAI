@@ -105,7 +105,19 @@ async function processContext(document: any, options: ContextOptions) {
     strategy = 'smart'
   } = options;
 
-  const extractedText = document.extracted_text || '';
+  // Sanitize to remove any accidental boilerplate/placeholder UI text that might have been stored
+  const sanitize = (text: string): string => {
+    try {
+      return String(text || '')
+        .replace(/PDF\s+Document\s+Analysis[\s\S]*?questions\./gi, '')
+        .replace(/Document\s+Analysis[\s\S]*?questions\./gi, '')
+        .replace(/This\s+document\s+has\s+been\s+successfully\s+uploaded[\s\S]*?analysis\.?/gi, '')
+        .replace(/(drag\s+and\s+drop|choose\s+files|click\s+to\s+upload|processing\s+status|file\s+upload|guidelines)/gi, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+    } catch { return String(text || '') }
+  }
+  const extractedText = sanitize(document.extracted_text || '');
   
   // If text is too short or is a fallback message, return minimal context
   if (extractedText.length < 500 || extractedText.includes('PDF processing encountered an issue')) {
