@@ -96,11 +96,109 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // Collect texts strictly from the user's own uploads
-    const textsA = await fetchTextsForExamFiles(supabase, body.fileIds || [], user.id)
-    const textsB = await fetchTextsForReadingDocuments(supabase, body.documentIds || [], user.id)
-    const texts = [...textsA, ...textsB].filter(Boolean)
+    let textsA = await fetchTextsForExamFiles(supabase, body.fileIds || [], user.id)
+    let textsB = await fetchTextsForReadingDocuments(supabase, body.documentIds || [], user.id)
+    let texts = [...textsA, ...textsB].filter(Boolean)
     if (texts.length === 0) {
-      return NextResponse.json({ error: 'No extracted text available from uploaded documents' }, { status: 400 })
+      // Attempt on-demand re-extraction for reading documents (Adobe Services -> DOCX -> mammoth)
+      async function bufferToReadable(buf: Buffer): Promise<any> {
+        try {
+          const streamMod: any = await import('node:stream').catch(() => import('stream'))
+          const ReadableAny = (streamMod as any).Readable || (streamMod as any).default?.Readable
+          if (ReadableAny?.from) return ReadableAny.from(buf)
+          return new ReadableAny({
+            read() {
+              this.push(buf)
+              this.push(null)
+            }
+          })
+        } catch {
+          return buf as any
+        }
+      }
+      async function adobeExtractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
+        try {
+          const sdk: any = await import('@adobe/pdfservices-node-sdk')
+          const mammoth = await import('mammoth')
+          const clientId = process.env.PDF_SERVICES_CLIENT_ID || process.env.ADOBE_CLIENT_ID
+          const clientSecret = process.env.PDF_SERVICES_CLIENT_SECRET || process.env.ADOBE_CLIENT_SECRET
+          if (!clientId || !clientSecret) return ''
+          const credentials = new sdk.ServicePrincipalCredentials({ clientId, clientSecret })
+          const pdfServices = new sdk.PDFServices({ credentials })
+          const rs = await bufferToReadable(pdfBuffer)
+          const asset = await pdfServices.upload({ readStream: rs, mimeType: sdk.MimeType.PDF })
+          const params = new sdk.ExportPDFParams({ targetFormat: sdk.ExportPDFTargetFormat.DOCX, ocrLocale: sdk.ExportOCRLocale.EN_US })
+          const job = new sdk.ExportPDFJob({ inputAsset: asset, params })
+          const poll = await pdfServices.submit({ job })
+          const resp = await pdfServices.getJobResult({ pollingURL: poll, resultType: sdk.ExportPDFResult })
+          const docxAsset = resp.result.asset
+          const streamAsset = await pdfServices.getContent({ asset: docxAsset })
+          const chunks: Buffer[] = []
+          const rs2: any = streamAsset.readStream
+          await new Promise<void>((resolve, reject) => {
+            rs2.on('data', (c: Buffer) => chunks.push(c))
+            rs2.on('end', () => resolve())
+            rs2.on('error', (e: any) => reject(e))
+          })
+          const docxBuffer = Buffer.concat(chunks)
+          const { value } = await mammoth.extractRawText({ buffer: docxBuffer })
+          return String(value || '').trim()
+        } catch {
+          return ''
+        }
+      }
+
+      // For each reading document id, try to download and extract
+      const docIds = Array.isArray(body.documentIds) ? body.documentIds : []
+      for (const docId of docIds) {
+        try {
+          const { data: doc, error: docErr } = await supabase
+            .from('reading_documents')
+            .select('id, file_path, public_url, extracted_text')
+            .eq('id', docId)
+            .eq('user_id', user.id)
+            .single()
+          if (docErr || !doc) continue
+          if (doc.extracted_text && String(doc.extracted_text).trim().length > 0) continue
+          let buffer: Buffer | null = null
+          if (doc.file_path) {
+            try {
+              const { data: blob } = await supabase.storage
+                .from('reading-documents')
+                .download(doc.file_path)
+              if (blob) {
+                const ab = await blob.arrayBuffer()
+                buffer = Buffer.from(ab)
+              }
+            } catch {}
+          }
+          if (!buffer && doc.public_url) {
+            try {
+              const res = await fetch(doc.public_url)
+              if (res.ok) {
+                const ab = await res.arrayBuffer()
+                buffer = Buffer.from(ab)
+              }
+            } catch {}
+          }
+          if (!buffer) continue
+          const text = await adobeExtractTextFromPdf(buffer)
+          if (text && text.length > 50) {
+            await supabase
+              .from('reading_documents')
+              .update({ extracted_text: text, text_length: text.length, processing_status: 'completed', updated_at: new Date().toISOString() })
+              .eq('id', docId)
+          }
+        } catch {}
+      }
+
+      // Re-fetch texts after re-extraction
+      textsA = await fetchTextsForExamFiles(supabase, body.fileIds || [], user.id)
+      textsB = await fetchTextsForReadingDocuments(supabase, body.documentIds || [], user.id)
+      texts = [...textsA, ...textsB].filter(Boolean)
+      if (texts.length === 0) {
+        return NextResponse.json({ error: 'No extracted text available from uploaded documents' }, { status: 400 })
+      }
     }
 
     console.log('📚 Document extraction:', {
