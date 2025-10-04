@@ -62,6 +62,193 @@ export async function POST(req: NextRequest) {
       processingStatus: document.processing_status
     });
 
+    // On-demand re-extraction if text is missing or processing failed
+    let updatedExtractedText: string | null = null
+    let updatedPageCount: number | null = null
+    if (!document.extracted_text || String(document.extracted_text).trim().length === 0 || document.processing_status !== 'completed') {
+      console.log('🛠️ Attempting on-demand text re-extraction for document:', document.id)
+
+      // Helper to download the original file
+      async function downloadOriginal(): Promise<Buffer | null> {
+        try {
+          if (document.file_path) {
+            const { data: blob } = await supabase.storage
+              .from('reading-documents')
+              .download(document.file_path)
+            if (blob) {
+              const ab = await blob.arrayBuffer()
+              return Buffer.from(ab)
+            }
+          }
+        } catch {}
+        try {
+          if (document.public_url) {
+            const res = await fetch(document.public_url)
+            if (res.ok) {
+              const ab = await res.arrayBuffer()
+              return Buffer.from(ab)
+            }
+          }
+        } catch {}
+        return null
+      }
+
+      // Helper: run OCR via Adobe Services if credentials are available
+      async function runAdobeOcrIfAvailable(pdfBuffer: Buffer): Promise<{ searchablePdf?: Buffer; note?: string } | null> {
+        try {
+          const sdk: any = await import('@adobe/pdfservices-node-sdk')
+          const path = await import('path')
+          const fs = await import('node:fs/promises')
+          const clientId = process.env.PDF_SERVICES_CLIENT_ID || process.env.ADOBE_CLIENT_ID
+          const clientSecret = process.env.PDF_SERVICES_CLIENT_SECRET || process.env.ADOBE_CLIENT_SECRET
+          let resolvedClientId = clientId
+          let resolvedClientSecret = clientSecret
+          if (!resolvedClientId || !resolvedClientSecret) {
+            try {
+              const credPath = path.join(process.cwd(), 'pdfservices-api-credentials.json')
+              const raw = await fs.readFile(credPath, 'utf-8').catch(() => '')
+              if (raw) {
+                const json = JSON.parse(raw)
+                resolvedClientId = json?.client_id || json?.clientId || resolvedClientId
+                resolvedClientSecret = json?.client_secret || json?.clientSecret || resolvedClientSecret
+              }
+            } catch {}
+          }
+          if (!resolvedClientId || !resolvedClientSecret) {
+            return { note: 'OCR skipped: Adobe credentials missing' }
+          }
+          const credentials = new (sdk as any).ServicePrincipalCredentials({ clientId: resolvedClientId, clientSecret: resolvedClientSecret })
+          const pdfServices = new (sdk as any).PDFServices({ credentials })
+          const streamMod: any = await import('node:stream').catch(() => import('stream'))
+          const ReadableAny = (streamMod as any).Readable || (streamMod as any).default?.Readable
+          const rs = ReadableAny?.from ? ReadableAny.from(pdfBuffer) : new ReadableAny({
+            read() {
+              // @ts-ignore
+              this.push(pdfBuffer)
+              // @ts-ignore
+              this.push(null)
+            }
+          })
+          const inputAsset = await pdfServices.upload({ readStream: rs, mimeType: (sdk as any).MimeType.PDF })
+          const params = new (sdk as any).OCRParams({ ocrType: (sdk as any).OCRType.SEARCHABLE_IMAGE_EXACT })
+          const job = new (sdk as any).OCRJob({ inputAsset, params })
+          const pollingURL = await pdfServices.submit({ job })
+          const resp = await pdfServices.getJobResult({ pollingURL, resultType: (sdk as any).OCRResult })
+          const resultAsset = resp.result.asset
+          const streamAsset = await pdfServices.getContent({ asset: resultAsset })
+          const chunks: Buffer[] = []
+          const rs2: any = streamAsset.readStream
+          await new Promise<void>((resolve, reject) => {
+            rs2.on('data', (c: Buffer) => chunks.push(c))
+            rs2.on('end', () => resolve())
+            rs2.on('error', (e: any) => reject(e))
+          })
+          return { searchablePdf: Buffer.concat(chunks), note: 'OCR used: Adobe PDF Services' }
+        } catch (e) {
+          console.error('⚠️ OCR attempt failed (get-context):', e)
+          return { note: 'OCR failed' }
+        }
+      }
+
+      // Helper: Export PDF -> DOCX using Adobe Services, then extract with mammoth
+      async function adobeExportPdfToDocxExtractText(pdfBuffer: Buffer): Promise<string> {
+        try {
+          const sdk: any = await import('@adobe/pdfservices-node-sdk')
+          const mammoth = await import('mammoth')
+          const clientId = process.env.PDF_SERVICES_CLIENT_ID || process.env.ADOBE_CLIENT_ID
+          const clientSecret = process.env.PDF_SERVICES_CLIENT_SECRET || process.env.ADOBE_CLIENT_SECRET
+          if (!clientId || !clientSecret) return ''
+          // Convert buffer to readable stream
+          const streamMod: any = await import('node:stream').catch(() => import('stream'))
+          const ReadableAny = (streamMod as any).Readable || (streamMod as any).default?.Readable
+          const rs = ReadableAny?.from ? ReadableAny.from(pdfBuffer) : new ReadableAny({
+            read() {
+              // @ts-ignore
+              this.push(pdfBuffer)
+              // @ts-ignore
+              this.push(null)
+            }
+          })
+          const credentials = new (sdk as any).ServicePrincipalCredentials({ clientId, clientSecret })
+          const pdfServices = new (sdk as any).PDFServices({ credentials })
+          const asset = await pdfServices.upload({ readStream: rs, mimeType: (sdk as any).MimeType.PDF })
+          const params = new (sdk as any).ExportPDFParams({ targetFormat: (sdk as any).ExportPDFTargetFormat.DOCX, ocrLocale: (sdk as any).ExportOCRLocale.EN_US })
+          const job = new (sdk as any).ExportPDFJob({ inputAsset: asset, params })
+          const poll = await pdfServices.submit({ job })
+          const resp = await pdfServices.getJobResult({ pollingURL: poll, resultType: (sdk as any).ExportPDFResult })
+          const docxAsset = resp.result.asset
+          const streamAsset = await pdfServices.getContent({ asset: docxAsset })
+          const chunks: Buffer[] = []
+          const rs2: any = streamAsset.readStream
+          await new Promise<void>((resolve, reject) => {
+            rs2.on('data', (c: Buffer) => chunks.push(c))
+            rs2.on('end', () => resolve())
+            rs2.on('error', (e: any) => reject(e))
+          })
+          const docxBuffer = Buffer.concat(chunks)
+          const { value } = await mammoth.extractRawText({ buffer: docxBuffer })
+          return String(value || '').trim()
+        } catch (e) {
+          console.error('⚠️ Adobe export to DOCX failed (get-context):', e)
+          return ''
+        }
+      }
+
+      try {
+        const buf = await downloadOriginal()
+        if (buf) {
+          const ext = String(document.file_type || document.original_filename || '').toLowerCase()
+          if (ext.includes('pdf')) {
+            // Prefer Adobe Export -> DOCX to avoid pdf-parse import issues
+            let text = await adobeExportPdfToDocxExtractText(Buffer.from(buf))
+            if (!text) {
+              const ocr = await runAdobeOcrIfAvailable(Buffer.from(buf))
+              if (ocr?.searchablePdf) {
+                // Try export again after OCR
+                text = await adobeExportPdfToDocxExtractText(ocr.searchablePdf)
+              }
+            }
+            if (text) {
+              updatedExtractedText = text
+              updatedPageCount = Math.max(1, Math.ceil(text.length / 2000))
+            }
+          } else if (ext.includes('docx')) {
+            const mammoth = await import('mammoth')
+            const result = await mammoth.extractRawText({ buffer: Buffer.from(buf) })
+            const text = String(result.value || '').trim()
+            if (text) {
+              updatedExtractedText = text
+              updatedPageCount = Math.max(1, Math.ceil(text.length / 2000))
+            }
+          }
+        }
+      } catch (reErr) {
+        console.error('❌ Re-extraction failed in get-context:', reErr)
+      }
+
+      // If we recovered text, persist it so subsequent calls are fast
+      if (updatedExtractedText && updatedExtractedText.length > 0) {
+        try {
+          await supabase
+            .from('reading_documents')
+            .update({
+              extracted_text: updatedExtractedText,
+              text_length: updatedExtractedText.length,
+              processing_status: 'completed',
+              page_count: updatedPageCount || document.page_count,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', document.id)
+            .eq('user_id', user.id)
+        } catch {}
+        // Reflect in-memory
+        document.extracted_text = updatedExtractedText
+        document.text_length = updatedExtractedText.length
+        document.processing_status = 'completed'
+        if (updatedPageCount) document.page_count = updatedPageCount
+      }
+    }
+
     // Process context based on strategy
     const context = await processContext(document, options);
     

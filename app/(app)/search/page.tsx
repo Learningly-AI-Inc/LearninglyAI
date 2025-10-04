@@ -330,8 +330,8 @@ const SearchPage = () => {
         ))
 
         console.log('💬 [SEARCH PAGE] Assistant response message added to chat')
-        // Clear attachments after send
-        setAttachedDocs([])
+        // Keep attachments persistent for this conversation so subsequent
+        // messages continue to reference the same documents unless removed
 
         // Save AI response to Supabase
         if (selectedConversationId) {

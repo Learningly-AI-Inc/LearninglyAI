@@ -115,7 +115,8 @@ export async function POST(request: NextRequest) {
             headers: {
               'Content-Type': 'application/json',
               'Authorization': request.headers.get('Authorization') || '',
-              'Cookie': request.headers.get('Cookie') || ''
+              // Forward cookies for Supabase auth; include common casings
+              'Cookie': request.headers.get('Cookie') || request.headers.get('cookie') || ''
             },
             body: JSON.stringify({ documentId: docId, options: { maxTokens: 6000, includeMetadata: true, strategy: 'smart' } })
           })
@@ -127,6 +128,44 @@ export async function POST(request: NextRequest) {
           }
         } catch {}
       }
+    }
+
+    // Fallback: if we failed to fetch smart context (e.g., cookie forwarding issue),
+    // pull the extracted text directly from `reading_documents` for the attached docs
+    if (smartContextSections.length === 0 && Array.isArray(attachedDocumentIds) && attachedDocumentIds.length > 0) {
+      try {
+        const { data: docs } = await supabase
+          .from('reading_documents')
+          .select('id, title, extracted_text')
+          .in('id', attachedDocumentIds)
+          .eq('user_id', userId)
+
+        const sanitize = (text: string): string => {
+          try {
+            return String(text || '')
+              .replace(/PDF\s+Document\s+Analysis[\s\S]*?questions\./gi, '')
+              .replace(/Document\s+Analysis[\s\S]*?questions\./gi, '')
+              .replace(/This\s+document\s+has\s+been\s+successfully\s+uploaded[\s\S]*?analysis\.?/gi, '')
+              .replace(/(drag\s+and\s+drop|choose\s+files|click\s+to\s+upload|processing\s+status|file\s+upload|guidelines)/gi, '')
+              .replace(/\n{3,}/g, '\n\n')
+              .trim()
+          } catch { return String(text || '') }
+        }
+
+        if (Array.isArray(docs)) {
+          for (const d of docs) {
+            const text = sanitize(d?.extracted_text || '')
+            if (text && text.length > 0) {
+              // Keep the context compact to avoid token bloat
+              const maxChars = 8000 * 4 // ~8000 tokens
+              const snippet = text.slice(0, maxChars)
+              smartContextSections.push(snippet)
+              if (d?.title) smartContextSources.push(d.title)
+              if (d) smartContextDocs.push({ id: d.id, title: d.title })
+            }
+          }
+        }
+      } catch {}
     }
 
     // Prepare system prompt with user personalization
