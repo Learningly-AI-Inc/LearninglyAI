@@ -10,6 +10,7 @@ interface GenerateBody {
   // Either pass exam_files ids (from /api/exam-prep/upload) or reading_documents ids (from /api/reading/upload)
   fileIds?: string[]
   documentIds?: string[]
+  sampleQuestionIds?: string[] // Sample questions from professors
   count?: number
   durationMinutes?: number
   difficulty?: Difficulty
@@ -58,6 +59,17 @@ async function fetchTextsForReadingDocuments(supabase: any, docIds: string[], us
   return (data || []).map((r: { extracted_text?: string }) => (r.extracted_text || '')).filter(Boolean)
 }
 
+async function fetchSampleQuestions(supabase: any, sampleIds: string[], userId: string): Promise<string[]> {
+  if (sampleIds.length === 0) return []
+  const { data, error } = await supabase
+    .from('reading_documents')
+    .select('id, extracted_text')
+    .in('id', sampleIds)
+    .eq('user_id', userId)
+  if (error) throw error
+  return (data || []).map((r: { extracted_text?: string }) => (r.extracted_text || '')).filter(Boolean)
+}
+
 // Some uploads (when extraction fails) may store a boilerplate placeholder like
 // "PDF Document Analysis ... This document has been successfully uploaded ...".
 // Those strings pollute exam generation. Strip them out before prompting.
@@ -98,6 +110,7 @@ export async function POST(req: NextRequest) {
     // Collect texts strictly from the user's own uploads
     let textsA = await fetchTextsForExamFiles(supabase, body.fileIds || [], user.id)
     let textsB = await fetchTextsForReadingDocuments(supabase, body.documentIds || [], user.id)
+    let sampleTexts = await fetchSampleQuestions(supabase, body.sampleQuestionIds || [], user.id)
     let texts = [...textsA, ...textsB].filter(Boolean)
     if (texts.length === 0) {
       // Attempt on-demand re-extraction for reading documents (Adobe Services -> DOCX -> mammoth)
@@ -378,14 +391,21 @@ CRITICAL RULES:
 6. Return valid JSON only
 7. Exactly ${count} questions are required. Do not produce more or fewer.`
 
+    // Include sample questions in the prompt if available
+    const sampleQuestionsText = sampleTexts.length > 0 
+      ? `\n\nSAMPLE QUESTIONS FROM PROFESSOR (use these as style/topic reference):
+${sampleTexts.map(text => sanitizeSourceContent(text)).join('\n\n---\n\n')}`
+      : ''
+
     const userPrompt = `Generate EXACTLY ${count} multiple-choice questions based on the following document content. 
 These questions should test understanding of the concepts and facts presented in this document.
 Difficulty: ${difficulty}
 
 IMPORTANT: The questions must be about the actual content below, not about generic topics.
+${sampleQuestionsText ? 'Use the sample questions as a reference for question style, format, and topic coverage.' : ''}
 
 Document Content:
-${combined.slice(0, 50000)}
+${combined.slice(0, 50000)}${sampleQuestionsText}
 
 Output format (strict JSON):
 {

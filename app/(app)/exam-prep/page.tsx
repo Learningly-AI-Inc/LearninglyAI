@@ -31,11 +31,15 @@ export default function ExamPrepPage() {
   const [mode, setMode] = useState<'online' | 'pdf'>('online')
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
   const [instructions, setInstructions] = useState('Choose the best answer for each question.')
+  const [sampleQuestions, setSampleQuestions] = useState<Array<{ documentId?: string; name?: string }>>([])
+  const [showSampleUploader, setShowSampleUploader] = useState(false)
 
   async function generate() {
     try {
       setIsGenerating(true)
       const documentIds = uploadedDocs.map(d => d.documentId!).filter(Boolean)
+      const sampleQuestionIds = sampleQuestions.map(d => d.documentId!).filter(Boolean)
+      
       if (mode === 'pdf') {
         // Route to full-length PDF builder page for richer PDF generation flows
         router.push('/exam-prep/full-length')
@@ -45,7 +49,15 @@ export default function ExamPrepPage() {
       const res = await fetch('/api/exam-prep/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentIds, count, durationMinutes: duration, title, difficulty, instructions })
+        body: JSON.stringify({ 
+          documentIds, 
+          sampleQuestionIds,
+          count, 
+          durationMinutes: duration, 
+          title, 
+          difficulty, 
+          instructions 
+        })
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -148,6 +160,50 @@ export default function ExamPrepPage() {
                   <Label>Specific instructions (optional)</Label>
                   <Textarea value={instructions} onChange={(e)=>setInstructions(e.target.value)} rows={3} placeholder="Any topics to emphasize, style preferences, or special constraints" />
                 </div>
+                <div className="space-y-2 sm:col-span-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Sample questions (optional)</Label>
+                      <p className="text-xs text-slate-500 mt-1">Upload up to 5 sample questions from your professor for better exam generation</p>
+                    </div>
+                    <Badge variant={sampleQuestions.length > 0 ? "secondary" : "outline"}>
+                      {sampleQuestions.length > 0 ? `${sampleQuestions.length}/5 files` : 'No files'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 border border-dashed border-slate-300 rounded-lg bg-slate-50/50">
+                    <div className="text-sm text-slate-600">
+                      {sampleQuestions.length === 0 ? 'No sample questions uploaded yet.' : `${sampleQuestions.length} sample question file(s) ready.`}
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => setShowSampleUploader(true)}
+                      disabled={sampleQuestions.length >= 5}
+                    >
+                      {sampleQuestions.length >= 5 ? 'Max 5 files' : 'Upload Sample'}
+                    </Button>
+                  </div>
+                  {sampleQuestions.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-slate-500">Uploaded sample questions:</p>
+                      <div className="space-y-1">
+                        {sampleQuestions.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between p-2 bg-white border rounded text-sm">
+                            <span className="text-slate-700">{file.name || `Sample Question ${index + 1}`}</span>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => setSampleQuestions(prev => prev.filter((_, i) => i !== index))}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </CardContent>
@@ -167,6 +223,18 @@ export default function ExamPrepPage() {
             onUploaded={(result) => {
               setUploadedDocs(prev => [...prev, { documentId: result.documentId }])
               setShowUploader(false)
+            }}
+          />
+        </DocumentProvider>
+      )}
+
+      {showSampleUploader && (
+        <DocumentProvider>
+          <FileUploaderComponent
+            onClose={() => setShowSampleUploader(false)}
+            onUploaded={(result) => {
+              setSampleQuestions(prev => [...prev, { documentId: result.documentId, name: result.title || 'Sample Question' }])
+              setShowSampleUploader(false)
             }}
           />
         </DocumentProvider>
