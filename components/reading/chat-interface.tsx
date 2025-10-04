@@ -109,7 +109,7 @@ export function ChatInterface() {
               if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
                 newMessages[lastMessageIndex] = {
                   ...newMessages[lastMessageIndex],
-                  content: `**Document Summary**\n\n${result.summary}\n\n*Generated using ${result.metadata.model} • ${result.metadata.tokensUsed} tokens used*`
+                  content: `**Document Summary**\n\n${result.summary}`
                 };
               }
               return newMessages;
@@ -152,7 +152,7 @@ export function ChatInterface() {
                 if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
                   newMessages[lastMessageIndex] = {
                     ...newMessages[lastMessageIndex],
-                    content: `**Document Summary**\n\n${data.summary}\n\n*Generated using ${data.model} • ${data.tokens_used} tokens used*`
+                    content: `**Document Summary**\n\n${data.summary}`
                   };
                 }
                 return newMessages;
@@ -215,7 +215,7 @@ export function ChatInterface() {
                   ...newMessages[lastMessageIndex],
                   content: `**Flashcards Generated!**\n\nI've created ${result.flashcards.length} flashcards from your document "${result.metadata.title}".\n\n**Sample Cards:**\n\n${result.flashcards.slice(0, 3).map((card, index) => 
                     `**Card ${index + 1}:**\n**Q:** ${card.front}\n**A:** ${card.back}\n`
-                  ).join('\n')}\n\n*Generated using ${result.metadata.model} • ${result.metadata.tokensUsed} tokens used*\n\nYou can view and study all flashcards in the Flashcards tab!`
+                  ).join('\n')}\n\nYou can view and study all flashcards in the Flashcards tab!`
                 };
               }
               return newMessages;
@@ -313,7 +313,7 @@ export function ChatInterface() {
     if (!document?.id || !isValidUUID(document.id) || isSummarizing) return;
 
     try {
-      console.log('📄 Starting document summarization with GPT-5');
+      console.log('📄 Starting document summarization');
       
       const result = await summarizeDocument(document.id, {
         summaryType: 'comprehensive',
@@ -322,7 +322,7 @@ export function ChatInterface() {
 
       if (result) {
         // Add the summary as a message to the chat
-        const summaryMessage = `📄 **Document Summary**\n\n${result.summary}\n\n---\n*Generated using GPT-5 • ${result.metadata.tokensUsed} tokens used*`;
+        const summaryMessage = `📄 **Document Summary**\n\n${result.summary}`;
         await sendMessage(summaryMessage);
       }
     } catch (error) {
@@ -453,7 +453,7 @@ export function ChatInterface() {
                 <div className="flex items-center space-x-2">
                   <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                   <span className="text-sm text-gray-600 font-medium">
-                    {isSummarizing ? 'Summarizing with GPT-5...' : 
+                    {isSummarizing ? 'Summarizing document...' : 
                      isGeneratingFlashcards ? 'Generating flashcards...' : 'Thinking...'}
                   </span>
                 </div>
