@@ -101,16 +101,12 @@ export async function POST(request: NextRequest) {
       console.error('🚀 [ENHANCED SEARCH API] Error fetching messages:', messagesError)
     }
 
-    // Get user's uploaded documents for additional context
-    const { data: userContent } = await supabase
-      .from('user_content')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'completed')
-
     // If the user attached specific reading documents, fetch smart context for grounding
+    // We intentionally scope context and sources ONLY to the documents explicitly attached
+    // to this chat message to avoid cross-chat leakage.
     let smartContextSections: string[] = []
     let smartContextSources: string[] = []
+    let smartContextDocs: any[] = []
     if (Array.isArray(attachedDocumentIds) && attachedDocumentIds.length > 0) {
       for (const docId of attachedDocumentIds) {
         try {
@@ -127,13 +123,15 @@ export async function POST(request: NextRequest) {
             const { context, document } = await ctxRes.json()
             smartContextSections.push(...(context?.chunks || []).map((c: any) => c.content))
             if (document?.title) smartContextSources.push(document.title)
+            if (document) smartContextDocs.push(document)
           }
         } catch {}
       }
     }
 
     // Prepare system prompt with user personalization
-    const systemPrompt = buildSystemPrompt(userRecord, userContent || [])
+    // Use only the explicitly attached documents for personalization
+    const systemPrompt = buildSystemPrompt(userRecord, smartContextDocs || [])
 
     // Build conversation context with model-specific style hints
     const modelStyleHint = (() => {
@@ -219,9 +217,8 @@ export async function POST(request: NextRequest) {
         conversation_id: currentConversationId,
         role: 'assistant',
         content: aiResponse,
-        sources: (smartContextSources.length > 0
-          ? smartContextSources
-          : (userContent?.map(c => c.content_url.split('/').pop() || 'document') || [])),
+        // Only cite the sources attached in this chat
+        sources: smartContextSources,
         model_used: model,
         tokens_used: responseTokens
       })
@@ -250,7 +247,8 @@ export async function POST(request: NextRequest) {
         response_payload: { 
           response: aiResponse, 
           tokensUsed: totalTokens + responseTokens,
-          sources: userContent?.map(c => c.content_url.split('/').pop() || 'document') || []
+          // Log only the sources from this chat
+          sources: smartContextSources
         }
       })
 
@@ -264,7 +262,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       response: aiResponse,
-      sources: userContent?.map(c => c.content_url.split('/').pop() || 'document') || [],
+      // Return only the sources explicitly attached to this chat message
+      sources: smartContextSources,
       conversationId: currentConversationId,
       tokenUsage: {
         totalTokens: totalTokens + responseTokens,
