@@ -2,12 +2,9 @@
 
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { useUsageLimits } from "@/hooks/use-usage-limits";
-import { X, Upload, FileText, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { X, Upload } from "lucide-react";
 
 interface StudyMaterialsUploaderProps {
   onClose: () => void;
@@ -56,51 +53,52 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
     return null;
   };
 
-  const handleFileSelect = useCallback((selectedFiles: FileList) => {
+  const handleFileSelect = useCallback(async (selectedFiles: FileList) => {
     const newFiles: UploadedFile[] = [];
     const errors: string[] = [];
 
-    // Check if adding these files would exceed the limit
-    setFiles(currentFiles => {
-      if (currentFiles.length + selectedFiles.length > maxFiles) {
+    // Validate files first
+    Array.from(selectedFiles).forEach((file) => {
+      const error = validateFile(file);
+      if (error) {
+        errors.push(error);
+      } else {
+        newFiles.push({
+          id: Math.random().toString(36).substr(2, 9),
+          file,
+          status: 'pending'
+        });
+      }
+    });
+
+    if (errors.length > 0) {
+      errors.forEach(error => {
         toast({
-          title: "Too many files",
-          description: `You can upload a maximum of ${maxFiles} files. You currently have ${currentFiles.length} files selected.`,
+          title: "Invalid file",
+          description: error,
           variant: "destructive"
         });
-        return currentFiles; // Return current state without changes
-      }
-
-      Array.from(selectedFiles).forEach((file) => {
-        const error = validateFile(file);
-        if (error) {
-          errors.push(error);
-        } else {
-          newFiles.push({
-            id: Math.random().toString(36).substr(2, 9),
-            file,
-            status: 'pending'
-          });
-        }
       });
+    }
 
-      if (errors.length > 0) {
-        errors.forEach(error => {
-          toast({
-            title: "Invalid file",
-            description: error,
-            variant: "destructive"
-          });
-        });
-      }
+    if (newFiles.length === 0) return;
 
-      if (newFiles.length > 0) {
-        return [...currentFiles, ...newFiles];
-      }
-      
-      return currentFiles; // Return current state if no valid files
-    });
-  }, [maxFiles, toast]);
+    // Check if adding these files would exceed the limit
+    if (files.length + newFiles.length > maxFiles) {
+      toast({
+        title: "Too many files",
+        description: `You can upload a maximum of ${maxFiles} files. You currently have ${files.length} files selected.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Add files to state and start upload immediately
+    setFiles(prev => [...prev, ...newFiles]);
+    
+    // Start upload process
+    await handleUpload(newFiles);
+  }, [files.length, maxFiles, toast]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -130,10 +128,6 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
     }
   };
 
-  const removeFile = (fileId: string) => {
-    setFiles(prev => prev.filter(f => f.id !== fileId));
-  };
-
   const uploadFile = async (uploadedFile: UploadedFile): Promise<{ documentId: string; title: string }> => {
     const formData = new FormData();
     formData.append('file', uploadedFile.file);
@@ -157,18 +151,19 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
     };
   };
 
-  const handleUpload = async () => {
-    if (files.length === 0) return;
+  const handleUpload = async (filesToUpload?: UploadedFile[]) => {
+    const filesToProcess = filesToUpload || files;
+    if (filesToProcess.length === 0) return;
 
     // Check usage limits before starting upload
     const usageResult = await withUsageCheck(
-      { action: 'documents_uploaded', amount: files.length },
+      { action: 'documents_uploaded', amount: filesToProcess.length },
       async () => {
         setIsUploading(true);
         const results: Array<{ documentId: string; title: string }> = [];
         
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
+        for (let i = 0; i < filesToProcess.length; i++) {
+          const file = filesToProcess[i];
           
           // Update status to uploading
           setFiles(prev => prev.map(f => 
@@ -176,14 +171,6 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
           ));
 
           try {
-            // Simulate progress
-            for (let progress = 0; progress <= 100; progress += 20) {
-              setFiles(prev => prev.map(f => 
-                f.id === file.id ? { ...f, progress } : f
-              ));
-              await new Promise(resolve => setTimeout(resolve, 100));
-            }
-
             const result = await uploadFile(file);
             
             // Update status to completed
@@ -219,7 +206,7 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
     if (usageResult.success && usageResult.result) {
       toast({
         title: "Upload completed",
-        description: `Successfully uploaded ${usageResult.result.length} of ${files.length} files.`,
+        description: `Successfully uploaded ${usageResult.result.length} file${usageResult.result.length > 1 ? 's' : ''}.`,
       });
       
       onUploaded(usageResult.result);
@@ -241,184 +228,55 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
     setIsUploading(false);
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const getStatusIcon = (status: UploadedFile['status']) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-600" />;
-      case 'uploading':
-      case 'processing':
-        return <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />;
-      default:
-        return <FileText className="h-4 w-4 text-gray-600" />;
-    }
-  };
-
-  const getStatusColor = (status: UploadedFile['status']) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'error':
-        return 'bg-red-100 text-red-800';
-      case 'uploading':
-      case 'processing':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const completedCount = files.filter(f => f.status === 'completed').length;
-  const errorCount = files.filter(f => f.status === 'error').length;
-  const canUpload = files.length > 0 && !isUploading && files.every(f => f.status === 'pending' || f.status === 'error');
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl">Upload Study Materials</CardTitle>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Upload up to {maxFiles} files (PDF, TXT, DOCX) with a maximum size of 100MB each.
-          </p>
-        </CardHeader>
-        
-        <CardContent className="space-y-6 overflow-y-auto max-h-[60vh]">
-          {/* Upload Area */}
-          <div
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-              dragActive 
-                ? 'border-blue-500 bg-blue-50' 
-                : 'border-gray-300 hover:border-gray-400'
-            }`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <Upload className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <p className="text-lg font-medium mb-2">Drop files here or click to browse</p>
-            <p className="text-sm text-gray-500 mb-4">
-              Select multiple files at once (up to {maxFiles} files, 100MB each)
-            </p>
-            <Button 
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-            >
-              Choose Files
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,.txt,.docx"
-              onChange={handleChange}
-              className="hidden"
-            />
-          </div>
-
-          {/* File List */}
-          {files.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-medium">Selected Files ({files.length}/{maxFiles})</h3>
-                <div className="flex gap-2">
-                  {completedCount > 0 && (
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      {completedCount} completed
-                    </Badge>
-                  )}
-                  {errorCount > 0 && (
-                    <Badge variant="secondary" className="bg-red-100 text-red-800">
-                      {errorCount} failed
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {files.map((file) => (
-                  <div key={file.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {getStatusIcon(file.status)}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{file.file.name}</p>
-                        <p className="text-xs text-gray-500">
-                          {formatFileSize(file.file.size)}
-                        </p>
-                        {file.status === 'uploading' && file.progress !== undefined && (
-                          <Progress value={file.progress} className="mt-1 h-1" />
-                        )}
-                        {file.status === 'error' && file.error && (
-                          <p className="text-xs text-red-600 mt-1">{file.error}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className={getStatusColor(file.status)}>
-                        {file.status}
-                      </Badge>
-                      {file.status === 'pending' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeFile(file.id)}
-                          disabled={isUploading}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-
-        {/* Footer */}
-        <div className="border-t p-4 flex items-center justify-between">
-          <p className="text-sm text-gray-500">
-            {files.length > 0 && (
-              <>
-                {completedCount} of {files.length} files ready to upload
-                {errorCount > 0 && ` • ${errorCount} failed`}
-              </>
-            )}
-          </p>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} disabled={isUploading}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleUpload} 
-              disabled={!canUpload}
-              className="min-w-24"
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                `Upload ${files.length} Files`
-              )}
-            </Button>
-          </div>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div 
+        className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Upload Document</h2>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-5 w-5" />
+          </Button>
         </div>
-      </Card>
+        
+        {/* Upload Area */}
+        <div 
+          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+            dragActive 
+              ? 'border-blue-500 bg-blue-50' 
+              : 'border-gray-300 hover:border-gray-400'
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div className="flex justify-center mb-4">
+            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+              <Upload className="h-8 w-8 text-blue-600" />
+            </div>
+          </div>
+          <p className="text-gray-600 mb-4">
+            Drag & drop your document here or click to browse
+          </p>
+          <p className="text-gray-500 text-sm mb-4">
+            Supports PDF, TXT, DOCX • Max 100MB
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".pdf,.txt,.docx"
+            onChange={handleChange}
+            className="hidden"
+          />
+          <Button onClick={() => fileInputRef.current?.click()}>
+            Browse Files
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
