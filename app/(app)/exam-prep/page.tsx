@@ -31,6 +31,7 @@ export default function ExamPrepPage() {
   const [title, setTitle] = useState('Practice Exam')
   const [isGenerating, setIsGenerating] = useState(false)
   const [mode, setMode] = useState<'online' | 'pdf'>('online')
+  const [quizMode, setQuizMode] = useState<'rapid-fire' | 'scheduled'>('rapid-fire')
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
   const [instructions, setInstructions] = useState('Choose the best answer for each question.')
   const [sampleQuestions, setSampleQuestions] = useState<Array<{ documentId?: string; name?: string }>>([])
@@ -59,7 +60,8 @@ export default function ExamPrepPage() {
           durationMinutes: duration, 
           title, 
           difficulty, 
-          instructions 
+          instructions,
+          quizMode
         })
       })
       if (!res.ok) {
@@ -81,7 +83,7 @@ export default function ExamPrepPage() {
       <div className="container mx-auto px-4 py-10 max-w-3xl">
         <header className="mb-6">
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Exam Prep</h1>
-          <p className="text-sm text-slate-600 mt-1">Generate a practice exam from your study materials.</p>
+          <p className="text-sm text-slate-600 mt-1">Generate full-length PDF exams or online quizzes from your study materials.</p>
         </header>
 
         <Card className="mb-6">
@@ -164,19 +166,110 @@ export default function ExamPrepPage() {
               <Input id="duration" type="number" min={10} max={240} value={duration} onChange={(e)=>setDuration(Math.max(10, Math.min(240, parseInt(e.target.value || '0') || 0)))} />
               <p className="text-xs text-slate-500">Set a realistic timebox to mimic test pace.</p>
             </div>
-            <div className="space-y-2 sm:col-span-1">
-              <Label>Exam type</Label>
-              <Select value={mode} onValueChange={(v)=>setMode(v as any)}>
-                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="online">Full-length online exam</SelectItem>
-                  <SelectItem value="pdf">Full-length PDF exam</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-slate-500">PDF opens the advanced PDF builder.</p>
+            <div className="space-y-2 sm:col-span-3">
+              <Label>Exam Type</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div 
+                  className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                    mode === 'online' 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => setMode('online')}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-4 h-4 rounded-full border-2 ${
+                      mode === 'online' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                    }`}>
+                      {mode === 'online' && <div className="w-2 h-2 bg-white rounded-full m-0.5" />}
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-slate-900">Online Quiz</h3>
+                      <p className="text-sm text-slate-600">Interactive quiz with real-time feedback</p>
+                    </div>
+                  </div>
+                </div>
+                <div 
+                  className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                    mode === 'pdf' 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => setMode('pdf')}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-4 h-4 rounded-full border-2 ${
+                      mode === 'pdf' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                    }`}>
+                      {mode === 'pdf' && <div className="w-2 h-2 bg-white rounded-full m-0.5" />}
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-slate-900">PDF Exam</h3>
+                      <p className="text-sm text-slate-600">Downloadable exam for offline practice</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 mt-2">
+                {mode === 'online' 
+                  ? 'Choose between rapid-fire questions or scheduled format below.' 
+                  : 'Opens the advanced PDF builder for comprehensive exam generation.'
+                }
+              </p>
             </div>
             {mode === 'online' && (
               <>
+                <div className="space-y-2 sm:col-span-3">
+                  <Label>Quiz Mode</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div 
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                        quizMode === 'rapid-fire' 
+                          ? 'border-green-500 bg-green-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => setQuizMode('rapid-fire')}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-4 h-4 rounded-full border-2 ${
+                          quizMode === 'rapid-fire' ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                        }`}>
+                          {quizMode === 'rapid-fire' && <div className="w-2 h-2 bg-white rounded-full m-0.5" />}
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-slate-900">Rapid Fire Round</h3>
+                          <p className="text-sm text-slate-600">Questions appear one by one</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div 
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                        quizMode === 'scheduled' 
+                          ? 'border-green-500 bg-green-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => setQuizMode('scheduled')}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-4 h-4 rounded-full border-2 ${
+                          quizMode === 'scheduled' ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                        }`}>
+                          {quizMode === 'scheduled' && <div className="w-2 h-2 bg-white rounded-full m-0.5" />}
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-slate-900">Scheduled Quiz</h3>
+                          <p className="text-sm text-slate-600">All questions visible from top to bottom</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">
+                    {quizMode === 'rapid-fire' 
+                      ? 'Perfect for quick practice sessions with immediate feedback.' 
+                      : 'Ideal for comprehensive review with ability to navigate between questions.'
+                    }
+                  </p>
+                </div>
                 <div className="space-y-2">
                   <Label>Difficulty</Label>
                   <Select value={difficulty} onValueChange={(v)=>setDifficulty(v as any)}>
@@ -242,7 +335,11 @@ export default function ExamPrepPage() {
           <CardFooter className="p-6 pt-0 flex items-center justify-between">
             <p className="text-xs text-slate-500">You can adjust settings anytime before generating.</p>
             <Button onClick={generate} disabled={uploadedDocs.length === 0 || isGenerating}>
-              {isGenerating ? 'Generating…' : (mode === 'pdf' ? 'Open PDF Builder' : 'Generate Exam')}
+              {isGenerating ? 'Generating…' : (
+                mode === 'pdf' 
+                  ? 'Open PDF Builder' 
+                  : `Generate ${quizMode === 'rapid-fire' ? 'Rapid Fire' : 'Scheduled'} Quiz`
+              )}
             </Button>
           </CardFooter>
         </Card>

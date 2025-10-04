@@ -16,6 +16,7 @@ interface GenerateBody {
   difficulty?: Difficulty
   title?: string
   instructions?: string
+  quizMode?: 'rapid-fire' | 'scheduled'
 }
 
 function detectSampleExamHeuristic(text: string): { isSample: boolean; score: number } {
@@ -374,7 +375,8 @@ Section:\n${sections[i]}`
         examTitle: body.title || 'Practice Exam',
         instructions: body.instructions || 'Choose the best answer for each question.',
         duration: durationMinutes,
-        questions: strictCollected.slice(0, count)
+        questions: strictCollected.slice(0, count),
+        quizMode: body.quizMode || 'rapid-fire'
       }
       return NextResponse.json({ success: true, exam })
     }
@@ -559,7 +561,11 @@ Output format (strict JSON):
       }
     }
 
-    const exam = { ...normalized, instructions: body.instructions || normalized.instructions }
+    const exam = { 
+      ...normalized, 
+      instructions: body.instructions || normalized.instructions,
+      quizMode: body.quizMode || 'rapid-fire'
+    }
 
     return NextResponse.json({ success: true, exam })
   } catch (e: any) {

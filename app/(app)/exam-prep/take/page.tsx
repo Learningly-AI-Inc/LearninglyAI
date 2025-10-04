@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,7 @@ interface ExamData {
   instructions: string
   duration: number
   questions: Question[]
+  quizMode?: 'rapid-fire' | 'scheduled'
 }
 
 export default function TakeExamPage() {
@@ -26,6 +27,7 @@ export default function TakeExamPage() {
   const [exam, setExam] = useState<ExamData | null>(null)
   const [index, setIndex] = useState(0)
   const [selected, setSelected] = useState<string>('')
+  const [answers, setAnswers] = useState<Record<number, string>>({})
   const [score, setScore] = useState(0)
   const [showResult, setShowResult] = useState(false)
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
@@ -56,6 +58,19 @@ export default function TakeExamPage() {
 
   const q = useMemo(() => exam?.questions?.[index], [exam, index])
 
+  // Calculate score from all answers (for scheduled mode)
+  const calculateScore = useCallback(() => {
+    if (!exam) return 0
+    let correctCount = 0
+    exam.questions.forEach((question, i) => {
+      const userAnswer = answers[i]
+      if (userAnswer && userAnswer.trim().toUpperCase().startsWith(String(question.correctAnswer).trim().toUpperCase())) {
+        correctCount++
+      }
+    })
+    return correctCount
+  }, [exam, answers])
+
   if (!exam) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -79,18 +94,43 @@ export default function TakeExamPage() {
     if (!q || !selected) return
     const isCorrect = selected.trim().toUpperCase().startsWith(String(q.correctAnswer).trim().toUpperCase())
     if (isCorrect) setScore(s => s + 1)
+    
+    // Store answer for scheduled mode
+    if (exam?.quizMode === 'scheduled') {
+      setAnswers(prev => ({ ...prev, [index]: selected }))
+    }
+    
+    setShowResult(true)
+  }
+
+  function submitAll() {
+    if (!exam) return
+    const finalScore = calculateScore()
+    setScore(finalScore)
     setShowResult(true)
   }
 
   function next() {
     setShowResult(false)
+    if (exam?.quizMode === 'scheduled') {
+      setAnswers(prev => ({ ...prev, [index]: selected }))
+    }
     setSelected('')
     if (index + 1 >= total) return
     setIndex(i => i + 1)
   }
 
+  function goToQuestion(questionIndex: number) {
+    setShowResult(false)
+    if (exam?.quizMode === 'scheduled') {
+      setAnswers(prev => ({ ...prev, [index]: selected }))
+    }
+    setSelected(answers[questionIndex] || '')
+    setIndex(questionIndex)
+  }
+
   const timeUp = secondsLeft !== null && secondsLeft <= 0
-  const finished = timeUp || (index + 1 >= total && showResult)
+  const finished = timeUp || (exam?.quizMode === 'scheduled' ? showResult : (index + 1 >= total && showResult))
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-slate-100">
@@ -119,51 +159,111 @@ export default function TakeExamPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             {!finished ? (
-              <>
-                <div className="text-sm text-slate-600">Question {index + 1} of {total}</div>
-                <div className="text-base leading-relaxed">{q?.question}</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {q?.options?.map((opt, i) => {
-                    const label = ['A', 'B', 'C', 'D'][i] || String(i + 1)
-                    const value = `${label}`
-                    return (
+              exam?.quizMode === 'scheduled' ? (
+                // Scheduled Mode: Show all questions
+                <>
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm text-slate-600">
+                      {Object.keys(answers).length} of {total} questions answered
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={submitAll}>
+                        Submit All
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Question Navigation */}
+                  <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                    {exam.questions.map((_, i) => (
                       <Button
                         key={i}
-                        variant={selected === value ? 'default' : 'outline'}
-                        onClick={() => setSelected(value)}
-                        className={`w-full h-auto min-h-[3rem] py-3 justify-start items-start text-left whitespace-normal break-words text-wrap leading-snug ${selected === value ? '' : 'hover:bg-slate-50'}`}
+                        variant={i === index ? "default" : answers[i] ? "secondary" : "outline"}
+                        size="sm"
+                        onClick={() => goToQuestion(i)}
+                        className="aspect-square"
                       >
-                        <span className="mr-3 font-semibold shrink-0">{label}.</span>
-                        <span className="flex-1 break-words">{opt}</span>
+                        {i + 1}
                       </Button>
-                    )
-                  })}
-                </div>
+                    ))}
+                  </div>
 
-                {!showResult ? (
-                  <div className="flex justify-end">
-                    <Button disabled={!selected} onClick={submit}>Submit</Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className={selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? 'text-green-700' : 'text-red-700'}>
-                      {selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? 'Correct!' : `Incorrect. Answer: ${q?.correctAnswer}`}
+                  <div className="border-t pt-6">
+                    <div className="text-sm text-slate-600 mb-4">Question {index + 1} of {total}</div>
+                    <div className="text-base leading-relaxed mb-6">{q?.question}</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {q?.options?.map((opt, i) => {
+                        const label = ['A', 'B', 'C', 'D'][i] || String(i + 1)
+                        const value = `${label}`
+                        return (
+                          <Button
+                            key={i}
+                            variant={selected === value ? 'default' : 'outline'}
+                            onClick={() => setSelected(value)}
+                            className={`w-full h-auto min-h-[3rem] py-3 justify-start items-start text-left whitespace-normal break-words text-wrap leading-snug ${selected === value ? '' : 'hover:bg-slate-50'}`}
+                          >
+                            <span className="mr-3 font-semibold shrink-0">{label}.</span>
+                            <span className="flex-1 break-words">{opt}</span>
+                          </Button>
+                        )
+                      })}
                     </div>
-                    {q?.explanation && (
-                      <div className="text-sm text-slate-700 leading-relaxed">Explanation: {q.explanation}</div>
-                    )}
+                  </div>
+                </>
+              ) : (
+                // Rapid Fire Mode: One question at a time
+                <>
+                  <div className="text-sm text-slate-600">Question {index + 1} of {total}</div>
+                  <div className="text-base leading-relaxed">{q?.question}</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {q?.options?.map((opt, i) => {
+                      const label = ['A', 'B', 'C', 'D'][i] || String(i + 1)
+                      const value = `${label}`
+                      return (
+                        <Button
+                          key={i}
+                          variant={selected === value ? 'default' : 'outline'}
+                          onClick={() => setSelected(value)}
+                          className={`w-full h-auto min-h-[3rem] py-3 justify-start items-start text-left whitespace-normal break-words text-wrap leading-snug ${selected === value ? '' : 'hover:bg-slate-50'}`}
+                        >
+                          <span className="mr-3 font-semibold shrink-0">{label}.</span>
+                          <span className="flex-1 break-words">{opt}</span>
+                        </Button>
+                      )
+                    })}
+                  </div>
+
+                  {!showResult ? (
                     <div className="flex justify-end">
-                      <Button onClick={next}>Next</Button>
+                      <Button disabled={!selected} onClick={submit}>Submit</Button>
                     </div>
-                  </div>
-                )}
-              </>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className={selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? 'text-green-700' : 'text-red-700'}>
+                        {selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? 'Correct!' : `Incorrect. Answer: ${q?.correctAnswer}`}
+                      </div>
+                      {q?.explanation && (
+                        <div className="text-sm text-slate-700 leading-relaxed">Explanation: {q.explanation}</div>
+                      )}
+                      <div className="flex justify-end">
+                        <Button onClick={next}>Next</Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
             ) : (
               <div className="text-center py-10">
                 <div className="text-2xl font-semibold mb-2">Finished!</div>
                 <div className="text-lg mb-6">Score: {score} / {total}</div>
                 <div className="flex gap-3 justify-center">
-                  <Button variant="outline" onClick={() => { setIndex(0); setScore(0); setShowResult(false); setSelected('') }}>Retry</Button>
+                  <Button variant="outline" onClick={() => { 
+                    setIndex(0); 
+                    setScore(0); 
+                    setShowResult(false); 
+                    setSelected(''); 
+                    setAnswers({});
+                  }}>Retry</Button>
                   <Button onClick={() => router.push('/exam-prep')}>Back to Exam Prep</Button>
                 </div>
               </div>
