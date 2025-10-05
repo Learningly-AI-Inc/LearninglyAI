@@ -699,10 +699,97 @@ Note: The document has been processed through our webhook system and is availabl
       );
     }
     
+    // Decide final buffer and type for storage; convert DOCX/TXT to PDF for compatibility
+    let finalBuffer = buffer;
+    let finalMimeType = fileType;
+    let finalFileName = fileName;
+    
+    if ((fileExtension === 'docx' || fileExtension === 'txt') && serverExtractedText && serverExtractedText.trim().length > 0) {
+      try {
+        console.log('🧭 Converting extracted text to PDF for storage...');
+        const { PDFDocument, StandardFonts } = await import('pdf-lib');
+        const pdfDoc = await PDFDocument.create();
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const fontSize = 12;
+        const lineHeight = Math.round(fontSize * 1.4);
+        const pageWidth = 595.28; // A4 width (pt)
+        const pageHeight = 841.89; // A4 height (pt)
+        const margin = 50;
+        
+        let page = pdfDoc.addPage([pageWidth, pageHeight]);
+        let y = pageHeight - margin;
+        const maxWidth = pageWidth - margin * 2;
+        
+        const paragraphs = (serverExtractedText || '').split(/\n{2,}/);
+        for (const para of paragraphs) {
+          const words = para.split(/\s+/).filter(Boolean);
+          let currentLine = '';
+          for (const word of words) {
+            const testLine = currentLine ? currentLine + ' ' + word : word;
+            const width = font.widthOfTextAtSize(testLine, fontSize);
+            if (width <= maxWidth) {
+              currentLine = testLine;
+            } else {
+              if (currentLine) {
+                page.drawText(currentLine, { x: margin, y, size: fontSize, font });
+                y -= lineHeight;
+                if (y <= margin) {
+                  page = pdfDoc.addPage([pageWidth, pageHeight]);
+                  y = pageHeight - margin;
+                }
+              }
+              currentLine = word;
+            }
+          }
+          if (currentLine) {
+            page.drawText(currentLine, { x: margin, y, size: fontSize, font });
+            y -= lineHeight;
+            if (y <= margin) {
+              page = pdfDoc.addPage([pageWidth, pageHeight]);
+              y = pageHeight - margin;
+            }
+          }
+          // Paragraph spacing
+          y -= lineHeight;
+          if (y <= margin) {
+            page = pdfDoc.addPage([pageWidth, pageHeight]);
+            y = pageHeight - margin;
+          }
+        }
+        
+        const pdfPageCount = pdfDoc.getPages().length;
+        const pdfBytes = await pdfDoc.save();
+        finalBuffer = Buffer.from(pdfBytes);
+        finalMimeType = 'application/pdf';
+        finalFileName = fileName.replace(/\.(pdf|txt|docx)$/i, '.pdf');
+        serverPageCount = pdfPageCount;
+        processingNotes.push('Stored as generated PDF (converted from ' + fileExtension.toUpperCase() + ')');
+        
+        console.log('✅ Text converted to PDF for storage:', {
+          pages: pdfPageCount,
+          originalType: fileType,
+          storageMimeType: finalMimeType,
+          originalFileName: fileName,
+          storedFileName: finalFileName
+        });
+      } catch (pdfErr) {
+        console.error('⚠️ PDF conversion failed; storing original buffer with original type:', pdfErr);
+        processingNotes.push('PDF conversion failed; stored original content');
+      }
+    }
+    
+    console.log('📤 Uploading to Supabase storage:', {
+      path: storagePath,
+      originalMimeType: fileType,
+      storageMimeType: finalMimeType,
+      fileSize: finalBuffer.length,
+      fileName: finalFileName
+    });
+    
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('reading-documents')
-      .upload(storagePath, buffer, {
-        contentType: fileType,
+      .upload(storagePath, finalBuffer, {
+        contentType: finalMimeType,
         upsert: false
       });
     
@@ -745,7 +832,12 @@ Note: The document has been processed through our webhook system and is availabl
         public_url: fileUrl,
         metadata: {
           uploadedAt: new Date().toISOString(),
-          processingNotes
+          processingNotes,
+          originalFileType: fileExtension,
+          originalMimeType: fileType,
+          storedAsPdf: (fileExtension === 'docx' || fileExtension === 'txt') && finalMimeType === 'application/pdf',
+          storedFileName: finalFileName,
+          storedMimeType: finalMimeType
         }
       })
       .select()
