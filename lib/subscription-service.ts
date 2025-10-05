@@ -1,5 +1,5 @@
 import { stripe, STRIPE_CONFIG, validateStripeConfig } from './stripe'
-import { createClient } from './supabase-server'
+import { createClient, createAdminClient } from './supabase-server'
 import type { Stripe } from 'stripe'
 
 // Validate Stripe configuration only when needed (not during build)
@@ -54,6 +54,11 @@ export class SubscriptionService {
     return await createClient()
   }
 
+  // Admin client for webhook/server-side writes that must bypass RLS
+  private async getAdminSupabase() {
+    return await createAdminClient()
+  }
+
   /**
    * Get all available subscription plans
    */
@@ -84,7 +89,7 @@ export class SubscriptionService {
         .from('user_subscriptions')
         .select('*')
         .eq('user_id', userId)
-        .eq('status', 'active')
+        .in('status', ['active', 'trialing'])
         .single()
 
       if (error && error.code !== 'PGRST116') throw error // PGRST116 = no rows
@@ -117,7 +122,7 @@ export class SubscriptionService {
           )
         `)
         .eq('user_id', userId)
-        .eq('status', 'active')
+        .in('status', ['active', 'trialing'])
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
@@ -251,15 +256,31 @@ export class SubscriptionService {
    */
   async handleSubscriptionCreated(subscription: Stripe.Subscription): Promise<void> {
     try {
-      const userId = subscription.metadata.user_id
-      const priceId = subscription.items.data[0].price.id
+      const userId = (subscription.metadata as any)?.user_id
+      const price = subscription.items.data[0].price
+      const priceId = price.id
+      const productId = typeof price.product === 'string' ? (price.product as string) : (price.product as any)?.id
       
-      // Get plan details
-      const plan = await this.getPlanByPriceId(priceId)
+      // Get plan details (support both price and product mapping)
+      const plan = await this.getPlanByStripeIds(priceId, productId)
       if (!plan) throw new Error('Plan not found')
 
-      // Create or update subscription record
-      const supabase = await this.getSupabase()
+      // If we didn't get a user_id (guest checkout or metadata missing), fall back to guest flow
+      if (!userId) {
+        // Attempt to get customer email to map account
+        try {
+          const cust = await stripe.customers.retrieve(subscription.customer as string)
+          const email = (cust as any)?.email as string | undefined
+          await this.handleGuestSubscriptionCreated(subscription, email)
+          return
+        } catch (e) {
+          console.error('Failed to map guest subscription via customer lookup:', e)
+          throw e
+        }
+      }
+
+      // Create or update subscription record for known user
+      const supabase = await this.getAdminSupabase()
       const { error } = await supabase
         .from('user_subscriptions')
         .upsert({
@@ -272,9 +293,20 @@ export class SubscriptionService {
           current_period_end: new Date((subscription as any).current_period_end * 1000),
           cancel_at_period_end: (subscription as any).cancel_at_period_end,
           trial_end: (subscription as any).trial_end ? new Date((subscription as any).trial_end * 1000) : null,
-        })
+        }, { onConflict: 'user_id', ignoreDuplicates: false })
 
       if (error) throw error
+
+      // Persist Stripe customer id on the user for future linkage
+      if (userId) {
+        try {
+          await supabase.auth.admin.updateUserById(userId, {
+            user_metadata: { stripe_customer_id: subscription.customer as string }
+          })
+        } catch (e) {
+          console.warn('Failed to update user metadata with stripe_customer_id:', e)
+        }
+      }
     } catch (error) {
       console.error('Error handling subscription created:', error)
       throw error
@@ -286,13 +318,15 @@ export class SubscriptionService {
    */
   async handleGuestSubscriptionCreated(subscription: Stripe.Subscription, customerEmail?: string | null): Promise<void> {
     try {
-      const priceId = subscription.items.data[0].price.id
+      const price = subscription.items.data[0].price
+      const priceId = price.id
+      const productId = typeof price.product === 'string' ? (price.product as string) : (price.product as any)?.id
       
-      // Get plan details
-      const plan = await this.getPlanByPriceId(priceId)
+      // Get plan details (support both price and product mapping)
+      const plan = await this.getPlanByStripeIds(priceId, productId)
       if (!plan) throw new Error('Plan not found')
 
-      const supabase = await this.getSupabase()
+      const supabase = await this.getAdminSupabase()
 
       // Check if user already exists with this email
       let userId: string | null = null
@@ -345,11 +379,20 @@ export class SubscriptionService {
           current_period_end: new Date((subscription as any).current_period_end * 1000),
           cancel_at_period_end: (subscription as any).cancel_at_period_end,
           trial_end: (subscription as any).trial_end ? new Date((subscription as any).trial_end * 1000) : null,
-        })
+        }, { onConflict: 'user_id', ignoreDuplicates: false })
 
       if (subscriptionError) throw subscriptionError
 
       console.log('Guest subscription created successfully for user:', userId)
+
+      // Persist Stripe customer id on the user for future linkage
+      try {
+        await supabase.auth.admin.updateUserById(userId!, {
+          user_metadata: { stripe_customer_id: subscription.customer as string }
+        })
+      } catch (e) {
+        console.warn('Failed to update user metadata with stripe_customer_id:', e)
+      }
     } catch (error) {
       console.error('Error handling guest subscription created:', error)
       throw error
@@ -363,7 +406,7 @@ export class SubscriptionService {
     try {
       const userId = subscription.metadata.user_id
       
-      const supabase = await this.getSupabase()
+      const supabase = await this.getAdminSupabase()
       const { error } = await supabase
         .from('user_subscriptions')
         .update({
@@ -387,7 +430,7 @@ export class SubscriptionService {
    */
   async handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
     try {
-      const supabase = await this.getSupabase()
+      const supabase = await this.getAdminSupabase()
       const { error } = await supabase
         .from('user_subscriptions')
         .update({ status: 'canceled' })
@@ -403,19 +446,33 @@ export class SubscriptionService {
   /**
    * Get plan by price ID
    */
-  private async getPlanByPriceId(priceId: string): Promise<SubscriptionPlan | null> {
+  private async getPlanByStripeIds(priceId: string, productId?: string): Promise<SubscriptionPlan | null> {
     try {
-      const supabase = await this.getSupabase()
-      const { data, error } = await supabase
+      const supabase = await this.getAdminSupabase()
+      // Try by price ID first
+      let { data, error } = await supabase
         .from('subscription_plans')
         .select('*')
         .eq('stripe_price_id', priceId)
         .single()
 
+      if (data) return data
       if (error && error.code !== 'PGRST116') throw error
-      return data
+
+      // Fallback: some databases mistakenly store product id in stripe_price_id
+      if (productId) {
+        const res = await supabase
+          .from('subscription_plans')
+          .select('*')
+          .eq('stripe_price_id', productId)
+          .single()
+        if (res.data) return res.data
+        if (res.error && res.error.code !== 'PGRST116') throw res.error
+      }
+
+      return null
     } catch (error) {
-      console.error('Error fetching plan by price ID:', error)
+      console.error('Error fetching plan by Stripe IDs:', error)
       return null
     }
   }

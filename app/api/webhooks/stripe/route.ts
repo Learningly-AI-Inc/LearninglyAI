@@ -3,6 +3,10 @@ import { verifyWebhookSignature } from '@/lib/stripe'
 import { subscriptionService } from '@/lib/subscription-service'
 import type { Stripe } from 'stripe'
 
+// Ensure Node runtime for Stripe webhook verification and admin Supabase usage
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text()
