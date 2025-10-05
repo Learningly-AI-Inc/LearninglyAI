@@ -53,17 +53,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   }, [setEditorRef, editorState]);
   
-  // When parent forces a re-mount using a different key or passes new initialContent
-  // that contains grammar highlight spans, rebuild the editor state so highlights render.
+  // Rebuild editor state when initialContent changes (no auto-injected highlight logic)
   useEffect(() => {
     if (!initialContent) return;
-    // Only reparse when content contains our highlight markers to avoid jitter
-    if (initialContent.includes('class="grammar-issue') || initialContent.includes('data-issue-id')) {
-      const contentBlock = htmlToDraft(initialContent);
-      if (contentBlock) {
-        const contentState = ContentState.createFromBlockArray(contentBlock.contentBlocks);
-        setEditorState(EditorState.createWithContent(contentState));
-      }
+    const contentBlock = htmlToDraft(initialContent);
+    if (contentBlock) {
+      const contentState = ContentState.createFromBlockArray(contentBlock.contentBlocks);
+      setEditorState(EditorState.createWithContent(contentState));
     }
   }, [initialContent]);
   

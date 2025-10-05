@@ -183,13 +183,9 @@ const WritingPageClient = () => {
         setLastProcessedFeature("Grammar Check");
         setLastGrammarCheckHash(currentContentHash); // Track this content
         setLastGrammarCheckResult('had-issues'); // Mark that this content had issues
-        
-        // Apply visual highlights to the editor content
-        const highlighted = highlightGrammarIssues(editorContent, data.grammarIssues);
-        setHighlightedContent(highlighted);
-        setEditorKey(prev => prev + 1); // Force re-render with highlights
-        
-        toast.info(`Found ${data.grammarIssues.length} grammar issue${data.grammarIssues.length > 1 ? 's' : ''} to review. Issues are highlighted in the editor.`);
+        // Do NOT modify editor content with highlights
+        setHighlightedContent("");
+        toast.info(`Found ${data.grammarIssues.length} grammar issue${data.grammarIssues.length > 1 ? 's' : ''} to review.`);
       } else {
         setGrammarIssues([]);
         setHighlightedContent("");
@@ -510,42 +506,10 @@ const WritingPageClient = () => {
     }
   };
 
-  // Scroll to and highlight the first occurrence of an issue in the editor
+  // Scroll to the first occurrence of an issue in the editor (no inline highlighting)
   const revealIssueInEditor = (issue: GrammarIssue) => {
-    try {
-      if (typeof document === 'undefined') return;
-      const container = document.querySelector('.editor-class') as HTMLElement | null;
-      if (!container) return;
-      const plain = (editorContent || '').replace(/<[^>]*>?/gm, '');
-      if (!plain || !issue?.original) return;
-      // Build a robust HTML-tolerant regex to account for inline tags and typography
-      const regex = buildHtmlInterleavedRegex(issue.original);
-      const html = editorContent || '';
-      const match = html.match(regex);
-      if (!match) return;
-      const startIndex = match.index ?? 0;
-      // Create a temporary marker
-      const before = html.slice(0, startIndex);
-      const marked = `<span data-gi="1" class="bg-yellow-100 outline outline-1 outline-yellow-300">${match[0]}</span>`;
-      const after = html.slice(startIndex + match[0].length);
-      setEditorContent(before + marked + after);
-      setEditorKey(prev => prev + 1);
-      // Scroll to marker after re-render
-      setTimeout(() => {
-        const el = container.querySelector('[data-gi="1"]') as HTMLElement | null;
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          // Remove highlight after a moment
-          setTimeout(() => {
-            el.classList.remove('bg-yellow-100');
-            el.classList.remove('outline');
-            el.removeAttribute('data-gi');
-          }, 1500);
-        }
-      }, 50);
-    } catch {
-      // best-effort only
-    }
+    // No-op to avoid injecting any markup into the editor
+    return;
   };
 
   // Function to handle rejecting suggestions
@@ -557,8 +521,7 @@ const WritingPageClient = () => {
       
       // Update highlights for remaining issues
       if (updatedGrammarIssues.length > 0) {
-        const newHighlighted = highlightGrammarIssues(editorContent, updatedGrammarIssues);
-        setHighlightedContent(newHighlighted);
+        setHighlightedContent("");
         toast.info(`Grammar issue ignored. ${updatedGrammarIssues.length} remaining.`);
       } else {
         setHighlightedContent("");
@@ -897,7 +860,7 @@ const WritingPageClient = () => {
       richTextEditor={
         <RichTextEditor
           key={`editor-${editorKey}`}
-          initialContent={highlightedContent || editorContent}
+          initialContent={editorContent}
           onChange={handleEditorChange}
           height="100%"
           onSelectedTextChange={setSelectedText}
