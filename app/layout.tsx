@@ -48,6 +48,14 @@ export const metadata: Metadata = {
     description:
       "Transform your study materials into interactive content.",
     siteName: "Learningly",
+    images: [
+      {
+        url: "/learningly_logo.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Learningly Logo",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
@@ -55,6 +63,7 @@ export const metadata: Metadata = {
     description:
       "Generate quizzes, summaries, and flashcards in seconds with Learningly.",
     creator: "@learninglyai",
+    images: ["/learningly_logo.jpg"],
   },
   robots: {
     index: true,
@@ -79,9 +88,9 @@ export default function RootLayout({
       <head>
         {/* Use standard 1.0 scale for better 13" laptop rendering and allow scaling */}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/learningly_logo.jpg" type="image/jpeg" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" href="/learningly_logo.jpg" />
         <link rel="manifest" href="/site.webmanifest" />
       </head>
       <body

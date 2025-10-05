@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Menu, LogOut, Settings, BrainCircuit, User, Bolt, ChevronRight, Clock, Crown, Zap, Shield, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -167,8 +168,14 @@ export default function AppSidebar({
        className={`${sidebarCollapsed ? "w-16" : "w-[240px] lg:w-[280px]"} ${isMobile ? 'flex' : 'hidden md:flex'} flex-col border-r border-border/50 bg-white transition-[width] duration-300 z-40 h-screen fixed modern-shadow-lg`}
     >
       <div className="flex items-center gap-3 px-4 h-16 border-b border-border/50">
-        <div className="h-10 w-10 rounded-2xl grid place-content-center bg-blue-600 text-white font-bold shadow-lg">
-          <BrainCircuit className="h-5 w-5" />
+        <div className="h-10 w-10 rounded-2xl overflow-hidden bg-white shadow-lg flex items-center justify-center">
+          <Image 
+            src="/learningly_logo.jpg" 
+            alt="Learningly Logo" 
+            width={40} 
+            height={40}
+            className="object-contain"
+          />
         </div>
         {!sidebarCollapsed && (
           <div className="flex-1">

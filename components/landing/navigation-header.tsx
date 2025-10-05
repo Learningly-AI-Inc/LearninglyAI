@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import CardNav from './CardNav';
 import { Zap } from 'lucide-react';
 
@@ -42,7 +43,13 @@ export const NavigationHeader: React.FC = () => {
     const logoComponent = (
       <div className="flex items-center space-x-3 cursor-pointer group">
         <div className="relative">
-          <Zap className="h-8 w-8 text-blue-400 transition-all duration-300 group-hover:text-blue-300 group-hover:scale-110" />
+          <Image 
+            src="/learningly_logo.jpg" 
+            alt="Learningly Logo" 
+            width={32} 
+            height={32}
+            className="h-8 w-8 object-contain transition-all duration-300 group-hover:scale-110"
+          />
           <div className="absolute inset-0 h-8 w-8 bg-blue-400/20 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>
         <span className="text-xl font-bold text-white group-hover:text-blue-100 transition-colors duration-300">
