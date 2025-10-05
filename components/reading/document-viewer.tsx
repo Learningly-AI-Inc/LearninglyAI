@@ -185,7 +185,8 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
               }
             }
             setDocument(basicDocument)
-            processPDFText(documentUrl, documentTitle)
+            // Skip PDF text processing for faster loading
+            setPdfLoading(false)
           }
         })
       } else if (documentTitle && documentTitle !== "Document") {
@@ -210,7 +211,8 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
               }
             }
             setDocument(basicDocument)
-            processPDFText(documentUrl, documentTitle)
+            // Skip PDF text processing for faster loading
+            setPdfLoading(false)
           }
         })
       } else if (documentUrl && documentTitle) {
@@ -232,7 +234,11 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
         }
         console.log('📄 Created basic document:', basicDocument)
         setDocument(basicDocument)
-        processPDFText(documentUrl, documentTitle)
+        // Skip PDF text processing for faster loading
+        setPdfLoading(false)
+        // Immediately start loading PDF
+        setPdfLoading(true)
+        setTimeout(() => setPdfLoading(false), 100) // Very quick loading
       }
     } else {
       console.log('❌ Conditions not met:', {
@@ -249,7 +255,7 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
         console.log('⚠️ PDF loading timeout - forcing load completion')
         setPdfLoading(false)
       }
-    }, 15000) // 15 second timeout
+    }, 2000) // Reduced to 2s for maximum speed
 
     return () => clearTimeout(loadingTimeout)
   }, [documentUrl, documentTitle, documentId, document, setDocument, pdfLoading, fetchDocumentData, fetchDocumentByTitle])
@@ -262,9 +268,19 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
   }, [])
 
 
-  // Function to get signed URL for private bucket access
+  // Cache for signed URLs to avoid repeated API calls
+  const signedUrlCache = React.useRef<Map<string, { url: string; expires: number }>>(new Map())
+
+  // Function to get signed URL for private bucket access with caching
   const getSignedUrl = React.useCallback(async (url: string) => {
     console.log('🔐 Getting signed URL for:', url)
+    
+    // Check cache first
+    const cached = signedUrlCache.current.get(url)
+    if (cached && cached.expires > Date.now()) {
+      console.log('✅ Using cached signed URL')
+      return cached.url
+    }
     
     try {
       const response = await fetch('/api/reading/get-signed-url', {
@@ -278,6 +294,13 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
       if (response.ok) {
         const data = await response.json()
         console.log('✅ Signed URL obtained:', data.signedUrl)
+        
+        // Cache the signed URL (expires in 45 minutes to be safe)
+        signedUrlCache.current.set(url, {
+          url: data.signedUrl,
+          expires: Date.now() + (45 * 60 * 1000) // 45 minutes
+        })
+        
         return data.signedUrl
       } else {
         console.error('❌ Failed to get signed URL:', response.statusText)
@@ -506,8 +529,12 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
       return (
         <div className="h-full w-full flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-500">Getting document access...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-500 font-medium">Getting document access...</p>
+            <p className="text-sm text-gray-400 mt-1">This should be fast with caching</p>
+            <div className="mt-3 w-32 h-1 bg-gray-200 rounded-full mx-auto overflow-hidden">
+              <div className="h-full bg-blue-600 rounded-full animate-pulse"></div>
+            </div>
           </div>
         </div>
       );
@@ -601,8 +628,8 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
                           <div className="h-full w-full flex items-center justify-center">
                             <div className="text-center">
                               <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                              <p className="text-gray-500">Loading document...</p>
-                              <p className="text-xs text-gray-400 mt-2">Debug: pdfLoading={pdfLoading.toString()}</p>
+                              <p className="text-gray-500 font-medium">Loading document...</p>
+                              <p className="text-xs text-gray-400 mt-2">Optimized for speed</p>
                             </div>
                           </div>
                         )

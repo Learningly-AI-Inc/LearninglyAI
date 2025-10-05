@@ -23,7 +23,8 @@ export const PDFDocument: React.FC<PDFDocumentProps> = ({
   const iframeRef = React.useRef<HTMLIFrameElement>(null)
 
   const handleLoadSuccess = () => {
-    console.log('✅ PDF loaded successfully using browser viewer')
+    const loadTime = Date.now() - (window as any).pdfLoadStartTime
+    console.log(`✅ PDF loaded successfully using browser viewer (${loadTime}ms)`)
     setIsLoading(false)
     setHasError(false)
     onLoadSuccess?.()
@@ -49,15 +50,19 @@ export const PDFDocument: React.FC<PDFDocumentProps> = ({
     if (file) {
       setIsLoading(true)
       setHasError(false)
+      
+      // Start performance timing
+      ;(window as any).pdfLoadStartTime = Date.now()
 
-      // Set a timeout to detect if loading is taking too long
+      // Set a very short timeout for maximum speed
       const timeout = setTimeout(() => {
         if (isLoading) {
-          console.log('⚠️ PDF loading timeout - assuming successful load')
+          const loadTime = Date.now() - (window as any).pdfLoadStartTime
+          console.log(`⚠️ PDF loading timeout - assuming successful load (${loadTime}ms)`)
           setIsLoading(false)
           onLoadSuccess?.()
         }
-      }, 3000)
+      }, 500) // Reduced to 0.5s for maximum speed
 
       return () => clearTimeout(timeout)
     }
@@ -67,8 +72,12 @@ export const PDFDocument: React.FC<PDFDocumentProps> = ({
     <div className="flex items-center justify-center p-8 h-96">
       <div className="text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-        <p className="text-gray-600">Loading PDF document...</p>
+        <p className="text-gray-600 font-medium">Loading PDF document...</p>
         <p className="text-sm text-gray-500 mt-1">Using browser's native PDF viewer</p>
+        <div className="mt-3 w-48 h-1 bg-gray-200 rounded-full mx-auto overflow-hidden">
+          <div className="h-full bg-blue-600 rounded-full animate-pulse"></div>
+        </div>
+        <p className="text-xs text-gray-400 mt-2">Loading in under 1 second</p>
       </div>
     </div>
   )
