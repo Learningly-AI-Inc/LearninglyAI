@@ -134,6 +134,111 @@ export class SubscriptionService {
   }
 
   /**
+   * Ensure a subscription record exists for the given user.
+   * - If Stripe has an active/trialing subscription, upsert it with the mapped plan.
+   * - Otherwise, upsert a record pointing to the Free plan with a non-active status (e.g., canceled).
+   * This keeps `auth.users` and `user_subscriptions` in sync lazily per-user.
+   */
+  async ensureUserSubscriptionRecord(userId: string): Promise<void> {
+    try {
+      const admin = await this.getAdminSupabase()
+
+      // If any row exists for this user, do nothing (we only ensure presence, not force-update here)
+      const { data: existing, error: existingErr } = await admin
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .single()
+
+      if (!existingErr && existing) {
+        return
+      }
+
+      // Resolve Stripe customer id from user metadata or by email
+      let stripeCustomerId: string | null = null
+      try {
+        const u = await admin.auth.admin.getUserById(userId)
+        const user = (u as any)?.user
+        stripeCustomerId = user?.user_metadata?.stripe_customer_id || null
+
+        // If not present, try lookup by email via Stripe
+        if (!stripeCustomerId && user?.email) {
+          ensureStripeConfig()
+          const customers = await stripe.customers.list({ email: user.email, limit: 1 })
+          stripeCustomerId = customers.data[0]?.id || null
+        }
+      } catch {}
+
+      // If we have a Stripe customer, attempt to mirror their latest subscription
+      if (stripeCustomerId) {
+        try {
+          ensureStripeConfig()
+          const subs = await stripe.subscriptions.list({ customer: stripeCustomerId, status: 'all', limit: 10 })
+          const chosen = subs.data.find(s => ['active', 'trialing', 'past_due', 'incomplete', 'unpaid', 'canceled'].includes(s.status)) || subs.data[0]
+
+          if (chosen) {
+            const price = chosen.items.data[0]?.price
+            const priceId = price?.id
+            const productId = typeof price?.product === 'string' ? (price?.product as string) : (price?.product as any)?.id
+
+            const plan = priceId || productId ? await this.getPlanByStripeIds(priceId as string, productId) : null
+            if (plan) {
+              const { error } = await admin
+                .from('user_subscriptions')
+                .upsert({
+                  user_id: userId,
+                  plan_id: plan.id,
+                  stripe_customer_id: stripeCustomerId,
+                  stripe_subscription_id: chosen.id,
+                  status: chosen.status as any,
+                  current_period_start: new Date((chosen as any).current_period_start * 1000),
+                  current_period_end: new Date((chosen as any).current_period_end * 1000),
+                  cancel_at_period_end: (chosen as any).cancel_at_period_end,
+                  trial_end: (chosen as any).trial_end ? new Date((chosen as any).trial_end * 1000) : null,
+                }, { onConflict: 'user_id', ignoreDuplicates: false })
+              if (error) throw error
+
+              // Persist customer id for future linkage
+              try {
+                await admin.auth.admin.updateUserById(userId, {
+                  user_metadata: { stripe_customer_id: stripeCustomerId }
+                })
+              } catch {}
+              return
+            }
+          }
+        } catch (e) {
+          // Fall back to free record if Stripe lookup fails
+        }
+      }
+
+      // Fallback: upsert a record to Free plan with non-active status (represents free tier)
+      try {
+        const { data: freePlan } = await admin
+          .from('subscription_plans')
+          .select('id')
+          .eq('name', 'Free')
+          .single()
+
+        if (freePlan?.id) {
+          await admin
+            .from('user_subscriptions')
+            .upsert({
+              user_id: userId,
+              plan_id: freePlan.id,
+              status: 'canceled', // not premium; endpoint logic treats missing active/trialing as free
+              cancel_at_period_end: false,
+            }, { onConflict: 'user_id', ignoreDuplicates: false })
+        }
+      } catch {
+        // Ignore if Free plan missing; endpoint will still compute free on-the-fly
+      }
+    } catch (error) {
+      console.error('ensureUserSubscriptionRecord error:', error)
+    }
+  }
+
+  /**
    * Create a Stripe customer
    */
   async createStripeCustomer(userId: string, email: string, name?: string): Promise<string> {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -19,12 +19,25 @@ import { toast } from 'sonner'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import type { SocialUserMetadata, AuthProvider } from '@/types/auth'
 import { getUserMetadata, getAuthProviderFromUser } from '@/types/auth'
+import { useSubscription } from '@/hooks/use-subscription'
 
 export function UserMenu() {
   const { user, signOut, loading } = useAuthContext()
   const [signingOut, setSigningOut] = useState(false)
   const [avatarLoading, setAvatarLoading] = useState(false)
   const router = useRouter()
+  const { subscription, refresh } = useSubscription()
+
+  // On mount, attempt reconciliation to ensure freshest status (covers guest->login flows)
+  useEffect(() => {
+    const reconcile = async () => {
+      try {
+        await fetch('/api/subscriptions/reconcile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+        await refresh()
+      } catch {}
+    }
+    reconcile()
+  }, [refresh])
 
   if (loading) {
     return (
@@ -196,6 +209,12 @@ export function UserMenu() {
               )}
             </AvatarFallback>
           </Avatar>
+          {subscription && (subscription.status === 'active' || subscription.status === 'trialing') && (
+            <span title="Premium"
+              className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-400 text-white shadow">
+              PRO
+            </span>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>

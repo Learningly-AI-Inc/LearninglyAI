@@ -69,9 +69,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ reconciled: false, reason: 'no_customer' })
     }
 
-    // Find latest active/trialing subscription for this customer
+    // Find latest subscription for this customer; prefer active/trialing, otherwise most recent
     const subs = await stripe.subscriptions.list({ customer: stripeCustomerId, status: 'all', limit: 10 })
-    const chosen = subs.data.find(s => ['active', 'trialing', 'past_due', 'incomplete'].includes(s.status)) || subs.data[0]
+    const preferred = subs.data.find(s => ['active', 'trialing'].includes(s.status))
+    const chosen = preferred || subs.data[0]
 
     if (!chosen) {
       return NextResponse.json({ reconciled: false, reason: 'no_subscription' })
@@ -107,22 +108,33 @@ export async function POST(request: NextRequest) {
     }
 
     if (!plan) {
-      return NextResponse.json({ reconciled: false, reason: 'plan_not_found' })
+      // Fallback: attach Free plan so a status row exists; status will not be active
+      try {
+        const { data: freePlan } = await admin
+          .from('subscription_plans')
+          .select('*')
+          .eq('name', 'Free')
+          .single()
+        plan = freePlan || null
+      } catch {}
+      if (!plan) {
+        return NextResponse.json({ reconciled: false, reason: 'plan_not_found' })
+      }
     }
 
-    // Upsert subscription row
+    // Upsert subscription row (active/trialing => premium; others keep status for history)
     const { error } = await admin
       .from('user_subscriptions')
       .upsert({
         user_id: user.id,
         plan_id: plan.id,
         stripe_customer_id: stripeCustomerId,
-        stripe_subscription_id: chosen.id,
-        status: chosen.status as any,
-        current_period_start: new Date((chosen as any).current_period_start * 1000),
-        current_period_end: new Date((chosen as any).current_period_end * 1000),
-        cancel_at_period_end: (chosen as any).cancel_at_period_end,
-        trial_end: (chosen as any).trial_end ? new Date((chosen as any).trial_end * 1000) : null,
+        stripe_subscription_id: chosen?.id || null,
+        status: (chosen?.status as any) || 'canceled',
+        current_period_start: chosen ? new Date((chosen as any).current_period_start * 1000) : null,
+        current_period_end: chosen ? new Date((chosen as any).current_period_end * 1000) : null,
+        cancel_at_period_end: chosen ? (chosen as any).cancel_at_period_end : false,
+        trial_end: chosen && (chosen as any).trial_end ? new Date((chosen as any).trial_end * 1000) : null,
       }, { onConflict: 'user_id', ignoreDuplicates: false })
 
     if (error) {

@@ -15,11 +15,18 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Ensure there is a subscription record for this user (lazy backfill)
+    try {
+      await subscriptionService.ensureUserSubscriptionRecord(user.id)
+    } catch (e) {
+      // Non-fatal; continue to compute free status if needed
+    }
+
     // Get user's subscription with plan details
     const subscription = await subscriptionService.getUserSubscriptionWithPlan(user.id)
     
     if (!subscription) {
-      // Return free plan details
+      // Return free plan details (computed defaults)
       return NextResponse.json({
         plan: {
           name: 'Free',
@@ -29,7 +36,7 @@ export async function GET(request: NextRequest) {
           interval: 'month',
           features: {
             ai_requests: 10,
-            document_uploads: 3,
+            document_uploads: 1,
             search_queries: 50,
           },
           limits: {
@@ -37,7 +44,7 @@ export async function GET(request: NextRequest) {
             max_file_size_mb: 10,
           },
         },
-        status: 'active',
+        status: 'canceled', // Not premium; aligns with free tier
         current_period_end: null,
         usage: await subscriptionService.getCurrentUsage(user.id),
       })
