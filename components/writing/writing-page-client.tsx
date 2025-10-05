@@ -214,6 +214,17 @@ const WritingPageClient = () => {
     return html.replace(/<[^>]*>?/gm, '');
   };
 
+  // Escape text for safe placement inside HTML attribute values
+  const escapeHtmlAttribute = (value: string) => {
+    if (value == null) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  };
+
   // Simple hash function to track content changes
   const createContentHash = (text: string) => {
     const cleanText = stripHtmlTags(text).toLowerCase().replace(/\s+/g, ' ').trim();
@@ -265,7 +276,7 @@ const WritingPageClient = () => {
         'clarity': 'bg-blue-100 border-b-2 border-blue-400'
       }[issue.type] || 'bg-gray-100 border-b-2 border-gray-400';
 
-      const highlightedIssue = `<span class="grammar-issue ${issueTypeClass}" data-issue-id="${issue.id}" data-issue-type="${issue.type}" title="${issue.description}">${issueText}</span>`;
+      const highlightedIssue = `<span class="grammar-issue ${issueTypeClass}" data-issue-id="${escapeHtmlAttribute(issue.id)}" data-issue-type="${escapeHtmlAttribute(issue.type)}" title="${escapeHtmlAttribute(issue.description)}">${issueText}</span>`;
       
       highlightedContent = before + highlightedIssue + after;
     });

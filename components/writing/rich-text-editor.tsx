@@ -53,9 +53,19 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   }, [setEditorRef, editorState]);
   
-  // Note: We intentionally avoid syncing editorState on every initialContent change
-  // to prevent keystroke resets. Parent re-mounts this component via `key` when
-  // it needs to force-load external content (e.g., loading a draft).
+  // When parent forces a re-mount using a different key or passes new initialContent
+  // that contains grammar highlight spans, rebuild the editor state so highlights render.
+  useEffect(() => {
+    if (!initialContent) return;
+    // Only reparse when content contains our highlight markers to avoid jitter
+    if (initialContent.includes('class="grammar-issue') || initialContent.includes('data-issue-id')) {
+      const contentBlock = htmlToDraft(initialContent);
+      if (contentBlock) {
+        const contentState = ContentState.createFromBlockArray(contentBlock.contentBlocks);
+        setEditorState(EditorState.createWithContent(contentState));
+      }
+    }
+  }, [initialContent]);
   
   // Track selected text - using a more stable approach
   useEffect(() => {
