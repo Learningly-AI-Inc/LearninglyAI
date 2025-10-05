@@ -106,6 +106,8 @@ export class SubscriptionService {
   async getUserSubscriptionWithPlan(userId: string) {
     try {
       const supabase = await this.getSupabase()
+      
+      // Get the user's subscription with plan details
       const { data, error } = await supabase
         .from('user_subscriptions')
         .select(`
@@ -122,11 +124,17 @@ export class SubscriptionService {
           )
         `)
         .eq('user_id', userId)
-        .in('status', ['active', 'trialing'])
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
-      return data
+      
+      // Only return if it's a premium plan (not Free) and has active/trialing status
+      if (data && data.subscription_plans && data.subscription_plans.name !== 'Free' && 
+          (data.status === 'active' || data.status === 'trialing')) {
+        return data
+      }
+      
+      return null
     } catch (error) {
       console.error('Error fetching user subscription with plan:', error)
       return null

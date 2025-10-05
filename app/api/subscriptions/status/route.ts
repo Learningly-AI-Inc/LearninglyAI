@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     // Get user's subscription with plan details
     const subscription = await subscriptionService.getUserSubscriptionWithPlan(user.id)
     
+    
     if (!subscription) {
       // Return free plan details (computed defaults)
       return NextResponse.json({
