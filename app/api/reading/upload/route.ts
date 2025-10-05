@@ -11,7 +11,7 @@ export const maxDuration = 120
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '35mb'
+      sizeLimit: '100mb'
     }
   }
 }
@@ -67,8 +67,8 @@ export async function POST(req: NextRequest) {
     // Extract file extension first
     const fileExtension = fileName.toLowerCase().split('.').pop() || '';
 
-    // Validate file size (30MB limit)
-    const maxSize = 30 * 1024 * 1024; // 30MB
+    // Validate file size (100MB limit)
+    const maxSize = 100 * 1024 * 1024; // 100MB
     if (file && file.size > maxSize) {
       console.error('❌ File too large:', file.size);
       return NextResponse.json(
@@ -345,6 +345,7 @@ export async function POST(req: NextRequest) {
     try {
       if (fileExtension === 'pdf' || fileType === 'application/pdf' || 
           fileExtension === 'docx' || fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+          fileExtension === 'txt' || fileType === 'text/plain' ||
           fileExtension === 'png' || fileExtension === 'jpg' || fileExtension === 'jpeg' || fileType.startsWith('image/')) {
         console.log(`📄 Processing ${fileExtension.toUpperCase()} with webhook...`);
         
@@ -457,14 +458,18 @@ Note: The document has been processed through our webhook system and is availabl
                       processingNotes.push(ocr.note)
                     }
                   }
-                } else if (fileExtension === 'docx' || fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-                  const mammoth = await import('mammoth')
-                  const buf = buffer as Buffer
-                  const result = await mammoth.extractRawText({ buffer: buf })
-                  serverExtractedText = String(result.value || '').trim()
-                  serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000))
-                  processingNotes.push('DOCX text extraction via mammoth (fallback)')
-                }
+              } else if (fileExtension === 'docx' || fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                const mammoth = await import('mammoth')
+                const buf = buffer as Buffer
+                const result = await mammoth.extractRawText({ buffer: buf })
+                serverExtractedText = String(result.value || '').trim()
+                serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000))
+                processingNotes.push('DOCX text extraction via mammoth (fallback)')
+              } else if (fileExtension === 'txt' || fileType === 'text/plain') {
+                serverExtractedText = (buffer as Buffer).toString('utf-8');
+                serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000));
+                processingNotes.push('TXT text extraction (fallback)')
+              }
               } catch (fallbackErr: any) {
                 processingNotes.push(`Fallback extraction failed: ${fallbackErr?.message || String(fallbackErr)}`)
               }
@@ -535,6 +540,10 @@ Note: The document has been processed through our webhook system and is availabl
                 serverExtractedText = String(result.value || '').trim()
                 serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000))
                 processingNotes.push('Webhook failed; DOCX text extraction via mammoth')
+              } else if (fileExtension === 'txt' || fileType === 'text/plain') {
+                serverExtractedText = (buffer as Buffer).toString('utf-8');
+                serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000));
+                processingNotes.push('Webhook failed; TXT text extraction')
               } else {
                 processingNotes.push(`Webhook processing failed and no local extractor available for type: ${fileExtension}`)
               }
@@ -594,6 +603,10 @@ Note: The document has been processed through our webhook system and is availabl
               serverExtractedText = String(result.value || '').trim()
               serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000))
               processingNotes.push('Webhook error; DOCX text extraction via mammoth')
+            } else if (fileExtension === 'txt' || fileType === 'text/plain') {
+              serverExtractedText = (buffer as Buffer).toString('utf-8');
+              serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000));
+              processingNotes.push('Webhook error; TXT text extraction')
             }
           } catch (fbErr: any) {
             processingNotes.push(`Webhook error; fallback extraction also failed: ${fbErr?.message || String(fbErr)}`)
