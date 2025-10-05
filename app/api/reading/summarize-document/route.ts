@@ -184,6 +184,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Check if summary already exists and is recent (cache for 24 hours)
+    if (document.summary && document.summary_updated_at) {
+      const lastUpdated = new Date(document.summary_updated_at);
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      
+      if (lastUpdated > twentyFourHoursAgo) {
+        console.log('✅ Using cached summary (less than 24 hours old)');
+        return NextResponse.json({
+          success: true,
+          summary: document.summary,
+          metadata: {
+            documentId: document.id,
+            title: document.title,
+            summaryType: document.summary_type || summaryType,
+            model: 'cached',
+            tokensUsed: 0,
+            contextChunks: 0,
+            originalTextLength: document.text_length,
+            cached: true
+          }
+        });
+      }
+    }
+
     console.log('✅ Document found:', {
       title: document.title,
       textLength: document.text_length,
@@ -408,14 +432,15 @@ export async function POST(req: NextRequest) {
       model: openaiModelName
     });
 
-    // Save summary to database
+    // Save summary to database (with caching consideration)
     try {
       const { error: saveError } = await supabase
         .from('reading_documents')
         .update({
           summary: summary,
           summary_type: summaryType,
-          summary_updated_at: new Date().toISOString()
+          summary_updated_at: new Date().toISOString(),
+          summary_cached: true // Mark as cached for future optimization
         })
         .eq('id', documentId);
       if (saveError) {
@@ -426,7 +451,7 @@ export async function POST(req: NextRequest) {
           console.error('❌ Error saving summary:', saveError);
         }
       } else {
-        console.log('✅ Summary saved to database');
+        console.log('✅ Summary saved to database with cache flag');
       }
     } catch (e) {
       console.warn('ℹ️ Skipped saving summary due to schema mismatch')

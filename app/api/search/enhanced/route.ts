@@ -50,10 +50,10 @@ export async function POST(request: NextRequest) {
       email: user.email
     })
 
-    // Verify user exists in database
+    // Verify user exists in database (optimized with minimal fields)
     const { data: userRecord, error: userError } = await supabase
       .from('users')
-      .select('id, email, full_name')
+      .select('id')
       .eq('id', userId)
       .single()
     

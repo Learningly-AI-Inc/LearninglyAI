@@ -139,7 +139,7 @@ export default function AdminChatPage() {
     try {
       setLoading(true)
 
-      // Fetch conversations
+      // Fetch conversations with pagination
       const { data: conversationsData, error: conversationsError } = await supabase
         .from('search_conversations')
         .select(`
@@ -147,14 +147,16 @@ export default function AdminChatPage() {
           user:users(email, full_name)
         `)
         .order('created_at', { ascending: false })
+        .limit(100) // Limit to 100 most recent conversations
 
       if (conversationsError) throw conversationsError
 
-      // Fetch messages
+      // Fetch messages with pagination
       const { data: messagesData, error: messagesError } = await supabase
         .from('search_messages')
         .select('*')
         .order('created_at', { ascending: false })
+        .limit(1000) // Limit to 1000 most recent messages
 
       if (messagesError) throw messagesError
 

@@ -121,7 +121,7 @@ export default function AdminReadingPage() {
     try {
       setLoading(true)
 
-      // Fetch reading documents
+      // Fetch reading documents with pagination
       const { data: documentsData, error: documentsError } = await supabase
         .from('reading_documents')
         .select(`
@@ -129,6 +129,7 @@ export default function AdminReadingPage() {
           user:users(email, full_name)
         `)
         .order('created_at', { ascending: false })
+        .limit(200) // Limit to 200 most recent documents
 
       if (documentsError) throw documentsError
 

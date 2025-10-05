@@ -171,7 +171,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       setUploadProgress({
         stage: 'uploading',
         progress: 30,
-        message: 'Uploading file...'
+        message: `Uploading file... (${Math.round(file.size / 1024 / 1024)}MB)`
       });
 
       // Create FormData
@@ -182,7 +182,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
 
       // Make request with timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout for large files
 
       const response = await fetch('/api/reading/upload', {
         method: 'POST',
