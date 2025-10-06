@@ -110,7 +110,7 @@ export default function AppSidebar({
 }: AppSidebarProps) {
   const { signOut, user } = useAuthContext()
   const router = useRouter()
-  const { subscription } = useSubscription()
+  const { subscription, loading: subscriptionLoading } = useSubscription()
 
   // Show/hide Upgrade card (dismiss for current page only; resets on refresh)
   // Only show for Free plan users
@@ -119,8 +119,11 @@ export default function AppSidebar({
     setShowUpgradeCard(false)
   }
 
-  // Only show upgrade card if user is on Free plan
-  const shouldShowUpgradeCard = showUpgradeCard && (!subscription || subscription.plan.name === 'Free')
+  // Only show upgrade card if user is on Free plan AND subscription data is loaded
+  const shouldShowUpgradeCard = showUpgradeCard && 
+    !subscriptionLoading && 
+    subscription && 
+    subscription.plan.name === 'Free'
 
   const handleLogout = async () => {
     try {
