@@ -121,9 +121,14 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   try {
     console.log('Invoice payment succeeded:', invoice.id)
     
-    // You can add additional logic here for successful payments
-    // For example, sending confirmation emails, updating analytics, etc.
-    
+    if (invoice.subscription) {
+      // Get the subscription and update its status
+      const stripe = new (await import('stripe')).default(process.env.STRIPE_SECRET_KEY!)
+      const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string)
+      
+      // Handle the subscription update
+      await subscriptionService.handleSubscriptionUpdated(subscription)
+    }
   } catch (error) {
     console.error('Error handling invoice payment succeeded:', error)
   }
@@ -133,10 +138,14 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   try {
     console.log('Invoice payment failed:', invoice.id)
     
-    // You can add additional logic here for failed payments
-    // For example, sending notification emails, updating subscription status, etc.
-    
+    if (invoice.subscription) {
+      // Get the subscription and update its status
+      const stripe = new (await import('stripe')).default(process.env.STRIPE_SECRET_KEY!)
+      const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string)
+      
+      // Handle the subscription update (this will mark it as past_due or unpaid)
+      await subscriptionService.handleSubscriptionUpdated(subscription)
+    }
   } catch (error) {
     console.error('Error handling invoice payment failed:', error)
   }
-}

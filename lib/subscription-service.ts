@@ -191,8 +191,7 @@ export class SubscriptionService {
             if (priceId || productId) {
               // Try to determine plan based on price
               if (price?.unit_amount) {
-                if (price.unit_amount >= 10000) planName = 'Premium'
-                else if (price.unit_amount >= 2000) planName = 'Freemium'
+                if (price.unit_amount >= 1500) planName = 'Premium'  // $15+ is Premium (both $15 and $100)
               }
             }
 
@@ -342,7 +341,7 @@ export class SubscriptionService {
     try {
       const supabase = await this.getSupabase()
       const { data, error } = await supabase
-        .from('user_subscriptions')
+        .from('user_data')
         .select('stripe_customer_id')
         .eq('user_id', userId)
         .not('stripe_customer_id', 'is', null)
@@ -384,20 +383,20 @@ export class SubscriptionService {
         }
       }
 
-      // Create or update subscription record for known user
+      // Create or update subscription record for known user in user_data table
       const supabase = await this.getAdminSupabase()
       const { error } = await supabase
-        .from('user_subscriptions')
+        .from('user_data')
         .upsert({
           user_id: userId,
-          plan_id: plan.id,
+          plan_name: plan.name,
+          plan_price_cents: plan.price_cents,
           stripe_customer_id: subscription.customer as string,
           stripe_subscription_id: subscription.id,
-          status: subscription.status as any,
-          current_period_start: new Date((subscription as any).current_period_start * 1000),
+          subscription_status: subscription.status as any,
           current_period_end: new Date((subscription as any).current_period_end * 1000),
           cancel_at_period_end: (subscription as any).cancel_at_period_end,
-          trial_end: (subscription as any).trial_end ? new Date((subscription as any).trial_end * 1000) : null,
+          updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id', ignoreDuplicates: false })
 
       if (error) throw error
@@ -471,19 +470,19 @@ export class SubscriptionService {
         console.log('Created new user account:', userId)
       }
 
-      // Create or update subscription record
+      // Create or update subscription record in user_data table
       const { error: subscriptionError } = await supabase
-        .from('user_subscriptions')
+        .from('user_data')
         .upsert({
           user_id: userId,
-          plan_id: plan.id,
+          plan_name: plan.name,
+          plan_price_cents: plan.price_cents,
           stripe_customer_id: subscription.customer as string,
           stripe_subscription_id: subscription.id,
-          status: subscription.status as any,
-          current_period_start: new Date((subscription as any).current_period_start * 1000),
+          subscription_status: subscription.status as any,
           current_period_end: new Date((subscription as any).current_period_end * 1000),
           cancel_at_period_end: (subscription as any).cancel_at_period_end,
-          trial_end: (subscription as any).trial_end ? new Date((subscription as any).trial_end * 1000) : null,
+          updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id', ignoreDuplicates: false })
 
       if (subscriptionError) throw subscriptionError
@@ -509,21 +508,46 @@ export class SubscriptionService {
    */
   async handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
     try {
-      const userId = subscription.metadata.user_id
-      
       const supabase = await this.getAdminSupabase()
+      
+      // Find user by stripe_subscription_id in user_data table
+      const { data: userData, error: findError } = await supabase
+        .from('user_data')
+        .select('user_id')
+        .eq('stripe_subscription_id', subscription.id)
+        .single()
+
+      if (findError || !userData) {
+        console.error('User not found for subscription:', subscription.id)
+        return
+      }
+
+      // Map subscription status to plan name
+      let planName = 'Free'
+      let planPrice = 0
+      
+      if (subscription.status === 'active' || subscription.status === 'trialing') {
+        const price = subscription.items.data[0]?.price
+        if (price?.unit_amount) {
+          if (price.unit_amount >= 1500) planName = 'Premium'  // $15+ is Premium (both $15 and $100)
+        }
+        planPrice = price?.unit_amount || 0
+      }
+
       const { error } = await supabase
-        .from('user_subscriptions')
+        .from('user_data')
         .update({
-          status: subscription.status as any,
-          current_period_start: new Date((subscription as any).current_period_start * 1000),
+          plan_name: planName,
+          plan_price_cents: planPrice,
+          subscription_status: subscription.status as any,
           current_period_end: new Date((subscription as any).current_period_end * 1000),
           cancel_at_period_end: (subscription as any).cancel_at_period_end,
-          trial_end: (subscription as any).trial_end ? new Date((subscription as any).trial_end * 1000) : null,
+          updated_at: new Date().toISOString(),
         })
-        .eq('stripe_subscription_id', subscription.id)
+        .eq('user_id', userData.user_id)
 
       if (error) throw error
+      console.log(`Updated subscription for user ${userData.user_id}: ${subscription.status}`)
     } catch (error) {
       console.error('Error handling subscription updated:', error)
       throw error
@@ -536,12 +560,32 @@ export class SubscriptionService {
   async handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
     try {
       const supabase = await this.getAdminSupabase()
-      const { error } = await supabase
-        .from('user_subscriptions')
-        .update({ status: 'canceled' })
+      
+      // Find user by stripe_subscription_id in user_data table
+      const { data: userData, error: findError } = await supabase
+        .from('user_data')
+        .select('user_id')
         .eq('stripe_subscription_id', subscription.id)
+        .single()
+
+      if (findError || !userData) {
+        console.error('User not found for subscription:', subscription.id)
+        return
+      }
+
+      const { error } = await supabase
+        .from('user_data')
+        .update({
+          plan_name: 'Free',
+          plan_price_cents: 0,
+          subscription_status: 'canceled',
+          cancel_at_period_end: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userData.user_id)
 
       if (error) throw error
+      console.log(`Canceled subscription for user ${userData.user_id}`)
     } catch (error) {
       console.error('Error handling subscription deleted:', error)
       throw error
@@ -549,30 +593,32 @@ export class SubscriptionService {
   }
 
   /**
-   * Get plan by price ID
+   * Get plan by price ID - simplified for user_data table structure
    */
-  private async getPlanByStripeIds(priceId: string, productId?: string): Promise<SubscriptionPlan | null> {
+  private async getPlanByStripeIds(priceId: string, productId?: string): Promise<{ name: string; price_cents: number } | null> {
     try {
-      const supabase = await this.getAdminSupabase()
-      // Try by price ID first
-      let { data, error } = await supabase
-        .from('subscription_plans')
-        .select('*')
-        .eq('stripe_price_id', priceId)
-        .single()
+      // Since we don't have a subscription_plans table, we'll map based on price
+      // This is a simplified mapping - you can expand this based on your actual Stripe price IDs
+      
+      // You can store your price mappings in environment variables or a config file
+      const priceMappings: Record<string, { name: string; price_cents: number }> = {
+        // Add your actual Stripe price IDs here
+        // 'price_1234567890': { name: 'Freemium', price_cents: 2000 },
+        // 'price_0987654321': { name: 'Premium', price_cents: 10000 },
+      }
 
-      if (data) return data
-      if (error && error.code !== 'PGRST116') throw error
+      if (priceMappings[priceId]) {
+        return priceMappings[priceId]
+      }
 
-      // Fallback: some databases mistakenly store product id in stripe_price_id
-      if (productId) {
-        const res = await supabase
-          .from('subscription_plans')
-          .select('*')
-          .eq('stripe_price_id', productId)
-          .single()
-        if (res.data) return res.data
-        if (res.error && res.error.code !== 'PGRST116') throw res.error
+      // Fallback: try to determine plan based on price amount from Stripe
+      const stripe = new (await import('stripe')).default(process.env.STRIPE_SECRET_KEY!)
+      const price = await stripe.prices.retrieve(priceId)
+      
+      if (price.unit_amount) {
+        if (price.unit_amount >= 1500) {
+          return { name: 'Premium', price_cents: price.unit_amount }  // $15+ is Premium (both $15 and $100)
+        }
       }
 
       return null
