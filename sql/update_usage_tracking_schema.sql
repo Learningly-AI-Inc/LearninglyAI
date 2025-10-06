@@ -112,7 +112,6 @@ BEGIN
         ELSE usage_limit := 0;
       END CASE;
     WHEN 'Premium (Monthly)' THEN
-      usage_limit := -1; -- Unlimited for most features
       CASE limit_type
         WHEN 'documents_uploaded' THEN usage_limit := 3000; -- 100 per day = ~3000 per month
         WHEN 'writing_words' THEN usage_limit := 750000; -- 25,000 per day = ~750,000 per month
@@ -122,7 +121,6 @@ BEGIN
         ELSE usage_limit := -1;
       END CASE;
     WHEN 'Premium (Yearly)' THEN
-      usage_limit := -1; -- Unlimited for most features
       CASE limit_type
         WHEN 'documents_uploaded' THEN usage_limit := 3000; -- 100 per day = ~3000 per month
         WHEN 'writing_words' THEN usage_limit := 750000; -- 25,000 per day = ~750,000 per month

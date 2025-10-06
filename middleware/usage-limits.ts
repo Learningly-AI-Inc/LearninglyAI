@@ -53,18 +53,21 @@ export async function checkUsageLimits(request: NextRequest, userId: string): Pr
     )
     
     if (!canProceed) {
-      const limits = subscriptionService.getPlanLimits('Free') // Default to free limits for error message
+      // Get the actual user's plan limits for error message
+      const userSubscription = await subscriptionService.getUserSubscription(userId)
+      const planName = userSubscription?.plan?.name || 'Free'
+      const limits = subscriptionService.getPlanLimits(planName)
       const limitValue = limits[limitConfig.action]
       
       let errorMessage = 'Usage limit exceeded'
       if (limitConfig.action === 'documents_uploaded') {
-        errorMessage = `Document upload limit exceeded. Free plan allows ${limitValue} uploads per month.`
+        errorMessage = `Document upload limit exceeded. ${planName} plan allows ${limitValue} uploads per month.`
       } else if (limitConfig.action === 'writing_words') {
-        errorMessage = `Writing word limit exceeded. Free plan allows ${limitValue.toLocaleString()} words per month.`
+        errorMessage = `Writing word limit exceeded. ${planName} plan allows ${limitValue.toLocaleString()} words per month.`
       } else if (limitConfig.action === 'search_queries') {
-        errorMessage = `Search query limit exceeded. Free plan allows ${limitValue} searches per month.`
+        errorMessage = `Search query limit exceeded. ${planName} plan allows ${limitValue} searches per month.`
       } else if (limitConfig.action === 'exam_sessions') {
-        errorMessage = `Exam session limit exceeded. Free plan allows ${limitValue} sessions per month.`
+        errorMessage = `Exam session limit exceeded. ${planName} plan allows ${limitValue} sessions per month.`
       }
       
       return {
