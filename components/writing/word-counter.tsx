@@ -49,16 +49,22 @@ const WordCounter: React.FC<WordCounterProps> = ({ text, className = "" }) => {
   const readingTime = getReadingTime(wordCount);
 
   return (
-    <div className={`flex items-center gap-4 text-xs text-gray-500 ${className}`}>
-      <div className="flex items-center">
-        <FileText className="h-3 w-3 mr-1" />
-        <span>{wordCount} word{wordCount !== 1 ? "s" : ""}</span>
-        <span className="mx-1">•</span>
-        <span>{charCount} character{charCount !== 1 ? "s" : ""}</span>
+    <div className={`flex items-center justify-between text-sm text-gray-600 ${className}`}>
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-1">
+          <FileText className="h-4 w-4 text-blue-600" />
+          <span className="font-medium">{wordCount}</span>
+          <span className="text-gray-500">word{wordCount !== 1 ? "s" : ""}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-gray-400">•</span>
+          <span className="font-medium">{charCount}</span>
+          <span className="text-gray-500">character{charCount !== 1 ? "s" : ""}</span>
+        </div>
       </div>
-      <div className="flex items-center">
-        <Clock className="h-3 w-3 mr-1" />
-        <span>{readingTime}</span>
+      <div className="flex items-center gap-1">
+        <Clock className="h-4 w-4 text-green-600" />
+        <span className="font-medium text-gray-700">{readingTime}</span>
       </div>
     </div>
   );

@@ -30,16 +30,18 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // Create a reference to the editor
   const editorRef = React.useRef<any>(null);
   const [editorState, setEditorState] = useState(() => {
-    if (initialContent) {
+    if (initialContent && initialContent.trim()) {
       const contentBlock = htmlToDraft(initialContent);
-      if (contentBlock) {
+      if (contentBlock && contentBlock.contentBlocks && contentBlock.contentBlocks.length > 0) {
         const contentState = ContentState.createFromBlockArray(
           contentBlock.contentBlocks
         );
         return EditorState.createWithContent(contentState);
       }
     }
-    return EditorState.createEmpty();
+    // Create empty editor with single block to prevent auto-expansion
+    const contentState = ContentState.createFromText('');
+    return EditorState.createWithContent(contentState);
   });
 
   // Set editor reference for parent components to use
@@ -53,15 +55,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   }, [setEditorRef, editorState]);
   
-  // Rebuild editor state when initialContent changes (no auto-injected highlight logic)
-  useEffect(() => {
-    if (!initialContent) return;
-    const contentBlock = htmlToDraft(initialContent);
-    if (contentBlock) {
-      const contentState = ContentState.createFromBlockArray(contentBlock.contentBlocks);
-      setEditorState(EditorState.createWithContent(contentState));
-    }
-  }, [initialContent]);
+  // IMPORTANT: Do NOT re-import HTML on every keystroke.
+  // The parent passes updated HTML back as initialContent, but we only want
+  // to initialize from it on mount (or when the component is remounted via `key`).
+  // Re-importing on each change creates extra empty blocks and causes growth.
   
   // Track selected text - using a more stable approach
   useEffect(() => {
@@ -91,11 +88,49 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     };
   }, [onSelectedTextChange]);
 
+  // Ensure editor gets focus on mount to show cursor
+  useEffect(() => {
+    if (editorRef.current?.editor) {
+      setTimeout(() => {
+        editorRef.current.editor.focus();
+      }, 200);
+    }
+  }, []);
+
   const onEditorStateChange = (newState: EditorState) => {
+    // Prevent automatic new line creation by checking content
+    const content = newState.getCurrentContent();
+    const blocks = content.getBlockMap();
+    
+    // If there are too many empty blocks, consolidate them
+    if (blocks.size > 1) {
+      const hasOnlyEmptyBlocks = blocks.every(block => 
+        block ? block.getText().trim() === '' && block.getType() === 'unstyled' : false
+      );
+      
+      if (hasOnlyEmptyBlocks) {
+        // Keep only the first block and prevent expansion
+        const firstBlock = blocks.first();
+        if (firstBlock) {
+          const newContentState = ContentState.createFromBlockArray([firstBlock]);
+          const consolidatedState = EditorState.createWithContent(newContentState);
+          setEditorState(consolidatedState);
+          
+          if (onChange) {
+            const rawContent = convertToRaw(newContentState);
+            const htmlBody = draftToHtml(rawContent);
+            const html = `<div dir="ltr" style="direction:ltr;text-align:left;">${htmlBody}</div>`;
+            onChange(html, rawContent);
+          }
+          return;
+        }
+      }
+    }
+    
     setEditorState(newState);
     
     if (onChange) {
-      const rawContent = convertToRaw(newState.getCurrentContent());
+      const rawContent = convertToRaw(content);
       // Ensure exported HTML enforces LTR to avoid mirrored text when rendered elsewhere
       const htmlBody = draftToHtml(rawContent);
       const html = `<div dir="ltr" style="direction:ltr;text-align:left;">${htmlBody}</div>`;
@@ -135,32 +170,53 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     },
   };
 
+  // Handle click to focus editor and show cursor
+  const handleEditorClick = () => {
+    if (editorRef.current?.editor) {
+      setTimeout(() => {
+        editorRef.current.editor.focus();
+        // Force cursor to appear
+        const editorElement = editorRef.current.editor;
+        if (editorElement) {
+          editorElement.click();
+          editorElement.focus();
+        }
+      }, 10);
+    }
+  };
+
   return (
-    <Card className="w-full border shadow-sm flex flex-col">
-      <CardContent className="p-0 flex-grow flex flex-col min-h-0">
-        <div
-          className={`editor-wrapper ${readOnly ? "read-only" : ""} flex-grow flex flex-col min-h-0 h-full`}
-          style={{ 
-            height: height,
-            maxHeight: height,
-            overflow: "hidden" 
+    <div className="w-full h-full flex flex-col">
+      <div
+        className={`editor-wrapper ${readOnly ? "read-only" : ""} flex flex-col h-full`}
+        style={{ 
+          overflow: "hidden",
+          position: "relative"
+        }}
+        onClick={handleEditorClick}
+      >
+        <Editor
+          ref={editorRef}
+          editorState={editorState}
+          toolbarClassName="toolbar-class"
+          wrapperClassName="wrapper-class flex flex-col h-full"
+          editorClassName="editor-class p-4 flex-1 overflow-auto focus:outline-none"
+          onEditorStateChange={onEditorStateChange}
+          placeholder={placeholder}
+          readOnly={readOnly}
+          toolbar={toolbarOptions}
+          textAlignment="left"
+          onFocus={() => {
+            // Ensure cursor is visible when editor gains focus
+            if (editorRef.current?.editor) {
+              setTimeout(() => {
+                editorRef.current.editor.focus();
+              }, 0);
+            }
           }}
-        >
-          <Editor
-            ref={editorRef}
-            editorState={editorState}
-            toolbarClassName="toolbar-class"
-            wrapperClassName="wrapper-class flex-1 flex flex-col min-h-0 h-full"
-            editorClassName="editor-class p-4 flex-1 min-h-0 h-full overflow-auto"
-            onEditorStateChange={onEditorStateChange}
-            placeholder={placeholder}
-            readOnly={readOnly}
-            toolbar={toolbarOptions}
-            textAlignment="left"
-          />
-        </div>
-      </CardContent>
-    </Card>
+        />
+      </div>
+    </div>
   );
 };
 

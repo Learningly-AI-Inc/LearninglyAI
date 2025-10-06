@@ -50,16 +50,16 @@ export function ImprovedWritingPage({
       <div className="flex-grow p-4 overflow-hidden">
         {isMobile ? (
           <div className="h-full flex flex-col gap-3">
-            <Card className="h-[60%] flex flex-col shadow-sm">
+            <Card className="flex-1 flex flex-col shadow-sm">
               <CardHeader className="p-0">
                 {writingToolbar}
               </CardHeader>
               <Separator />
-              <CardContent className="p-0 flex-grow relative overflow-auto min-h-0">
+              <CardContent className="p-0 flex-1 relative overflow-hidden">
                 {richTextEditor}
               </CardContent>
               <Separator />
-              <div className="p-2 bg-gray-50">
+              <div className="p-3 bg-gray-50 border-t">
                 {wordCounter}
               </div>
             </Card>
@@ -75,11 +75,11 @@ export function ImprovedWritingPage({
                   {writingToolbar}
                 </CardHeader>
                 <Separator />
-                <CardContent className="p-0 flex-grow relative min-h-0 overflow-auto">
+                <CardContent className="p-0 flex-1 relative overflow-hidden">
                   {richTextEditor}
                 </CardContent>
                 <Separator />
-                <div className="p-2 bg-gray-50">
+                <div className="p-3 bg-gray-50 border-t">
                   {wordCounter}
                 </div>
               </Card>

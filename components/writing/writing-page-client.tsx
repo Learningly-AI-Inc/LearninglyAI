@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useState, useEffect } from "react"
+import { EditorState } from "draft-js"
 import RichTextEditor from "@/components/writing/rich-text-editor"
 import WritingToolbar from "@/components/writing/writing-toolbar"
 import AISuggestionsPanel from "@/components/writing/ai-suggestions-panel"
@@ -458,6 +459,11 @@ const WritingPageClient = () => {
             setEditorRawContent(updatedRawContent);
           }
           
+          // Ensure editor maintains focus and cursor visibility
+          setTimeout(() => {
+            ensureEditorFocus();
+          }, 100);
+          
           if (isParaphrase) {
             // Clear paraphrase suggestions
             setSuggestedText("");
@@ -781,6 +787,32 @@ const WritingPageClient = () => {
       setLastSelectedText(text); // Keep a backup
     }
     // Don't clear selectedText immediately - let user actions handle it
+  };
+
+  // Function to ensure editor has focus and cursor is visible
+  const ensureEditorFocus = () => {
+    if (editorRef && editorRef.getEditorInstance) {
+      const editorInstance = editorRef.getEditorInstance();
+      if (editorInstance) {
+        setTimeout(() => {
+          editorInstance.focus();
+          // Move cursor to end if no selection
+          const editorState = editorRef.getEditorState();
+          if (editorState) {
+            const content = editorState.getCurrentContent();
+            const selection = editorState.getSelection();
+            if (selection.isCollapsed() && content.hasText()) {
+              const newSelection = selection.merge({
+                anchorOffset: content.getPlainText().length,
+                focusOffset: content.getPlainText().length,
+              });
+              const newEditorState = EditorState.forceSelection(editorState, newSelection);
+              editorRef.setEditorState(newEditorState);
+            }
+          }
+        }, 50);
+      }
+    }
   };
 
   // Function to handle loading a draft
