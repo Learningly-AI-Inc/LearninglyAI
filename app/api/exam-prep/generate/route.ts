@@ -41,21 +41,23 @@ function detectSampleExamHeuristic(text: string): { isSample: boolean; score: nu
 async function fetchTextsForExamFiles(supabase: any, fileIds: string[], userId: string): Promise<string[]> {
   if (fileIds.length === 0) return []
   const { data, error } = await supabase
-    .from('exam_files')
-    .select('id, extracted_content')
+    .from('documents')
+    .select('id, extracted_text')
     .in('id', fileIds)
     .eq('user_id', userId)
+    .eq('document_type', 'exam-prep')
   if (error) throw error
-  return (data || []).map((r: { extracted_content?: string }) => (r.extracted_content || '')).filter(Boolean)
+  return (data || []).map((r: { extracted_text?: string }) => (r.extracted_text || '')).filter(Boolean)
 }
 
 async function fetchTextsForReadingDocuments(supabase: any, docIds: string[], userId: string): Promise<string[]> {
   if (docIds.length === 0) return []
   const { data, error } = await supabase
-    .from('reading_documents')
+    .from('documents')
     .select('id, extracted_text')
     .in('id', docIds)
     .eq('user_id', userId)
+    .eq('document_type', 'reading')
   if (error) throw error
   return (data || []).map((r: { extracted_text?: string }) => (r.extracted_text || '')).filter(Boolean)
 }
@@ -63,10 +65,11 @@ async function fetchTextsForReadingDocuments(supabase: any, docIds: string[], us
 async function fetchSampleQuestions(supabase: any, sampleIds: string[], userId: string): Promise<string[]> {
   if (sampleIds.length === 0) return []
   const { data, error } = await supabase
-    .from('reading_documents')
+    .from('documents')
     .select('id, extracted_text')
     .in('id', sampleIds)
     .eq('user_id', userId)
+    .eq('document_type', 'reading')
   if (error) throw error
   return (data || []).map((r: { extracted_text?: string }) => (r.extracted_text || '')).filter(Boolean)
 }

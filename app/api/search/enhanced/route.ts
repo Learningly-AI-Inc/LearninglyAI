@@ -70,10 +70,11 @@ export async function POST(request: NextRequest) {
     if (!currentConversationId) {
       console.log('🚀 [ENHANCED SEARCH API] Creating new conversation...')
       const { data: newConversation, error: convError } = await supabase
-        .from('search_conversations')
+        .from('conversations')
         .insert({
           user_id: userId,
           title: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
+          conversation_type: 'search',
           model_used: model
         })
         .select()
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
     // Get conversation history for context
     console.log('🚀 [ENHANCED SEARCH API] Getting conversation context...')
     const { data: existingMessages, error: messagesError } = await supabase
-      .from('search_messages')
+      .from('messages')
       .select('*')
       .eq('conversation_id', currentConversationId)
       .order('created_at', { ascending: true })
@@ -446,7 +447,7 @@ export async function GET(request: NextRequest) {
     if (conversationId) {
       // Get messages for specific conversation
       const { data: messages, error } = await supabase
-        .from('search_messages')
+        .from('messages')
         .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
@@ -471,8 +472,9 @@ export async function GET(request: NextRequest) {
     } else {
       // Get all conversations for user
       const { data: conversations, error } = await supabase
-        .from('search_conversations')
+        .from('conversations')
         .select('*')
+        .eq('conversation_type', 'search')
         .eq('user_id', userId)
         .order('updated_at', { ascending: false })
 

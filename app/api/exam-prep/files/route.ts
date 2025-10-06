@@ -14,9 +14,10 @@ export async function GET(request: NextRequest) {
 
     // Fetch user's uploaded files
     const { data: files, error: dbError } = await supabase
-      .from('exam_files')
+      .from('documents')
       .select('*')
       .eq('user_id', user.id)
+      .eq('document_type', 'exam-prep')
       .order('created_at', { ascending: false })
 
     if (dbError) {
@@ -27,15 +28,15 @@ export async function GET(request: NextRequest) {
     // Transform the data to match the component interface
     const transformedFiles = files.map(file => ({
       id: file.id,
-      name: file.filename,
+      name: file.original_filename,
       size: file.file_size,
-      type: file.content_type,
+      type: file.mime_type,
       uploadDate: new Date(file.created_at).toISOString().split('T')[0],
       status: file.processing_status === 'completed' ? 'analyzed' : 
               file.processing_status === 'processing' ? 'processing' :
               file.processing_status === 'failed' ? 'failed' : 'analyzed', // Default to analyzed for existing files
-      category: file.file_category, // Use the actual file_category from database
-      extracted_content: file.extracted_content, // Include extracted text content
+      category: file.metadata?.file_category || 'learning_materials', // Use the actual file_category from metadata
+      extracted_content: file.extracted_text, // Include extracted text content
       processing_status: file.processing_status, // Include processing status
       // Add mock analysis data for now (in real implementation, this would come from the database)
       patternAnalysis: {

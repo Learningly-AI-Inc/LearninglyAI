@@ -19,10 +19,11 @@ export async function DELETE(
 
     // First, get the file to verify ownership and get file path
     const { data: file, error: fetchError } = await supabase
-      .from('exam_files')
+      .from('documents')
       .select('*')
       .eq('id', fileId)
       .eq('user_id', user.id)
+      .eq('document_type', 'exam-prep')
       .single()
 
     if (fetchError || !file) {
@@ -41,10 +42,11 @@ export async function DELETE(
 
     // Delete the file record from database
     const { error: dbError } = await supabase
-      .from('exam_files')
+      .from('documents')
       .delete()
       .eq('id', fileId)
       .eq('user_id', user.id)
+      .eq('document_type', 'exam-prep')
 
     if (dbError) {
       console.error('Database deletion error:', dbError)

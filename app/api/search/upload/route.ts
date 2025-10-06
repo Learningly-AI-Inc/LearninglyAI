@@ -212,9 +212,9 @@ export async function POST(request: NextRequest) {
       .from('reading-documents')
       .getPublicUrl(storagePath)
 
-    // Insert into reading_documents for consistency with reading feature
+    // Insert into documents for consistency with reading feature
     const { data: documentRecord } = await supabase
-      .from('reading_documents')
+      .from('documents')
       .insert({
         user_id: user.id,
         title: fileName.replace(/\.(pdf|txt|docx)$/i, ''),
@@ -223,29 +223,19 @@ export async function POST(request: NextRequest) {
         file_type: fileExtension,
         file_size: fileSize,
         mime_type: fileType,
+        document_type: 'reading', // Search uploads are treated as reading documents
         extracted_text: serverExtractedText || '',
         page_count: serverPageCount,
         text_length: serverExtractedText ? serverExtractedText.length : 0,
         processing_status: serverExtractedText && serverExtractedText.trim().length > 0 ? 'completed' : 'failed',
-        processing_notes: processingNotes,
         public_url: urlData.publicUrl,
         metadata: { uploadedAt: new Date().toISOString(), processingNotes }
       })
       .select()
       .single()
 
-    // Also register lightweight entry in user_content for search UI list
-    const ext = (file.name.split('.').pop() || 'txt').toLowerCase()
-    const { data: record } = await supabase
-      .from('user_content')
-      .insert({
-        user_id: user.id,
-        content_type: ext === 'pdf' ? 'pdf' : ext === 'docx' ? 'docx' : (ext === 'png' || ext === 'jpg' || ext === 'jpeg') ? 'image' : 'txt',
-        content_url: urlData.publicUrl || '',
-        status: 'completed'
-      })
-      .select()
-      .single()
+    // Note: user_content table is no longer used in consolidated schema
+    // Documents are now stored in the unified documents table
 
     const metadata = {
       title: fileName.replace(/\.(pdf|txt|docx)$/i, ''),
@@ -261,7 +251,7 @@ export async function POST(request: NextRequest) {
       documentId: documentRecord?.id
     }
 
-    return NextResponse.json({ success: true, documentId: documentRecord?.id, text: serverExtractedText || '', metadata, fileUrl: urlData.publicUrl, title: metadata.title, content: record })
+    return NextResponse.json({ success: true, documentId: documentRecord?.id, text: serverExtractedText || '', metadata, fileUrl: urlData.publicUrl, title: metadata.title })
   } catch (error: any) {
     return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 })
   }

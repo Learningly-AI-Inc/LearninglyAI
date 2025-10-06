@@ -19,10 +19,11 @@ export async function GET(
 
     // Get the file and its extracted content
     const { data: file, error: fetchError } = await supabase
-      .from('exam_files')
-      .select('id, filename, extracted_content, processing_status')
+      .from('documents')
+      .select('id, original_filename, extracted_text, processing_status')
       .eq('id', fileId)
       .eq('user_id', user.id)
+      .eq('document_type', 'exam-prep')
       .single()
 
     if (fetchError || !file) {
@@ -30,7 +31,7 @@ export async function GET(
     }
 
     // Check if content has been extracted
-    if (!file.extracted_content) {
+    if (!file.extracted_text) {
       return NextResponse.json({ 
         error: 'Content not yet extracted',
         processing_status: file.processing_status 
@@ -39,8 +40,8 @@ export async function GET(
 
     return NextResponse.json({ 
       id: file.id,
-      filename: file.filename,
-      extracted_content: file.extracted_content,
+      filename: file.original_filename,
+      extracted_content: file.extracted_text,
       processing_status: file.processing_status
     })
 

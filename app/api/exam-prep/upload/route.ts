@@ -95,17 +95,22 @@ export async function POST(request: NextRequest) {
 
     // Store file metadata in database
     const { data: fileRecord, error: dbError } = await supabase
-      .from('exam_files')
+      .from('documents')
       .insert({
         user_id: user.id,
-        filename: file.name,
+        title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension for title
+        original_filename: file.name,
         file_path: filename,
         file_size: file.size,
-        content_type: file.type,
-        upload_type: type,
+        file_type: file.type.split('/')[1] || 'unknown',
+        mime_type: file.type,
+        document_type: 'exam-prep',
         public_url: urlData.publicUrl,
-        file_category: category || 'learning_materials', // Default to learning_materials if not specified
-        processing_status: 'processing' // Set initial status to processing
+        processing_status: 'processing', // Set initial status to processing
+        metadata: {
+          upload_type: type,
+          file_category: category || 'learning_materials'
+        }
       })
       .select()
       .single();
@@ -266,13 +271,14 @@ export async function GET(request: NextRequest) {
     }
 
     let query = supabase
-      .from('exam_files')
+      .from('documents')
       .select('*')
       .eq('user_id', user.id)
+      .eq('document_type', 'exam-prep')
       .order('created_at', { ascending: false });
 
     if (type) {
-      query = query.eq('upload_type', type);
+      query = query.eq('metadata->upload_type', type);
     }
 
     const { data: files, error } = await query;

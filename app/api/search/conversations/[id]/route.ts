@@ -11,9 +11,10 @@ export async function DELETE(
 
     // Delete the conversation (messages will be deleted automatically due to CASCADE)
     const { error } = await supabase
-      .from('search_conversations')
+      .from('conversations')
       .delete()
       .eq('id', conversationId)
+      .eq('conversation_type', 'search')
 
     if (error) {
       console.error('Error deleting conversation:', error)

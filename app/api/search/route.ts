@@ -285,10 +285,11 @@ export async function POST(request: NextRequest) {
         
         // Create new conversation
         const { data: newConversation, error: convError } = await supabase
-          .from('search_conversations')
+          .from('conversations')
           .insert({
             user_id: userId,
             title: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
+            conversation_type: 'search',
             model_used: mappedModel
           })
           .select()
@@ -308,7 +309,7 @@ export async function POST(request: NextRequest) {
       // Save user message
       console.log('🔍 [SEARCH API] Saving user message...')
       const { error: userMsgError } = await supabase
-        .from('search_messages')
+        .from('messages')
         .insert({
           conversation_id: currentConversationId,
           role: 'user',
@@ -325,7 +326,7 @@ export async function POST(request: NextRequest) {
       // Save AI response to both systems
       console.log('🔍 [SEARCH API] Saving AI response...')
       const { error: aiMsgError } = await supabase
-        .from('search_messages')
+        .from('messages')
         .insert({
           conversation_id: currentConversationId,
           role: 'assistant',
@@ -434,7 +435,7 @@ export async function GET(request: NextRequest) {
       console.log('🔍 [SEARCH API] Fetching messages for conversation:', conversationId)
       // Get messages for specific conversation
       const { data: messages, error } = await supabase
-        .from('search_messages')
+        .from('messages')
         .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
@@ -456,9 +457,10 @@ export async function GET(request: NextRequest) {
       console.log('🔍 [SEARCH API] Fetching conversations for user')
       // Get all conversations for user
       const { data: conversations, error } = await supabase
-        .from('search_conversations')
+        .from('conversations')
         .select('*')
         .eq('user_id', userId)
+        .eq('conversation_type', 'search')
         .order('updated_at', { ascending: false })
 
       if (error) {
