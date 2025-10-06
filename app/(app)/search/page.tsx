@@ -1605,23 +1605,43 @@ const SearchPage = () => {
                                   ...prev,
                                   { id: tempId, name: file.name, url: '', status: 'uploading' }
                                 ])
-                                const res = await fetch('/api/search/upload', { method: 'POST', body: form })
+                                
+                                console.log('📤 [SEARCH PAGE] Starting upload:', file.name)
+                                const res = await fetch('/api/search/upload', { 
+                                  method: 'POST', 
+                                  body: form,
+                                  signal: AbortSignal.timeout(120000) // 2 minute timeout
+                                })
                                 if (!res.ok) {
                                   const err = await res.json().catch(() => ({}))
                                   throw new Error(err.error || 'Upload failed')
                                 }
                                 const data = await res.json()
+                                console.log('✅ [SEARCH PAGE] Upload successful:', data)
+                                
                                 // Capture uploaded doc for attachment chip and context
                                 if (data?.documentId) {
                                   setAttachedDocs(prev => prev
                                     .filter(d => d.id !== tempId)
-                                    .concat({ id: data.documentId, name: data?.metadata?.title || file.name, url: data.fileUrl || '', status: 'ready' }))
+                                    .concat({ id: data.documentId, name: data.title || file.name, url: data.fileUrl || '', status: 'ready' }))
                                 }
-                                toast.success('Document uploaded')
+                                toast.success('Document uploaded successfully')
                               } catch (err: any) {
+                                console.error('❌ [SEARCH PAGE] Upload failed:', err)
+                                
                                 // Mark the temp chip as error
                                 setAttachedDocs(prev => prev.map(d => d.status === 'uploading' ? { ...d, status: 'error' } : d))
-                                toast.error(err.message || 'Failed to upload')
+                                
+                                let errorMessage = 'Failed to upload'
+                                if (err.name === 'TimeoutError') {
+                                  errorMessage = 'Upload timed out. Please try a smaller file or check your connection.'
+                                } else if (err.name === 'AbortError') {
+                                  errorMessage = 'Upload was cancelled'
+                                } else if (err.message) {
+                                  errorMessage = err.message
+                                }
+                                
+                                toast.error(errorMessage)
                               } finally {
                                 if (inputEl) inputEl.value = ''
                               }

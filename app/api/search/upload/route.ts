@@ -14,13 +14,19 @@ export const config = {
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+  console.log('📤 [SEARCH UPLOAD] Starting upload process')
+  
   try {
     const supabase = await createClient()
 
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
+      console.log('❌ [SEARCH UPLOAD] Authentication failed:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    
+    console.log('✅ [SEARCH UPLOAD] User authenticated:', user.id)
 
     const incoming = await request.formData()
     const file = incoming.get('file') as File | null
@@ -35,6 +41,7 @@ export async function POST(request: NextRequest) {
     const fileType = file.type
     const fileSize = buffer.length
     const fileExtension = (fileName.split('.').pop() || '').toLowerCase()
+    console.log('📁 [SEARCH UPLOAD] File details:', { fileName, fileType, fileSize, fileExtension })
 
     let serverExtractedText = ''
     let serverPageCount = 1
@@ -124,10 +131,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Extraction flow (without calling reading route)
+    console.log('🔄 [SEARCH UPLOAD] Starting text extraction for PDF')
     if (fileExtension === 'pdf' || fileType === 'application/pdf') {
-      // Try Adobe export first
+      // Try Adobe export first with timeout
       try {
-        let text = await exportPdfToDocxExtractText(buffer)
+        const adobePromise = exportPdfToDocxExtractText(buffer)
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Adobe export timeout')), 30000) // 30 second timeout
+        )
+        
+        let text = await Promise.race([adobePromise, timeoutPromise]) as string
         if (text) {
           serverExtractedText = text
           serverPageCount = Math.max(1, Math.ceil(text.length / 2000))
@@ -152,7 +165,12 @@ export async function POST(request: NextRequest) {
 
       if (!serverExtractedText) {
         try {
-          const ocr = await runAdobeOcrIfAvailable(buffer)
+          const ocrPromise = runAdobeOcrIfAvailable(buffer)
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Adobe OCR timeout')), 45000) // 45 second timeout
+          )
+          
+          const ocr = await Promise.race([ocrPromise, timeoutPromise]) as any
           if (ocr?.searchablePdf) {
             let ocrText = await exportPdfToDocxExtractText(ocr.searchablePdf)
             if (!ocrText) {
@@ -199,6 +217,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload to storage (same as reading)
+    console.log('💾 [SEARCH UPLOAD] Uploading to storage')
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_')
     const storagePath = `${user.id}/${timestamp}-${safeFileName}`
@@ -241,6 +260,14 @@ export async function POST(request: NextRequest) {
     // Track usage after successful upload
     await trackApiUsage(request, user.id)
 
+    const responseTime = Date.now() - startTime
+    console.log('✅ [SEARCH UPLOAD] Upload completed successfully:', {
+      responseTime: `${responseTime}ms`,
+      textLength: serverExtractedText?.length || 0,
+      pages: serverPageCount,
+      processingNotes
+    })
+
     const metadata = {
       title: fileName.replace(/\.(pdf|txt|docx)$/i, ''),
       originalFileName: fileName,
@@ -257,6 +284,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, documentId: documentRecord?.id, text: serverExtractedText || '', metadata, fileUrl: urlData.publicUrl, title: metadata.title })
   } catch (error: any) {
+    const responseTime = Date.now() - startTime
+    console.error('❌ [SEARCH UPLOAD] Upload failed:', {
+      error: error.message,
+      stack: error.stack,
+      responseTime: `${responseTime}ms`
+    })
     return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 })
   }
 }
