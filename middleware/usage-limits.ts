@@ -54,8 +54,8 @@ export async function checkUsageLimits(request: NextRequest, userId: string): Pr
     
     if (!canProceed) {
       // Get the actual user's plan limits for error message
-      const userSubscription = await subscriptionService.getUserSubscription(userId)
-      const planName = userSubscription?.plan?.name || 'Free'
+      const userSubscription = await subscriptionService.getUserSubscriptionWithPlan(userId)
+      const planName = userSubscription?.plan_name || 'Free'
       const limits = subscriptionService.getPlanLimits(planName)
       const limitValue = limits[limitConfig.action]
       
