@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
       .getPublicUrl(storagePath)
 
     // Insert into documents for consistency with reading feature
-    const { data: documentRecord } = await supabase
+    const { data: documentRecord, error: dbError } = await supabase
       .from('documents')
       .insert({
         user_id: user.id,
@@ -248,11 +248,21 @@ export async function POST(request: NextRequest) {
         page_count: serverPageCount,
         text_length: serverExtractedText ? serverExtractedText.length : 0,
         processing_status: serverExtractedText && serverExtractedText.trim().length > 0 ? 'completed' : 'failed',
+        processing_notes: processingNotes,
         public_url: urlData.publicUrl,
-        metadata: { uploadedAt: new Date().toISOString(), processingNotes }
+        metadata: { 
+          uploadedAt: new Date().toISOString()
+        }
       })
       .select()
       .single()
+
+    if (dbError) {
+      console.error('❌ [SEARCH UPLOAD] Database error:', dbError)
+      return NextResponse.json({ error: 'Failed to save document record', details: dbError.message }, { status: 500 })
+    }
+
+    console.log('✅ [SEARCH UPLOAD] Document record created:', documentRecord?.id)
 
     // Note: user_content table is no longer used in consolidated schema
     // Documents are now stored in the unified documents table
@@ -282,7 +292,17 @@ export async function POST(request: NextRequest) {
       documentId: documentRecord?.id
     }
 
-    return NextResponse.json({ success: true, documentId: documentRecord?.id, text: serverExtractedText || '', metadata, fileUrl: urlData.publicUrl, title: metadata.title })
+    const response = { 
+      success: true, 
+      documentId: documentRecord?.id, 
+      text: serverExtractedText || '', 
+      metadata, 
+      fileUrl: urlData.publicUrl, 
+      title: metadata.title 
+    }
+    
+    console.log('📤 [SEARCH UPLOAD] Sending response:', response)
+    return NextResponse.json(response)
   } catch (error: any) {
     const responseTime = Date.now() - startTime
     console.error('❌ [SEARCH UPLOAD] Upload failed:', {

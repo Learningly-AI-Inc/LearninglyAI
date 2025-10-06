@@ -230,6 +230,12 @@ const SearchPage = () => {
 
     // Prevent sending while attachments are still uploading
     const hasUploading = attachedDocs.some(d => d.status === 'uploading')
+    console.log('📤 [SEARCH PAGE] sendMessage check:', {
+      attachedDocs,
+      hasUploading,
+      uploadingDocs: attachedDocs.filter(d => d.status === 'uploading')
+    })
+    
     if (hasUploading) {
       toast.info('Please wait for uploads to finish')
       return
@@ -458,7 +464,15 @@ const SearchPage = () => {
 
   const handleSendMessage = () => {
     if (!currentMessage.trim() || isTyping || loading || !user?.id) return
-    if (attachedDocs.some(d => d.status === 'uploading')) {
+    
+    const hasUploading = attachedDocs.some(d => d.status === 'uploading')
+    console.log('📤 [SEARCH PAGE] Send message check:', {
+      attachedDocs,
+      hasUploading,
+      uploadingDocs: attachedDocs.filter(d => d.status === 'uploading')
+    })
+    
+    if (hasUploading) {
       toast.info('Please wait for uploads to finish')
       return
     }
@@ -1436,7 +1450,11 @@ const SearchPage = () => {
                           <div className="flex flex-wrap gap-2 w-full">
                             {attachedDocs.map((doc) => (
                               <div key={doc.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-white shadow-sm text-xs">
-                                <div className="w-3 h-3 rounded-full bg-red-500" />
+                                <div className={`w-3 h-3 rounded-full ${
+                                  doc.status === 'ready' ? 'bg-green-500' : 
+                                  doc.status === 'error' ? 'bg-red-500' : 
+                                  'bg-yellow-500'
+                                }`} />
                                 <span className="truncate max-w-[180px]" title={doc.name}>{doc.name}</span>
                                 {doc.status === 'uploading' && (
                                   <Loader2 className="h-3 w-3 animate-spin text-slate-500" />
@@ -1621,9 +1639,21 @@ const SearchPage = () => {
                                 
                                 // Capture uploaded doc for attachment chip and context
                                 if (data?.documentId) {
-                                  setAttachedDocs(prev => prev
-                                    .filter(d => d.id !== tempId)
-                                    .concat({ id: data.documentId, name: data.title || file.name, url: data.fileUrl || '', status: 'ready' }))
+                                  console.log('📎 [SEARCH PAGE] Adding document to attachments:', {
+                                    documentId: data.documentId,
+                                    title: data.title,
+                                    fileUrl: data.fileUrl,
+                                    status: 'ready'
+                                  })
+                                  setAttachedDocs(prev => {
+                                    const filtered = prev.filter(d => d.id !== tempId)
+                                    const newDoc = { id: data.documentId, name: data.title || file.name, url: data.fileUrl || '', status: 'ready' as const }
+                                    const updated = [...filtered, newDoc]
+                                    console.log('📎 [SEARCH PAGE] Updated attachments:', updated)
+                                    return updated
+                                  })
+                                } else {
+                                  console.error('❌ [SEARCH PAGE] No documentId in response:', data)
                                 }
                                 toast.success('Document uploaded successfully')
                               } catch (err: any) {
