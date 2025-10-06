@@ -69,13 +69,24 @@ export async function POST(request: NextRequest) {
     let currentConversationId = conversationId
     if (!currentConversationId) {
       console.log('🚀 [ENHANCED SEARCH API] Creating new conversation...')
+      // Map model to database-allowed values
+      const mapModelToDatabaseModel = (model: string): 'openai' | 'gemini' => {
+        if (model.startsWith('gpt') || model.startsWith('claude') || model.startsWith('grok') || model.startsWith('llama') || model.startsWith('deepseek')) {
+          return 'openai'
+        }
+        if (model.startsWith('gemini')) {
+          return 'gemini'
+        }
+        return 'openai' // Default fallback
+      }
+
       const { data: newConversation, error: convError } = await supabase
         .from('conversations')
         .insert({
           user_id: userId,
           title: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
           conversation_type: 'search',
-          model_used: model
+          model_used: mapModelToDatabaseModel(model)
         })
         .select()
         .single()
@@ -235,14 +246,25 @@ export async function POST(request: NextRequest) {
     // Calculate response tokens
     const responseTokens = TokenManager.estimateTokens(aiResponse)
 
+    // Map model to database-allowed values for message saving
+    const mapModelToDatabaseModel = (model: string): 'openai' | 'gemini' => {
+      if (model.startsWith('gpt') || model.startsWith('claude') || model.startsWith('grok') || model.startsWith('llama') || model.startsWith('deepseek')) {
+        return 'openai'
+      }
+      if (model.startsWith('gemini')) {
+        return 'gemini'
+      }
+      return 'openai' // Default fallback
+    }
+
     // Save user message
     const { error: userMsgError } = await supabase
-      .from('search_messages')
+      .from('messages')
       .insert({
         conversation_id: currentConversationId,
         role: 'user',
         content: message,
-        model_used: model,
+        model_used: mapModelToDatabaseModel(model),
         tokens_used: TokenManager.estimateTokens(message)
       })
 
@@ -252,14 +274,14 @@ export async function POST(request: NextRequest) {
 
     // Save AI response
     const { error: aiMsgError } = await supabase
-      .from('search_messages')
+      .from('messages')
       .insert({
         conversation_id: currentConversationId,
         role: 'assistant',
         content: aiResponse,
         // Only cite the sources attached in this chat
         sources: smartContextSources,
-        model_used: model,
+        model_used: mapModelToDatabaseModel(model),
         tokens_used: responseTokens
       })
 
@@ -269,7 +291,7 @@ export async function POST(request: NextRequest) {
 
     // Update conversation timestamp
     await supabase
-      .from('search_conversations')
+      .from('conversations')
       .update({ updated_at: new Date().toISOString() })
       .eq('id', currentConversationId)
 
@@ -434,6 +456,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
     const conversationId = searchParams.get('conversationId')
+    const searchQuery = searchParams.get('search')
 
     if (!userId) {
       return NextResponse.json(
@@ -467,6 +490,36 @@ export async function GET(request: NextRequest) {
           content: msg.content,
           created_at: msg.created_at,
           sources: msg.sources || []
+        }))
+      })
+    } else if (searchQuery) {
+      // Search conversations by title or message content
+      const { data: conversations, error } = await supabase
+        .from('conversations')
+        .select(`
+          *,
+          messages!inner(content)
+        `)
+        .eq('conversation_type', 'search')
+        .eq('user_id', userId)
+        .or(`title.ilike.%${searchQuery}%,messages.content.ilike.%${searchQuery}%`)
+        .order('updated_at', { ascending: false })
+
+      if (error) {
+        console.error('🚀 [ENHANCED SEARCH API] Error searching conversations:', error)
+        return NextResponse.json(
+          { error: 'Failed to search conversations' },
+          { status: 500 }
+        )
+      }
+
+      return NextResponse.json({
+        conversations: (conversations || []).map((conv: any) => ({
+          id: conv.id,
+          title: conv.title,
+          model_used: conv.model_used,
+          created_at: conv.created_at,
+          updated_at: conv.updated_at
         }))
       })
     } else {
@@ -539,7 +592,7 @@ export async function DELETE(request: NextRequest) {
 
     // Delete conversation and its messages
     const { error: messagesError } = await supabase
-      .from('search_messages')
+      .from('messages')
       .delete()
       .eq('conversation_id', conversationId)
 
@@ -548,7 +601,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { error: conversationError } = await supabase
-      .from('search_conversations')
+      .from('conversations')
       .delete()
       .eq('id', conversationId)
       .eq('user_id', user.id)

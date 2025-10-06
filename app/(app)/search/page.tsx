@@ -65,6 +65,9 @@ const SearchPage = () => {
   const [editingTitle, setEditingTitle] = React.useState('')
   const [editingContent, setEditingContent] = React.useState('')
   const [isSavingMessage, setIsSavingMessage] = React.useState(false)
+  const [searchQuery, setSearchQuery] = React.useState('')
+  const [searchResults, setSearchResults] = React.useState<Conversation[]>([])
+  const [isSearching, setIsSearching] = React.useState(false)
   const scrollAreaRef = React.useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -777,6 +780,49 @@ const SearchPage = () => {
     setEditingContent('')
   }
 
+  // Search functionality
+  const handleSearch = async (query: string) => {
+    if (!query.trim() || !user?.id) {
+      setSearchResults([])
+      return
+    }
+
+    setIsSearching(true)
+    try {
+      const response = await fetch(`/api/search/enhanced?userId=${user.id}&search=${encodeURIComponent(query)}`)
+      if (response.ok) {
+        const data = await response.json()
+        setSearchResults(data.conversations || [])
+      } else {
+        console.error('Search failed:', response.status)
+        setSearchResults([])
+      }
+    } catch (error) {
+      console.error('Search error:', error)
+      setSearchResults([])
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  // Debounced search
+  React.useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim()) {
+        handleSearch(searchQuery)
+      } else {
+        setSearchResults([])
+      }
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery, user?.id])
+
+  // Filter conversations based on search
+  const filteredConversations = searchQuery.trim() 
+    ? searchResults 
+    : conversations
+
   const TypingIndicator = () => (
     <div className="flex items-center space-x-2 text-muted-foreground">
       <div className="flex space-x-1">
@@ -853,7 +899,7 @@ const SearchPage = () => {
             <div className="h-full overflow-y-auto px-2 py-1">
               <div className="space-y-1">
                 <AnimatePresence>
-                  {conversations.map((conversation) => (
+                  {filteredConversations.map((conversation) => (
                     <motion.div
                       key={conversation.id}
                       initial={{ opacity: 0 }}
@@ -964,9 +1010,11 @@ const SearchPage = () => {
                   </div>
                 )}
                 
-                {conversations.length === 0 && !loading && !conversationSidebarCollapsed && (
+                {filteredConversations.length === 0 && !loading && !conversationSidebarCollapsed && (
                   <div className="text-center py-6 text-slate-500">
-                    <p className="text-sm">No conversations yet</p>
+                    <p className="text-sm">
+                      {searchQuery.trim() ? 'No conversations found' : 'No conversations yet'}
+                    </p>
                   </div>
                 )}
               </div>
@@ -1009,7 +1057,7 @@ const SearchPage = () => {
                 <div className="h-full overflow-y-auto px-2 py-1">
                   <div className="space-y-1">
                     <AnimatePresence>
-                      {conversations.map((conversation) => (
+                      {filteredConversations.map((conversation) => (
                         <motion.div
                           key={conversation.id}
                           initial={{ opacity: 0 }}
@@ -1115,9 +1163,11 @@ const SearchPage = () => {
                       </div>
                     )}
                     
-                    {conversations.length === 0 && !loading && (
+                    {filteredConversations.length === 0 && !loading && (
                       <div className="text-center py-6 text-slate-500">
-                        <p className="text-sm">No conversations yet</p>
+                        <p className="text-sm">
+                          {searchQuery.trim() ? 'No conversations found' : 'No conversations yet'}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -1140,7 +1190,15 @@ const SearchPage = () => {
             </button>
             <div className="flex items-center gap-2 rounded-lg border bg-slate-50 px-3 py-1.5 w-full max-w-sm">
               <Search className="h-4 w-4" />
-              <input className="bg-transparent outline-none text-sm w-full" placeholder="Search conversations..."/>
+              <input 
+                className="bg-transparent outline-none text-sm w-full" 
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {isSearching && (
+                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+              )}
             </div>
             <div className="ml-auto flex items-center gap-2">
               {/* Stop button moved to chat interface */}
