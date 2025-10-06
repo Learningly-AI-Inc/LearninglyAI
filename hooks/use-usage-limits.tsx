@@ -3,7 +3,7 @@
 import { useSubscription } from './use-subscription'
 
 export interface UsageLimitConfig {
-  action: 'documents_uploaded' | 'ai_requests' | 'search_queries' | 'exam_sessions'
+  action: 'documents_uploaded' | 'writing_words' | 'search_queries' | 'exam_sessions'
   amount?: number
   showUpgradePrompt?: boolean
 }
@@ -58,8 +58,8 @@ export function useUsageLimits() {
     return canUseFeature('document_uploads', fileCount)
   }
 
-  const checkAIRequest = (requestCount: number = 1): boolean => {
-    return canUseFeature('ai_requests', requestCount)
+  const checkWritingWords = (wordCount: number = 1): boolean => {
+    return canUseFeature('writing_words', wordCount)
   }
 
   const checkSearchQuery = (queryCount: number = 1): boolean => {
@@ -74,8 +74,8 @@ export function useUsageLimits() {
     return getUsagePercentage('document_uploads')
   }
 
-  const getAIRequestPercentage = (): number => {
-    return getUsagePercentage('ai_requests')
+  const getWritingWordsPercentage = (): number => {
+    return getUsagePercentage('writing_words')
   }
 
   const getSearchQueryPercentage = (): number => {
@@ -88,12 +88,12 @@ export function useUsageLimits() {
 
   const getUsageStats = () => {
     if (!subscription) {
-      return {
-        documents: { used: 0, limit: 3, percentage: 0 },
-        aiRequests: { used: 0, limit: 10, percentage: 0 },
-        searchQueries: { used: 0, limit: 50, percentage: 0 },
-        examSessions: { used: 0, limit: 5, percentage: 0 },
-      }
+    return {
+      documents: { used: 0, limit: 3, percentage: 0 },
+      writingWords: { used: 0, limit: 5000, percentage: 0 },
+      searchQueries: { used: 0, limit: 40, percentage: 0 },
+      examSessions: { used: 0, limit: 4, percentage: 0 },
+    }
     }
 
     const plan = subscription.plan
@@ -105,10 +105,10 @@ export function useUsageLimits() {
         limit: plan.limits.document_uploads === -1 ? 'Unlimited' : plan.limits.document_uploads,
         percentage: getDocumentUploadPercentage(),
       },
-      aiRequests: {
-        used: usage.ai_requests,
-        limit: plan.limits.ai_requests === -1 ? 'Unlimited' : plan.limits.ai_requests,
-        percentage: getAIRequestPercentage(),
+      writingWords: {
+        used: usage.writing_words,
+        limit: plan.limits.writing_words === -1 ? 'Unlimited' : plan.limits.writing_words,
+        percentage: getWritingWordsPercentage(),
       },
       searchQueries: {
         used: usage.search_queries,
@@ -137,11 +137,11 @@ export function useUsageLimits() {
     subscription,
     withUsageCheck,
     checkDocumentUpload,
-    checkAIRequest,
+    checkWritingWords,
     checkSearchQuery,
     checkExamSession,
     getDocumentUploadPercentage,
-    getAIRequestPercentage,
+    getWritingWordsPercentage,
     getSearchQueryPercentage,
     getExamSessionPercentage,
     getUsageStats,

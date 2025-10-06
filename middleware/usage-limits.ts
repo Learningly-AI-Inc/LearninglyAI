@@ -32,7 +32,8 @@ export async function checkUsageLimits(request: NextRequest, userId: string): Pr
   limitConfig?: UsageLimitConfig
   error?: string
 }> {
-  const { pathname, method } = new URL(request.url)
+  const { pathname } = new URL(request.url)
+  const method = request.method
   
   // Find matching usage limit configuration
   const limitConfig = USAGE_LIMITS.find(config => 

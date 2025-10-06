@@ -47,10 +47,35 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // Set editor reference for parent components to use
   useEffect(() => {
     if (setEditorRef) {
+      const replaceHtmlContent = (html: string) => {
+        try {
+          const contentBlock = htmlToDraft(html || '');
+          if (!contentBlock || !contentBlock.contentBlocks) return;
+
+          const element: any = editorRef.current?.editor;
+          const prevScrollTop = element?.scrollTop || 0;
+
+          const contentState = ContentState.createFromBlockArray(contentBlock.contentBlocks);
+          const newState = EditorState.createWithContent(contentState);
+          setEditorState(newState);
+
+          // Restore scroll without jumping
+          setTimeout(() => {
+            if (element && typeof prevScrollTop === 'number') {
+              element.scrollTop = prevScrollTop;
+              element.focus?.();
+            }
+          }, 0);
+        } catch {
+          // no-op
+        }
+      };
+
       setEditorRef({
         getEditorState: () => editorState,
         setEditorState,
         getEditorInstance: () => editorRef.current?.editor,
+        replaceHtmlContent,
       });
     }
   }, [setEditorRef, editorState]);

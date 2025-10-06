@@ -39,12 +39,14 @@ export function SubscriptionCard({ plan, isCurrentPlan = false, isPopular = fals
 
   const features = () => {
     const out: string[] = []
-    const ai = plan.limits.ai_requests
-    out.push(ai === -1 ? 'Unlimited AI requests' : `${ai} AI requests per month`)
+    const writing = plan.limits.writing_words
+    out.push(writing === -1 ? 'Unlimited writing words' : `${writing.toLocaleString()} writing words per month`)
     const uploads = plan.limits.document_uploads
     out.push(uploads === -1 ? 'Unlimited document uploads' : `${uploads} uploads per month`)
     const search = plan.limits.search_queries
     out.push(search === -1 ? 'Unlimited search' : `${search} searches per month`)
+    const exams = plan.limits.exam_sessions
+    out.push(exams === -1 ? 'Unlimited exam sessions' : `${exams} exam sessions per month`)
     if (plan.features?.priority_support) out.push('Priority support')
     return out
   }

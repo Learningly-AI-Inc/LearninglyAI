@@ -390,15 +390,16 @@ const WritingPageClient = () => {
     }
     
     if (appliedCount > 0) {
-      // Preserve scroll position before updating content
-      const editorElement = editorRef?.current?.editor;
-      let scrollTop = 0;
-      if (editorElement) {
-        scrollTop = editorElement.scrollTop;
-      }
+      // Preserve exact scroll position before updating
+      const scrollPreservation = preserveScrollPosition();
       
+      // In-place update to avoid jump
       setEditorContent(updatedContent);
-      setEditorKey(prev => prev + 1);
+      if (editorRef && (editorRef as any).replaceHtmlContent) {
+        (editorRef as any).replaceHtmlContent(updatedContent);
+      } else {
+        setEditorKey(prev => prev + 1);
+      }
       setGrammarIssues([]);
       setHighlightedContent("");
       setCurrentIssueIndex(-1);
@@ -407,10 +408,10 @@ const WritingPageClient = () => {
       setSelectedText("");
       setLastSelectedText(""); // Clear backup
       
-      // Restore scroll position after content update
+      // Restore exact scroll position to keep text in same place
       setTimeout(() => {
-        if (editorElement && scrollTop > 0) {
-          editorElement.scrollTop = scrollTop;
+        if (scrollPreservation) {
+          scrollPreservation.restore();
         }
         ensureEditorFocus();
       }, 100);
@@ -442,7 +443,7 @@ const WritingPageClient = () => {
         // Strategy 1: Direct replacement in HTML
         if (editorContent.includes(textToReplace)) {
           updatedContent = editorContent.replace(
-            new RegExp(textToReplace.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 
+            new RegExp(textToReplace.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), 
             newText
           );
         } else {
@@ -456,42 +457,68 @@ const WritingPageClient = () => {
               .join('\\s+(?:<[^>]*>\\s*)*');
             
             updatedContent = editorContent.replace(
-              new RegExp(flexiblePattern, 'i'),
+              new RegExp(flexiblePattern, 'gi'),
               newText
             );
           } else {
-            // Strategy 3: Robust fallback that tolerates tags and typography across characters
-            const safeNewText = normalizeSuggestion(newText);
-            const replaced = replaceHtmlTolerantOnce(editorContent, textToReplace, safeNewText);
-            if (replaced !== editorContent) {
-              updatedContent = replaced;
+            // Strategy 3: Try case-insensitive matching
+            const caseInsensitivePattern = textToReplace.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const caseInsensitiveRegex = new RegExp(caseInsensitivePattern, 'gi');
+            if (caseInsensitiveRegex.test(editorContent)) {
+              updatedContent = editorContent.replace(caseInsensitiveRegex, newText);
+            } else {
+              // Strategy 4: Robust fallback that tolerates tags and typography across characters
+              const safeNewText = normalizeSuggestion(newText);
+              const replaced = replaceHtmlTolerantOnce(editorContent, textToReplace, safeNewText);
+              if (replaced !== editorContent) {
+                updatedContent = replaced;
+              } else {
+                // Final fallback: try to find and replace with fuzzy matching
+                const words = textToReplace.split(/\s+/);
+                if (words.length > 1) {
+                  // Try to find the first word and replace the whole phrase
+                  const firstWord = words[0];
+                  const firstWordRegex = new RegExp(firstWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                  if (firstWordRegex.test(editorContent)) {
+                    // Find the position and replace with the full phrase
+                    const match = editorContent.match(firstWordRegex);
+                    if (match) {
+                      const startIndex = editorContent.indexOf(match[0]);
+                      const endIndex = startIndex + textToReplace.length;
+                      const before = editorContent.substring(0, startIndex);
+                      const after = editorContent.substring(endIndex);
+                      updatedContent = before + newText + after;
+                    }
+                  }
+                }
+              }
             }
           }
         }
         
         // Only proceed if content actually changed
         if (updatedContent !== editorContent) {
-          // Preserve scroll position before updating content
-          const editorElement = editorRef?.current?.editor;
-          let scrollTop = 0;
-          if (editorElement) {
-            scrollTop = editorElement.scrollTop;
+          // Preserve exact scroll position before updating
+          const scrollPreservation = preserveScrollPosition();
+          
+          // Update content in-place to avoid visual jump
+          setEditorContent(updatedContent);
+          if (editorRef && (editorRef as any).replaceHtmlContent) {
+            (editorRef as any).replaceHtmlContent(updatedContent);
+          } else {
+            setEditorKey(prev => prev + 1);
           }
           
-          // Force editor to update by setting content and incrementing key
-          setEditorContent(updatedContent);
-          setEditorKey(prev => prev + 1);
-          
-          // Also update raw content if available
+          // Update raw content if available
           if (editorRawContent) {
             const updatedRawContent = { ...editorRawContent };
             setEditorRawContent(updatedRawContent);
           }
           
-          // Restore scroll position and ensure editor maintains focus
+          // Restore exact scroll position to keep text in same place
           setTimeout(() => {
-            if (editorElement && scrollTop > 0) {
-              editorElement.scrollTop = scrollTop;
+            if (scrollPreservation) {
+              scrollPreservation.restore();
             }
             ensureEditorFocus();
           }, 100);
@@ -530,7 +557,27 @@ const WritingPageClient = () => {
             }
           }
         } else {
-          toast.warning("Could not find the exact text to replace. Please try selecting the text again.");
+          // Try one more approach: find the text in the original issue
+          if (issue && issue.original) {
+            const originalText = issue.original;
+            if (editorContent.includes(originalText)) {
+              updatedContent = editorContent.replace(
+                new RegExp(originalText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+                newText
+              );
+              setEditorContent(updatedContent);
+              setEditorKey(prev => prev + 1);
+              
+              // Remove the specific grammar issue
+              const updatedGrammarIssues = grammarIssues.filter(gi => gi.id !== issue.id);
+              setGrammarIssues(updatedGrammarIssues);
+              setSelectedText("");
+              
+              toast.success("Grammar issue fixed using original text!");
+              return;
+            }
+          }
+          toast.warning("Could not find the exact text to replace. The text may have been modified. Please try checking grammar again.");
         }
         
       } catch (error) {
@@ -867,6 +914,33 @@ const WritingPageClient = () => {
     // Don't clear selectedText immediately - let user actions handle it
   };
 
+  // Function to preserve exact scroll position during content updates
+  const preserveScrollPosition = () => {
+    const editorElement = editorRef?.current?.editor;
+    if (editorElement) {
+      const scrollTop = editorElement.scrollTop || 0;
+      const scrollHeight = editorElement.scrollHeight || 0;
+      const clientHeight = editorElement.clientHeight || 0;
+      
+      // Store the exact scroll position and dimensions
+      return {
+        scrollTop,
+        scrollHeight,
+        clientHeight,
+        restore: () => {
+          if (editorElement) {
+            // Calculate the new scroll position to maintain the same visual position
+            const newScrollHeight = editorElement.scrollHeight || 0;
+            const heightDiff = newScrollHeight - scrollHeight;
+            const newScrollTop = Math.max(0, scrollTop + heightDiff);
+            editorElement.scrollTop = newScrollTop;
+          }
+        }
+      };
+    }
+    return null;
+  };
+
   // Function to ensure editor has focus and cursor is visible
   const ensureEditorFocus = () => {
     if (editorRef && editorRef.getEditorInstance) {
@@ -874,19 +948,11 @@ const WritingPageClient = () => {
       if (editorInstance) {
         setTimeout(() => {
           editorInstance.focus();
-          // Move cursor to end if no selection
-          const editorState = editorRef.getEditorState();
-          if (editorState) {
-            const content = editorState.getCurrentContent();
-            const selection = editorState.getSelection();
-            if (selection.isCollapsed() && content.hasText()) {
-              const newSelection = selection.merge({
-                anchorOffset: content.getPlainText().length,
-                focusOffset: content.getPlainText().length,
-              });
-              const newEditorState = EditorState.forceSelection(editorState, newSelection);
-              editorRef.setEditorState(newEditorState);
-            }
+          // Ensure cursor is visible by clicking in the editor
+          const editorElement = editorRef.current?.editor;
+          if (editorElement) {
+            editorElement.click();
+            editorElement.focus();
           }
         }, 50);
       }

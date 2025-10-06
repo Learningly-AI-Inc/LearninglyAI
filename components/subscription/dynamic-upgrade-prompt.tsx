@@ -33,19 +33,19 @@ export function DynamicUpgradePrompt({ onUpgrade, variant = 'card' }: DynamicUpg
     }
 
     const usageStats = {
-      aiRequests: {
-        used: usage.ai_requests,
-        limit: limits.ai_requests,
-        percentage: getUsagePercentage(usage.ai_requests, limits.ai_requests),
-        nearLimit: getUsagePercentage(usage.ai_requests, limits.ai_requests) >= 80,
-        atLimit: getUsagePercentage(usage.ai_requests, limits.ai_requests) >= 100,
-      },
       documents: {
         used: usage.documents_uploaded,
         limit: limits.document_uploads,
         percentage: getUsagePercentage(usage.documents_uploaded, limits.document_uploads),
         nearLimit: getUsagePercentage(usage.documents_uploaded, limits.document_uploads) >= 80,
         atLimit: getUsagePercentage(usage.documents_uploaded, limits.document_uploads) >= 100,
+      },
+      writingWords: {
+        used: usage.writing_words,
+        limit: limits.writing_words,
+        percentage: getUsagePercentage(usage.writing_words, limits.writing_words),
+        nearLimit: getUsagePercentage(usage.writing_words, limits.writing_words) >= 80,
+        atLimit: getUsagePercentage(usage.writing_words, limits.writing_words) >= 100,
       },
       searchQueries: {
         used: usage.search_queries,

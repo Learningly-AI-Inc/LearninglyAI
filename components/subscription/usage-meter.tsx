@@ -73,7 +73,7 @@ export function UsageMeter({ label, used, limit, percentage, icon, description }
 interface UsageDashboardProps {
   usage: {
     documents: { used: number; limit: number | string; percentage: number }
-    aiRequests: { used: number; limit: number | string; percentage: number }
+    writingWords: { used: number; limit: number | string; percentage: number }
     searchQueries: { used: number; limit: number | string; percentage: number }
     examSessions: { used: number; limit: number | string; percentage: number }
   }
@@ -92,12 +92,12 @@ export function UsageDashboard({ usage }: UsageDashboardProps) {
       />
       
       <UsageMeter
-        label="AI Requests"
-        used={usage.aiRequests.used}
-        limit={usage.aiRequests.limit}
-        percentage={usage.aiRequests.percentage}
-        icon="🤖"
-        description="AI-powered analysis and generation"
+        label="Writing Words"
+        used={usage.writingWords.used}
+        limit={usage.writingWords.limit}
+        percentage={usage.writingWords.percentage}
+        icon="✍️"
+        description="AI-powered writing and content generation"
       />
       
       <UsageMeter

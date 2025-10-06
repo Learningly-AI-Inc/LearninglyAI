@@ -229,6 +229,13 @@ async function checkGrammarWithTrinka(text: string): Promise<GrammarIssue[]> {
   }
 
   try {
+    console.log('Trinka API Debug:', {
+      endpoint: trinkaEndpoint,
+      hasApiKey: !!trinkaApiKey,
+      apiKeyLength: trinkaApiKey?.length,
+      textLength: text.length
+    });
+    
     const response = await fetch(trinkaEndpoint, {
       method: 'POST',
       headers: {

@@ -15,7 +15,8 @@ const USAGE_TRACKED_ROUTES = [
 ]
 
 export async function apiUsageMiddleware(request: NextRequest): Promise<NextResponse | null> {
-  const { pathname, method } = new URL(request.url)
+  const { pathname } = new URL(request.url)
+  const method = request.method
   
   // Check if this route needs usage tracking
   const needsTracking = USAGE_TRACKED_ROUTES.some(route => pathname.startsWith(route))

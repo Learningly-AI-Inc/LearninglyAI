@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle, Zap } from 'lucide-react'
 import { useSubscription } from '@/hooks/use-subscription'
 
 interface UsageLimitIndicatorProps {
-  feature: 'ai_requests' | 'documents_uploaded' | 'search_queries' | 'exam_sessions'
+  feature: 'writing_words' | 'documents_uploaded' | 'search_queries' | 'exam_sessions'
   className?: string
   showPercentage?: boolean
 }
@@ -91,7 +91,7 @@ export function UsageQuickStats({ className = '' }: UsageQuickStatsProps) {
   }
 
   const features = [
-    { key: 'ai_requests' as const, label: 'AI Requests' },
+    { key: 'writing_words' as const, label: 'Writing Words' },
     { key: 'documents_uploaded' as const, label: 'Documents' },
     { key: 'search_queries' as const, label: 'Searches' },
     { key: 'exam_sessions' as const, label: 'Exams' },

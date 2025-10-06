@@ -59,10 +59,10 @@ export function SubscriptionDashboard() {
                 limit: subscription.plan.limits.document_uploads === -1 ? 'Unlimited' : subscription.plan.limits.document_uploads,
                 percentage: subscription.plan.limits.document_uploads === -1 ? 0 : (subscription.usage.documents_uploaded / subscription.plan.limits.document_uploads) * 100,
               },
-              aiRequests: {
-                used: subscription.usage.ai_requests,
-                limit: subscription.plan.limits.ai_requests === -1 ? 'Unlimited' : subscription.plan.limits.ai_requests,
-                percentage: subscription.plan.limits.ai_requests === -1 ? 0 : (subscription.usage.ai_requests / subscription.plan.limits.ai_requests) * 100,
+              writingWords: {
+                used: subscription.usage.writing_words,
+                limit: subscription.plan.limits.writing_words === -1 ? 'Unlimited' : subscription.plan.limits.writing_words,
+                percentage: subscription.plan.limits.writing_words === -1 ? 0 : (subscription.usage.writing_words / subscription.plan.limits.writing_words) * 100,
               },
               searchQueries: {
                 used: subscription.usage.search_queries,
