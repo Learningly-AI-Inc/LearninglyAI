@@ -22,7 +22,7 @@ export interface SubscriptionData {
   cancel_at_period_end?: boolean
   usage: {
     documents_uploaded: number
-    ai_requests: number
+    writing_words: number
     storage_used_bytes: number
     search_queries: number
     exam_sessions: number

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import OpenAI from 'openai'
+import { trackApiUsage } from '@/middleware/api-usage'
 
 // Simplified model mapping - just use the basic model name
 const mapModelToDatabaseModel = (model: string): string => {
@@ -371,6 +372,9 @@ export async function POST(request: NextRequest) {
         sourcesCount: sources.length,
         conversationId: currentConversationId
       })
+
+      // Track usage after successful search
+      await trackApiUsage(request, user.id)
 
       return NextResponse.json({
         response: aiResponse,

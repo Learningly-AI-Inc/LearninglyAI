@@ -28,35 +28,64 @@ export async function GET(request: NextRequest) {
     
     
     if (!subscription) {
-      // Return free plan details (computed defaults)
+      // Return free plan details (new pricing model)
+      const usage = await subscriptionService.getCurrentUsage(user.id)
+      const limits = subscriptionService.getPlanLimits('Free')
+      
       return NextResponse.json({
         plan: {
           name: 'Free',
-          description: 'Basic features with limited usage',
+          description: 'Best for trying Learningly',
           price_cents: 0,
           currency: 'USD',
           interval: 'month',
           features: {
-            ai_requests: 10,
-            document_uploads: 1,
-            search_queries: 50,
+            documents_uploaded: limits.documents_uploaded,
+            writing_words: limits.writing_words,
+            search_queries: limits.search_queries,
+            exam_sessions: limits.exam_sessions,
+            storage_used_bytes: limits.storage_used_bytes,
           },
           limits: {
-            storage_mb: 100,
-            max_file_size_mb: 10,
+            documents_uploaded: limits.documents_uploaded,
+            writing_words: limits.writing_words,
+            search_queries: limits.search_queries,
+            exam_sessions: limits.exam_sessions,
+            storage_used_bytes: limits.storage_used_bytes,
           },
         },
         status: 'canceled', // Not premium; aligns with free tier
         current_period_end: null,
-        usage: await subscriptionService.getCurrentUsage(user.id),
+        usage,
       })
     }
 
-    // Get current usage
+    // Get current usage and plan limits
     const usage = await subscriptionService.getCurrentUsage(user.id)
+    const limits = subscriptionService.getPlanLimits(subscription.plan_name)
 
     return NextResponse.json({
-      plan: subscription.subscription_plans,
+      plan: {
+        name: subscription.plan_name,
+        description: subscription.plan_name.includes('Premium') ? 'Best for daily activities' : 'Best for trying Learningly',
+        price_cents: subscription.plan_price_cents,
+        currency: 'USD',
+        interval: subscription.plan_name.includes('Yearly') ? 'year' : 'month',
+        features: {
+          documents_uploaded: limits.documents_uploaded,
+          writing_words: limits.writing_words,
+          search_queries: limits.search_queries,
+          exam_sessions: limits.exam_sessions,
+          storage_used_bytes: limits.storage_used_bytes,
+        },
+        limits: {
+          documents_uploaded: limits.documents_uploaded,
+          writing_words: limits.writing_words,
+          search_queries: limits.search_queries,
+          exam_sessions: limits.exam_sessions,
+          storage_used_bytes: limits.storage_used_bytes,
+        },
+      },
       status: subscription.status,
       current_period_end: subscription.current_period_end,
       cancel_at_period_end: subscription.cancel_at_period_end,

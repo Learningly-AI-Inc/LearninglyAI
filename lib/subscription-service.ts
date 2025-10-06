@@ -43,10 +43,18 @@ export interface UserSubscription {
 
 export interface UsageData {
   documents_uploaded: number
-  ai_requests: number
+  writing_words: number
   storage_used_bytes: number
   search_queries: number
   exam_sessions: number
+}
+
+export interface PlanLimits {
+  documents_uploaded: number
+  writing_words: number
+  search_queries: number
+  exam_sessions: number
+  storage_used_bytes: number
 }
 
 export class SubscriptionService {
@@ -645,22 +653,19 @@ export class SubscriptionService {
   }
 
   /**
-   * Get user's current usage for today
+   * Get user's current monthly usage
    */
   async getCurrentUsage(userId: string): Promise<UsageData> {
     try {
       const supabase = await this.getSupabase()
       const { data, error } = await supabase
-        .from('user_data')
-        .select('documents_uploaded, ai_requests, storage_used_bytes, search_queries, exam_sessions')
-        .eq('user_id', userId)
-        .single()
+        .rpc('get_monthly_usage', { user_uuid: userId })
 
-      if (error && error.code !== 'PGRST116') throw error
+      if (error) throw error
       
-      return data || {
+      return data?.[0] || {
         documents_uploaded: 0,
-        ai_requests: 0,
+        writing_words: 0,
         storage_used_bytes: 0,
         search_queries: 0,
         exam_sessions: 0,
@@ -669,11 +674,44 @@ export class SubscriptionService {
       console.error('Error fetching current usage:', error)
       return {
         documents_uploaded: 0,
-        ai_requests: 0,
+        writing_words: 0,
         storage_used_bytes: 0,
         search_queries: 0,
         exam_sessions: 0,
       }
+    }
+  }
+
+  /**
+   * Get plan limits based on plan name
+   */
+  getPlanLimits(planName: string): PlanLimits {
+    switch (planName) {
+      case 'Free':
+        return {
+          documents_uploaded: 12, // 3 per week = ~12 per month
+          writing_words: 5000, // 5,000 words/month
+          search_queries: 40, // 10 per week = ~40 per month
+          exam_sessions: 4, // 1 per week = ~4 per month
+          storage_used_bytes: 250 * 1024 * 1024, // 250MB
+        }
+      case 'Premium (Monthly)':
+      case 'Premium (Yearly)':
+        return {
+          documents_uploaded: 3000, // 100 per day = ~3000 per month
+          writing_words: 750000, // 25,000 per day = ~750,000 per month
+          search_queries: 15000, // 500 per day = ~15,000 per month
+          exam_sessions: 1400, // 50 per week = ~1400 per month
+          storage_used_bytes: 10 * 1024 * 1024 * 1024, // 10GB
+        }
+      default:
+        return {
+          documents_uploaded: 0,
+          writing_words: 0,
+          search_queries: 0,
+          exam_sessions: 0,
+          storage_used_bytes: 0,
+        }
     }
   }
 
@@ -684,50 +722,15 @@ export class SubscriptionService {
     try {
       const supabase = await this.getSupabase()
       const { data, error } = await supabase
-        .from('user_data')
-        .select('plan_name, documents_uploaded, ai_requests, search_queries, exam_sessions, storage_used_bytes')
-        .eq('user_id', userId)
-        .single()
+        .rpc('check_usage_limit_new', { 
+          user_uuid: userId, 
+          limit_type: action, 
+          requested_amount: amount 
+        })
 
-      if (error && error.code !== 'PGRST116') throw error
+      if (error) throw error
       
-      if (!data) return false
-
-      // Set limits based on plan
-      let limit = 0
-      switch (data.plan_name) {
-        case 'Free':
-          switch (action) {
-            case 'ai_requests': limit = 10; break
-            case 'documents_uploaded': limit = 1; break
-            case 'search_queries': limit = 50; break
-            case 'exam_sessions': limit = 5; break
-            case 'storage_used_bytes': limit = 100 * 1024 * 1024; break // 100MB
-            default: limit = 0
-          }
-          break
-        case 'Freemium':
-          switch (action) {
-            case 'ai_requests': limit = 100; break
-            case 'documents_uploaded': limit = 20; break
-            case 'search_queries': limit = 500; break
-            case 'exam_sessions': limit = 50; break
-            case 'storage_used_bytes': limit = 1024 * 1024 * 1024; break // 1GB
-            default: limit = 0
-          }
-          break
-        case 'Premium':
-          limit = -1 // Unlimited
-          break
-        default:
-          limit = 0
-      }
-      
-      // -1 means unlimited
-      if (limit === -1) return true
-      
-      const current = data[action] || 0
-      return (current + amount) <= limit
+      return data || false
     } catch (error) {
       console.error('Error checking usage limit:', error)
       return false
@@ -735,25 +738,68 @@ export class SubscriptionService {
   }
 
   /**
-   * Increment usage for a user
+   * Increment monthly usage for a user
    */
   async incrementUsage(userId: string, action: keyof UsageData, amount: number = 1): Promise<void> {
     try {
       const supabase = await this.getSupabase()
       
-      // Update the user_data table directly
-      const updateData: any = {}
-      updateData[action] = amount
-      
       const { error } = await supabase
-        .from('user_data')
-        .update(updateData)
-        .eq('user_id', userId)
+        .rpc('increment_monthly_usage', {
+          user_uuid: userId,
+          usage_type: action,
+          amount: amount
+        })
 
       if (error) throw error
     } catch (error) {
       console.error('Error incrementing usage:', error)
       throw error
+    }
+  }
+
+  /**
+   * Get usage summary with limits and percentages
+   */
+  async getUsageSummary(userId: string): Promise<{
+    usage: UsageData
+    limits: PlanLimits
+    percentages: {
+      documents_uploaded: number
+      writing_words: number
+      search_queries: number
+      exam_sessions: number
+      storage_used_bytes: number
+    }
+  } | null> {
+    try {
+      const supabase = await this.getSupabase()
+      
+      // Get user plan
+      const { data: userData, error: userError } = await supabase
+        .from('user_data')
+        .select('plan_name')
+        .eq('user_id', userId)
+        .single()
+
+      if (userError) throw userError
+      if (!userData) return null
+
+      const usage = await this.getCurrentUsage(userId)
+      const limits = this.getPlanLimits(userData.plan_name)
+
+      const percentages = {
+        documents_uploaded: limits.documents_uploaded === -1 ? 0 : Math.round((usage.documents_uploaded / limits.documents_uploaded) * 100),
+        writing_words: limits.writing_words === -1 ? 0 : Math.round((usage.writing_words / limits.writing_words) * 100),
+        search_queries: limits.search_queries === -1 ? 0 : Math.round((usage.search_queries / limits.search_queries) * 100),
+        exam_sessions: limits.exam_sessions === -1 ? 0 : Math.round((usage.exam_sessions / limits.exam_sessions) * 100),
+        storage_used_bytes: limits.storage_used_bytes === -1 ? 0 : Math.round((usage.storage_used_bytes / limits.storage_used_bytes) * 100),
+      }
+
+      return { usage, limits, percentages }
+    } catch (error) {
+      console.error('Error getting usage summary:', error)
+      return null
     }
   }
 }

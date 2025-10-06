@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
+import { trackApiUsage } from '@/middleware/api-usage'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -236,6 +237,9 @@ export async function POST(request: NextRequest) {
 
     // Note: user_content table is no longer used in consolidated schema
     // Documents are now stored in the unified documents table
+
+    // Track usage after successful upload
+    await trackApiUsage(request, user.id)
 
     const metadata = {
       title: fileName.replace(/\.(pdf|txt|docx)$/i, ''),

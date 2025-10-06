@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate action
-    const validActions = ['documents_uploaded', 'ai_requests', 'search_queries', 'exam_sessions']
+    const validActions = ['documents_uploaded', 'writing_words', 'search_queries', 'exam_sessions']
     if (!validActions.includes(action)) {
       return NextResponse.json(
         { error: 'Invalid action. Must be one of: ' + validActions.join(', ') },
