@@ -185,12 +185,21 @@ async function checkGrammar(text: string): Promise<GrammarIssue[]> {
         
         // Add IDs to each issue and validate
         const validatedIssues = issues
-          .filter(issue => issue.original && issue.suggestion && issue.original !== issue.suggestion)
+          .filter(issue => {
+            // Ensure we have both original and suggestion text, and they're different
+            return issue.original && 
+                   issue.suggestion && 
+                   issue.original.trim() !== '' && 
+                   issue.suggestion.trim() !== '' && 
+                   issue.original !== issue.suggestion;
+          })
           .map(issue => {
             // Normalize issue type to match our expected values
             const normalizedType = normalizeIssueType(issue.type);
             return {
               ...issue,
+              original: issue.original.trim(),
+              suggestion: issue.suggestion.trim(),
               type: normalizedType,
               id: uuidv4()
             };
@@ -266,7 +275,14 @@ async function checkGrammarWithTrinka(text: string): Promise<GrammarIssue[]> {
         type: normalizedType,
         description: String(descriptionCandidate || '').trim()
       } as GrammarIssue;
-    }).filter((gi: GrammarIssue) => gi.original && gi.suggestion && gi.original !== gi.suggestion);
+    }).filter((gi: GrammarIssue) => {
+      // Ensure we have both original and suggestion text, and they're different
+      return gi.original && 
+             gi.suggestion && 
+             gi.original.trim() !== '' && 
+             gi.suggestion.trim() !== '' && 
+             gi.original !== gi.suggestion;
+    });
 
     return mapped;
   } catch (error) {

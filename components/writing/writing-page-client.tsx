@@ -406,11 +406,17 @@ const WritingPageClient = () => {
   };
 
   // Function to handle accepting suggestions - improved approach
-  const handleAcceptSuggestion = (newText: string) => {
+  const handleAcceptSuggestion = (newText: string, issueId?: string) => {
     // Check if this is a grammar suggestion or paraphrase
-    const issue = grammarIssues.find(issue => issue.suggestion === newText);
+    const issue = issueId ? grammarIssues.find(issue => issue.id === issueId) : grammarIssues.find(issue => issue.suggestion === newText);
     const isParaphrase = !issue && newText === suggestedText;
     const textToReplace = issue?.original || selectedText;
+    
+    // For grammar issues, we must have a valid issue with original text
+    if (issueId && (!issue || !issue.original || !issue.original.trim())) {
+      toast.error("Invalid grammar issue. Please try checking grammar again.");
+      return;
+    }
     
     if (editorContent && textToReplace && textToReplace.trim()) {
       try {

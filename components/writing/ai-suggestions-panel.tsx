@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 
 interface AISuggestionsPanelProps {
   selectedText: string;
-  onAccept: (newText: string) => void;
+  onAccept: (newText: string, issueId?: string) => void;
   onReject: (issueId?: string) => void;
   onAcceptAll: () => void;
   onClear: () => void;
@@ -293,7 +293,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                           </button>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <Button size="sm" variant="outline" className="h-7 px-2 border-gray-300 text-green-700" onClick={() => onAccept(issue.suggestion)}>Accept</Button>
+                          <Button size="sm" variant="outline" className="h-7 px-2 border-gray-300 text-green-700" onClick={() => onAccept(issue.suggestion, issue.id)}>Accept</Button>
                           <Button size="sm" variant="ghost" className="h-7 px-2 text-red-600" onClick={() => onReject(issue.id)}>Deny</Button>
                         </div>
                       </div>
