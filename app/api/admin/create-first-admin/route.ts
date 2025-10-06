@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     // Check if any admin already exists
     const { data: existingAdmins, error: checkError } = await supabase
-      .from('users')
+      .from('user_data')
       .select('id')
       .eq('role', 'admin')
       .limit(1)
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Create the first admin user
     const { data, error } = await supabase
-      .from('users')
+      .from('user_data')
       .insert({
         email,
         full_name,

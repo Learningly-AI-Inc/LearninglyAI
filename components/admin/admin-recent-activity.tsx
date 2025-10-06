@@ -50,7 +50,7 @@ export function AdminRecentActivity() {
       
       // Fetch recent users
       const { data: recentUsers, error: usersError } = await supabase
-        .from('users')
+        .from('user_data')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(5)

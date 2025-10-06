@@ -81,7 +81,7 @@ export default function AdminAnalyticsPage() {
 
       // Fetch user growth data
       const { data: users, error: usersError } = await supabase
-        .from('users')
+        .from('user_data')
         .select('created_at')
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: true })

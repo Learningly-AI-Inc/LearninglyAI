@@ -70,7 +70,7 @@ export default function AdminDashboard() {
 
       // Fetch user statistics (optimized with count queries)
       const [userStats, contentStats, aiLogs, examSessions, examQuestions, readingDocs, conversations, messages] = await Promise.all([
-        supabase.from('users').select('id, email, created_at', { count: 'exact' }).limit(1000),
+        supabase.from('user_data').select('user_id, created_at', { count: 'exact' }).limit(1000),
         supabase.from('user_content').select('id, created_at', { count: 'exact' }).limit(1000),
         supabase.from('ai_model_logs').select('id, created_at, model_used', { count: 'exact' }).limit(1000),
         supabase.from('exam_prep_sessions').select('id, created_at', { count: 'exact' }).limit(1000),

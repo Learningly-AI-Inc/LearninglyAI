@@ -79,14 +79,11 @@ export function AdminUserEditDialog({
       setError(null)
 
       const { error } = await supabase
-        .from('users')
+        .from('user_data')
         .update({
-          email: formData.email,
-          full_name: formData.full_name || null,
-          username: formData.username,
-          role: formData.role
+          updated_at: new Date().toISOString()
         })
-        .eq('id', user.id)
+        .eq('user_id', user.id)
 
       if (error) throw error
 

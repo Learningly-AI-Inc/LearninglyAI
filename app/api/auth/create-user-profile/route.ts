@@ -15,11 +15,11 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Check if user already exists in public.users table
+    // Check if user already exists in public.user_data table
     const { data: existingUser, error: checkError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', user.id)
+      .from('user_data')
+      .select('user_id')
+      .eq('user_id', user.id)
       .single()
     
     if (checkError && checkError.code !== 'PGRST116') {
@@ -39,17 +39,13 @@ export async function POST(request: NextRequest) {
       })
     }
     
-    // Create user profile in public.users table
+    // Create user profile in public.user_data table
     const { data: newUser, error: createError } = await supabase
-      .from('users')
+      .from('user_data')
       .insert({
-        id: user.id,
-        email: user.email,
-        full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
-        username: `user_${user.id.substring(0, 8)}`,
-        role: 'self-learner',
+        user_id: user.id,
         created_at: user.created_at,
-        last_login: user.last_sign_in_at
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single()

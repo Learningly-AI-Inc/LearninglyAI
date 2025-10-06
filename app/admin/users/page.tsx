@@ -91,7 +91,7 @@ export default function AdminUsersPage() {
     try {
       setLoading(true)
       const { data, error } = await supabase
-        .from('users')
+        .from('user_data')
         .select('*')
         .order('created_at', { ascending: false })
 
@@ -139,7 +139,7 @@ export default function AdminUsersPage() {
 
     try {
       const { error } = await supabase
-        .from('users')
+        .from('user_data')
         .delete()
         .eq('id', selectedUser.id)
 

@@ -49,18 +49,14 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Update the user profile in public.users if needed
+    // Update the user profile in public.user_data if needed
     const { error: updateError } = await supabase
-      .from('users')
+      .from('user_data')
       .upsert({
-        id: updatedUser.id,
-        email: updatedUser.email,
-        full_name: updatedUser.user_metadata?.full_name || updatedUser.user_metadata?.name || 'User',
-        username: `user_${updatedUser.id.substring(0, 8)}`,
-        role: 'self-learner',
-        last_login: new Date().toISOString()
+        user_id: updatedUser.id,
+        updated_at: new Date().toISOString()
       }, {
-        onConflict: 'email'
+        onConflict: 'user_id'
       })
     
     if (updateError) {

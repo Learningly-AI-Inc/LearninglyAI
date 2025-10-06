@@ -6,6 +6,7 @@ import "@/components/writing/editor-styles.css"; // Import the editor styles
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { GlobalLoadingProvider } from "@/hooks/use-global-loading";
+import { GlobalSync } from "@/components/global-sync";
 
 const fontSans = Inter({
   subsets: ["latin"],
@@ -101,6 +102,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <GlobalLoadingProvider>
+          <GlobalSync />
           <div className="relative flex min-h-screen flex-col">
             <Suspense fallback={null}>
               <div className="flex-1">{children}</div>

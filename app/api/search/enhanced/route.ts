@@ -52,9 +52,9 @@ export async function POST(request: NextRequest) {
 
     // Verify user exists in database (optimized with minimal fields)
     const { data: userRecord, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', userId)
+      .from('user_data')
+      .select('user_id')
+      .eq('user_id', userId)
       .single()
     
     if (userError) {

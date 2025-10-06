@@ -16,6 +16,7 @@ export interface SubscriptionPlan {
 
 export interface SubscriptionData {
   plan: SubscriptionPlan
+  subscription_plans?: SubscriptionPlan
   status: string
   current_period_end?: string
   cancel_at_period_end?: boolean
@@ -65,6 +66,25 @@ export function useSubscription() {
 
   useEffect(() => {
     fetchSubscription()
+  }, [user])
+
+  // Always reconcile with Stripe on mount to ensure fresh data
+  useEffect(() => {
+    if (user) {
+      const reconcile = async () => {
+        try {
+          await fetch('/api/subscriptions/reconcile', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          })
+          await fetchSubscription() // Refresh after reconcile
+        } catch (error) {
+          console.error('Reconciliation failed:', error)
+        }
+      }
+      reconcile()
+    }
   }, [user])
 
   const checkUsageLimit = async (action: string, amount: number = 1): Promise<boolean> => {

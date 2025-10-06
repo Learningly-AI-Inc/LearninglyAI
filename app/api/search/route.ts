@@ -82,12 +82,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // First, verify the user exists in the users table
-    console.log('🔍 [SEARCH API] Verifying user exists in users table...')
+    // First, verify the user exists in the user_data table
+    console.log('🔍 [SEARCH API] Verifying user exists in user_data table...')
     const { data: userRecord, error: userError } = await supabase
-      .from('users')
-      .select('id, email, full_name')
-      .eq('id', userId)
+      .from('user_data')
+      .select('user_id')
+      .eq('user_id', userId)
       .single()
     
     if (userError) {
@@ -102,26 +102,24 @@ export async function POST(request: NextRequest) {
       if (userError.code === 'PGRST116') {
         console.log('🔍 [SEARCH API] User not found, attempting to create user profile...')
         
-        // First, check if there's an existing user with the same email but different ID
+        // First, check if there's an existing user with the same user_id
         const { data: existingUserByEmail, error: emailCheckError } = await supabase
-          .from('users')
-          .select('id, email, full_name')
-          .eq('email', user.email)
+          .from('user_data')
+          .select('user_id')
+          .eq('user_id', user.id)
           .single()
         
         if (existingUserByEmail && !emailCheckError) {
-          console.log('🔍 [SEARCH API] Found existing user with same email, updating ID...')
+          console.log('🔍 [SEARCH API] Found existing user, updating timestamp...')
           
-          // Update the existing user's ID to match the auth user
+          // Update the existing user's timestamp
           const { data: updatedUser, error: updateError } = await supabase
-            .from('users')
+            .from('user_data')
             .update({
-              id: user.id,
-              full_name: user.user_metadata?.full_name || user.user_metadata?.name || existingUserByEmail.full_name,
-              last_login: user.last_sign_in_at
+              updated_at: new Date().toISOString()
             })
-            .eq('email', user.email)
-            .select('id, email, full_name')
+            .eq('user_id', user.id)
+            .select('user_id')
             .single()
           
           if (updateError) {
@@ -132,10 +130,8 @@ export async function POST(request: NextRequest) {
             )
           }
           
-          console.log('🔍 [SEARCH API] User ID updated successfully:', {
-            userId: updatedUser.id,
-            email: updatedUser.email,
-            fullName: updatedUser.full_name
+          console.log('🔍 [SEARCH API] User updated successfully:', {
+            userId: updatedUser.user_id
           })
           
           // Set newUser to the updated user
@@ -143,17 +139,13 @@ export async function POST(request: NextRequest) {
         } else {
           // Create new user profile
           const { data: createdUser, error: createError } = await supabase
-            .from('users')
+            .from('user_data')
             .insert({
-              id: user.id,
-              email: user.email,
-              full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
-              username: `user_${user.id.substring(0, 8)}`,
-              role: 'self-learner',
+              user_id: user.id,
               created_at: user.created_at,
-              last_login: user.last_sign_in_at
+              updated_at: new Date().toISOString()
             })
-            .select('id, email, full_name')
+            .select('user_id')
             .single()
           
           if (createError) {
@@ -165,9 +157,7 @@ export async function POST(request: NextRequest) {
           }
           
           console.log('🔍 [SEARCH API] User profile created successfully:', {
-            userId: createdUser.id,
-            email: createdUser.email,
-            fullName: createdUser.full_name
+            userId: createdUser.user_id
           })
           
           // Set newUser to the created user

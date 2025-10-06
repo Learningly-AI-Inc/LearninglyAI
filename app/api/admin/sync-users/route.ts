@@ -18,9 +18,9 @@ export async function GET(request: NextRequest) {
 
     // Check if user is admin
     const { data: userProfile, error: profileError } = await supabase
-      .from('users')
+      .from('user_data')
       .select('role')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .single()
 
     if (profileError || !userProfile || userProfile.role !== 'admin') {
@@ -63,9 +63,9 @@ export async function POST(request: NextRequest) {
 
     // Check if user is admin
     const { data: userProfile, error: profileError } = await supabase
-      .from('users')
+      .from('user_data')
       .select('role')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .single()
 
     if (profileError || !userProfile || userProfile.role !== 'admin') {

@@ -107,31 +107,26 @@ export class SubscriptionService {
     try {
       const supabase = await this.getSupabase()
       
-      // Get the user's subscription with plan details
+      // Get the user's data from consolidated table
       const { data, error } = await supabase
-        .from('user_subscriptions')
-        .select(`
-          *,
-          subscription_plans (
-            id,
-            name,
-            description,
-            price_cents,
-            currency,
-            interval,
-            features,
-            limits
-          )
-        `)
+        .from('user_data')
+        .select('*')
         .eq('user_id', userId)
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
       
       // Only return if it's a premium plan (not Free) and has active/trialing status
-      if (data && data.subscription_plans && data.subscription_plans.name !== 'Free' && 
-          (data.status === 'active' || data.status === 'trialing')) {
-        return data
+      if (data && data.plan_name !== 'Free' && 
+          (data.subscription_status === 'active' || data.subscription_status === 'trialing')) {
+        return {
+          ...data,
+          subscription_plans: {
+            name: data.plan_name,
+            price_cents: data.plan_price_cents
+          },
+          status: data.subscription_status
+        }
       }
       
       return null
@@ -153,7 +148,7 @@ export class SubscriptionService {
 
       // If any row exists for this user, do nothing (we only ensure presence, not force-update here)
       const { data: existing, error: existingErr } = await admin
-        .from('user_subscriptions')
+        .from('user_data')
         .select('*')
         .eq('user_id', userId)
         .single()
@@ -189,31 +184,39 @@ export class SubscriptionService {
             const priceId = price?.id
             const productId = typeof price?.product === 'string' ? (price?.product as string) : (price?.product as any)?.id
 
-            const plan = priceId || productId ? await this.getPlanByStripeIds(priceId as string, productId) : null
-            if (plan) {
-              const { error } = await admin
-                .from('user_subscriptions')
-                .upsert({
-                  user_id: userId,
-                  plan_id: plan.id,
-                  stripe_customer_id: stripeCustomerId,
-                  stripe_subscription_id: chosen.id,
-                  status: chosen.status as any,
-                  current_period_start: new Date((chosen as any).current_period_start * 1000),
-                  current_period_end: new Date((chosen as any).current_period_end * 1000),
-                  cancel_at_period_end: (chosen as any).cancel_at_period_end,
-                  trial_end: (chosen as any).trial_end ? new Date((chosen as any).trial_end * 1000) : null,
-                }, { onConflict: 'user_id', ignoreDuplicates: false })
-              if (error) throw error
-
-              // Persist customer id for future linkage
-              try {
-                await admin.auth.admin.updateUserById(userId, {
-                  user_metadata: { stripe_customer_id: stripeCustomerId }
-                })
-              } catch {}
-              return
+            // Map Stripe plan to our plan names
+            let planName = 'Free'
+            let planPrice = 0
+            
+            if (priceId || productId) {
+              // Try to determine plan based on price
+              if (price?.unit_amount) {
+                if (price.unit_amount >= 10000) planName = 'Premium'
+                else if (price.unit_amount >= 2000) planName = 'Freemium'
+              }
             }
+
+            const { error } = await admin
+              .from('user_data')
+              .upsert({
+                user_id: userId,
+                plan_name: planName,
+                plan_price_cents: planPrice,
+                stripe_customer_id: stripeCustomerId,
+                stripe_subscription_id: chosen.id,
+                subscription_status: chosen.status as any,
+                current_period_end: new Date((chosen as any).current_period_end * 1000),
+                cancel_at_period_end: (chosen as any).cancel_at_period_end,
+              }, { onConflict: 'user_id', ignoreDuplicates: false })
+            if (error) throw error
+
+            // Persist customer id for future linkage
+            try {
+              await admin.auth.admin.updateUserById(userId, {
+                user_metadata: { stripe_customer_id: stripeCustomerId }
+              })
+            } catch {}
+            return
           }
         } catch (e) {
           // Fall back to free record if Stripe lookup fails
@@ -221,26 +224,15 @@ export class SubscriptionService {
       }
 
       // Fallback: upsert a record to Free plan with non-active status (represents free tier)
-      try {
-        const { data: freePlan } = await admin
-          .from('subscription_plans')
-          .select('id')
-          .eq('name', 'Free')
-          .single()
-
-        if (freePlan?.id) {
-          await admin
-            .from('user_subscriptions')
-            .upsert({
-              user_id: userId,
-              plan_id: freePlan.id,
-              status: 'canceled', // not premium; endpoint logic treats missing active/trialing as free
-              cancel_at_period_end: false,
-            }, { onConflict: 'user_id', ignoreDuplicates: false })
-        }
-      } catch {
-        // Ignore if Free plan missing; endpoint will still compute free on-the-fly
-      }
+      await admin
+        .from('user_data')
+        .upsert({
+          user_id: userId,
+          plan_name: 'Free',
+          plan_price_cents: 0,
+          subscription_status: 'canceled', // not premium; endpoint logic treats missing active/trialing as free
+          cancel_at_period_end: false,
+        }, { onConflict: 'user_id', ignoreDuplicates: false })
     } catch (error) {
       console.error('ensureUserSubscriptionRecord error:', error)
     }
@@ -597,10 +589,9 @@ export class SubscriptionService {
     try {
       const supabase = await this.getSupabase()
       const { data, error } = await supabase
-        .from('user_usage')
-        .select('*')
+        .from('user_data')
+        .select('documents_uploaded, ai_requests, storage_used_bytes, search_queries, exam_sessions')
         .eq('user_id', userId)
-        .eq('usage_date', new Date().toISOString().split('T')[0])
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
@@ -629,24 +620,49 @@ export class SubscriptionService {
    */
   async checkUsageLimit(userId: string, action: keyof UsageData, amount: number = 1): Promise<boolean> {
     try {
-      const subscription = await this.getUserSubscriptionWithPlan(userId)
-      const currentUsage = await this.getCurrentUsage(userId)
-      
-      // If no subscription, use free plan limits (1 free trial as per requirements)
-      const limits = subscription?.subscription_plans?.limits || {
-        ai_requests: 10,
-        document_uploads: 1, // 1 free trial upload
-        search_queries: 50,
-        exam_sessions: 5,
-      }
+      const supabase = await this.getSupabase()
+      const { data, error } = await supabase
+        .from('user_data')
+        .select('plan_name, documents_uploaded, ai_requests, search_queries, exam_sessions')
+        .eq('user_id', userId)
+        .single()
 
-      const limitKey = action === 'documents_uploaded' ? 'document_uploads' : action
-      const limit = limits[limitKey]
+      if (error && error.code !== 'PGRST116') throw error
+      
+      if (!data) return false
+
+      // Set limits based on plan
+      let limit = 0
+      switch (data.plan_name) {
+        case 'Free':
+          switch (action) {
+            case 'ai_requests': limit = 10; break
+            case 'documents_uploaded': limit = 1; break
+            case 'search_queries': limit = 50; break
+            case 'exam_sessions': limit = 5; break
+            default: limit = 0
+          }
+          break
+        case 'Freemium':
+          switch (action) {
+            case 'ai_requests': limit = 100; break
+            case 'documents_uploaded': limit = 20; break
+            case 'search_queries': limit = 500; break
+            case 'exam_sessions': limit = 50; break
+            default: limit = 0
+          }
+          break
+        case 'Premium':
+          limit = -1 // Unlimited
+          break
+        default:
+          limit = 0
+      }
       
       // -1 means unlimited
       if (limit === -1) return true
       
-      const current = currentUsage[action] || 0
+      const current = data[action] || 0
       return (current + amount) <= limit
     } catch (error) {
       console.error('Error checking usage limit:', error)
@@ -659,22 +675,16 @@ export class SubscriptionService {
    */
   async incrementUsage(userId: string, action: keyof UsageData, amount: number = 1): Promise<void> {
     try {
-      const today = new Date().toISOString().split('T')[0]
-      
-      const updateData: Partial<UsageData> = {}
-      updateData[action] = amount
-
       const supabase = await this.getSupabase()
+      
+      // Update the user_data table directly
+      const updateData: any = {}
+      updateData[action] = amount
+      
       const { error } = await supabase
-        .from('user_usage')
-        .upsert({
-          user_id: userId,
-          usage_date: today,
-          ...updateData,
-        }, {
-          onConflict: 'user_id,usage_date',
-          ignoreDuplicates: false,
-        })
+        .from('user_data')
+        .update(updateData)
+        .eq('user_id', userId)
 
       if (error) throw error
     } catch (error) {

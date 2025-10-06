@@ -51,7 +51,7 @@ export class UserSyncService {
       )
       
       const { data: users, error } = await supabase
-        .from('users')
+        .from('user_data')
         .select('*')
         .order('created_at', { ascending: false })
       
@@ -110,7 +110,7 @@ export class UserSyncService {
         if (!dbUserMap.has(authUser.id)) {
           try {
             const { error } = await supabase
-              .from('users')
+              .from('user_data')
               .insert({
                 id: authUser.id,
                 email: authUser.email || '',
@@ -143,7 +143,7 @@ export class UserSyncService {
           if (needsUpdate) {
             try {
               const { error } = await supabase
-                .from('users')
+                .from('user_data')
                 .update({
                   email: authUser.email || dbUser.email,
                   full_name: authUser.user_metadata?.full_name || 
@@ -171,7 +171,7 @@ export class UserSyncService {
         if (!authUserIds.has(dbUser.id)) {
           try {
             const { error } = await supabase
-              .from('users')
+              .from('user_data')
               .delete()
               .eq('id', dbUser.id)
 

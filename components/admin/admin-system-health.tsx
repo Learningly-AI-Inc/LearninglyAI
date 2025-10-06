@@ -72,7 +72,7 @@ export function AdminSystemHealth() {
       // Test database connection
       const startTime = Date.now()
       const { data, error } = await supabase
-        .from('users')
+        .from('user_data')
         .select('count')
         .limit(1)
       const responseTime = Date.now() - startTime

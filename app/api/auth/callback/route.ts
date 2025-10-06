@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
         }
       )
 
-      // Check if user exists in public.users; if not, create it
+      // Check if user exists in public.user_data; if not, create it
       const userId = data.user!.id
       const email = data.user!.email || ''
       const fullName = (data.user as any)?.user_metadata?.full_name ||
@@ -238,9 +238,9 @@ export async function GET(request: NextRequest) {
                        'User'
 
       const { data: existingUser, error: selectErr } = await supabaseWithCookies
-        .from('users')
-        .select('id')
-        .eq('id', userId)
+        .from('user_data')
+        .select('user_id')
+        .eq('user_id', userId)
         .single()
 
       if (selectErr && selectErr.code !== 'PGRST116') {
@@ -249,15 +249,11 @@ export async function GET(request: NextRequest) {
 
       if (!existingUser) {
         const { error: insertErr } = await supabaseWithCookies
-          .from('users')
+          .from('user_data')
           .insert({
-            id: userId,
-            email,
-            full_name: fullName,
-            username: `user_${userId.substring(0, 8)}`,
-            role: 'self-learner',
+            user_id: userId,
             created_at: data.user!.created_at,
-            last_login: data.session!.expires_at ? new Date(data.session!.expires_at * 1000).toISOString() : null,
+            updated_at: new Date().toISOString(),
           })
 
         if (insertErr) {

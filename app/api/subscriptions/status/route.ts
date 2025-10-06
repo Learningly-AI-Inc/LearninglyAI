@@ -15,11 +15,12 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Ensure there is a subscription record for this user (lazy backfill)
+    // Always ensure there is a subscription record for this user and sync with Stripe
     try {
       await subscriptionService.ensureUserSubscriptionRecord(user.id)
     } catch (e) {
       // Non-fatal; continue to compute free status if needed
+      console.log('ensureUserSubscriptionRecord failed:', e)
     }
 
     // Get user's subscription with plan details

@@ -28,7 +28,7 @@ export default function AdminDebugPage() {
 
         // Fetch user from database
         const { data, error } = await supabase
-          .from('users')
+          .from('user_data')
           .select('*')
           .eq('id', authUser.id)
           .single()
@@ -53,7 +53,7 @@ export default function AdminDebugPage() {
 
     try {
       const { error } = await supabase
-        .from('users')
+        .from('user_data')
         .update({ role: 'admin' })
         .eq('id', authUser.id)
 
@@ -62,7 +62,7 @@ export default function AdminDebugPage() {
       } else {
         // Refresh user data
         const { data } = await supabase
-          .from('users')
+          .from('user_data')
           .select('*')
           .eq('id', authUser.id)
           .single()
