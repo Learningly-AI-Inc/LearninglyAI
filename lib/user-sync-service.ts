@@ -41,7 +41,7 @@ export class UserSyncService {
   }
 
   /**
-   * Fetch all users from the public.users table
+   * Fetch all users from the public.user_data table
    */
   static async fetchDbUsers() {
     try {
@@ -103,7 +103,7 @@ export class UserSyncService {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       )
       const authUserIds = new Set(authUsers.map(u => u.id))
-      const dbUserMap = new Map(dbUsers.map(u => [u.id, u]))
+      const dbUserMap = new Map(dbUsers.map(u => [u.user_id, u]))
 
       // 1. Add new users from Auth to Database
       for (const authUser of authUsers) {
@@ -112,15 +112,9 @@ export class UserSyncService {
             const { error } = await supabase
               .from('user_data')
               .insert({
-                id: authUser.id,
-                email: authUser.email || '',
-                full_name: authUser.user_metadata?.full_name || 
-                          authUser.user_metadata?.name || 
-                          authUser.email?.split('@')[0] || 'User',
-                username: `user_${authUser.id.substring(0, 8)}`,
-                role: 'self-learner',
+                user_id: authUser.id,
                 created_at: authUser.created_at,
-                last_login: authUser.last_sign_in_at
+                updated_at: new Date().toISOString()
               })
 
             if (error) {
@@ -136,22 +130,16 @@ export class UserSyncService {
           // 2. Update existing users
           const dbUser = dbUserMap.get(authUser.id)!
           const needsUpdate = 
-            dbUser.email !== authUser.email ||
-            dbUser.full_name !== (authUser.user_metadata?.full_name || authUser.user_metadata?.name) ||
-            dbUser.last_login !== authUser.last_sign_in_at
+            dbUser.updated_at !== new Date().toISOString()
 
           if (needsUpdate) {
             try {
               const { error } = await supabase
                 .from('user_data')
                 .update({
-                  email: authUser.email || dbUser.email,
-                  full_name: authUser.user_metadata?.full_name || 
-                            authUser.user_metadata?.name || 
-                            dbUser.full_name,
-                  last_login: authUser.last_sign_in_at
+                  updated_at: new Date().toISOString()
                 })
-                .eq('id', authUser.id)
+                .eq('user_id', authUser.id)
 
               if (error) {
                 result.stats.errors.push(`Failed to update user ${authUser.email}: ${error.message}`)
@@ -168,21 +156,21 @@ export class UserSyncService {
 
       // 3. Remove users from Database that no longer exist in Auth
       for (const dbUser of dbUsers) {
-        if (!authUserIds.has(dbUser.id)) {
+        if (!authUserIds.has(dbUser.user_id)) {
           try {
             const { error } = await supabase
               .from('user_data')
               .delete()
-              .eq('id', dbUser.id)
+              .eq('user_id', dbUser.user_id)
 
             if (error) {
-              result.stats.errors.push(`Failed to remove user ${dbUser.email}: ${error.message}`)
+              result.stats.errors.push(`Failed to remove user ${dbUser.user_id}: ${error.message}`)
             } else {
               result.stats.usersRemoved++
-              console.log(`🗑️ Removed user: ${dbUser.email}`)
+              console.log(`🗑️ Removed user: ${dbUser.user_id}`)
             }
           } catch (error: any) {
-            result.stats.errors.push(`Error removing user ${dbUser.email}: ${error.message}`)
+            result.stats.errors.push(`Error removing user ${dbUser.user_id}: ${error.message}`)
           }
         }
       }
@@ -221,16 +209,14 @@ export class UserSyncService {
       ])
 
       const authUserIds = new Set(authUsers.map(u => u.id))
-      const dbUserIds = new Set(dbUsers.map(u => u.id))
+      const dbUserIds = new Set(dbUsers.map(u => u.user_id))
 
       const usersToAdd = authUsers.filter(u => !dbUserIds.has(u.id))
-      const usersToRemove = dbUsers.filter(u => !authUserIds.has(u.id))
+      const usersToRemove = dbUsers.filter(u => !authUserIds.has(u.user_id))
       const usersToUpdate = authUsers.filter(u => {
-        const dbUser = dbUsers.find(d => d.id === u.id)
+        const dbUser = dbUsers.find(d => d.user_id === u.id)
         return dbUser && (
-          dbUser.email !== u.email ||
-          dbUser.full_name !== (u.user_metadata?.full_name || u.user_metadata?.name) ||
-          dbUser.last_login !== u.last_sign_in_at
+          dbUser.updated_at !== new Date().toISOString()
         )
       })
 

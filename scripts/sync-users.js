@@ -41,7 +41,7 @@ async function fetchAuthUsers() {
 async function fetchDbUsers() {
   try {
     const { data: users, error } = await supabase
-      .from('users')
+      .from('user_data')
       .select('*')
       .order('created_at', { ascending: false })
     
@@ -70,7 +70,7 @@ async function syncUsers(dryRun = false) {
     console.log(`📊 Found ${authUsers.length} auth users and ${dbUsers.length} db users`)
 
     const authUserIds = new Set(authUsers.map(u => u.id))
-    const dbUserMap = new Map(dbUsers.map(u => [u.id, u]))
+    const dbUserMap = new Map(dbUsers.map(u => [u.user_id, u]))
 
     let usersAdded = 0
     let usersUpdated = 0
@@ -83,17 +83,11 @@ async function syncUsers(dryRun = false) {
         try {
           if (!dryRun) {
             const { error } = await supabase
-              .from('users')
+              .from('user_data')
               .insert({
-                id: authUser.id,
-                email: authUser.email || '',
-                full_name: authUser.user_metadata?.full_name || 
-                          authUser.user_metadata?.name || 
-                          authUser.email?.split('@')[0] || 'User',
-                username: `user_${authUser.id.substring(0, 8)}`,
-                role: 'self-learner',
+                user_id: authUser.id,
                 created_at: authUser.created_at,
-                last_login: authUser.last_sign_in_at
+                updated_at: new Date().toISOString()
               })
 
             if (error) {
@@ -113,23 +107,17 @@ async function syncUsers(dryRun = false) {
         // 2. Update existing users
         const dbUser = dbUserMap.get(authUser.id)!
         const needsUpdate = 
-          dbUser.email !== authUser.email ||
-          dbUser.full_name !== (authUser.user_metadata?.full_name || authUser.user_metadata?.name) ||
-          dbUser.last_login !== authUser.last_sign_in_at
+          dbUser.updated_at !== new Date().toISOString()
 
         if (needsUpdate) {
           try {
             if (!dryRun) {
               const { error } = await supabase
-                .from('users')
+                .from('user_data')
                 .update({
-                  email: authUser.email || dbUser.email,
-                  full_name: authUser.user_metadata?.full_name || 
-                            authUser.user_metadata?.name || 
-                            dbUser.full_name,
-                  last_login: authUser.last_sign_in_at
+                  updated_at: new Date().toISOString()
                 })
-                .eq('id', authUser.id)
+                .eq('user_id', authUser.id)
 
               if (error) {
                 errors.push(`Failed to update user ${authUser.email}: ${error.message}`)
@@ -150,26 +138,26 @@ async function syncUsers(dryRun = false) {
 
     // 3. Remove users from Database that no longer exist in Auth
     for (const dbUser of dbUsers) {
-      if (!authUserIds.has(dbUser.id)) {
+      if (!authUserIds.has(dbUser.user_id)) {
         try {
           if (!dryRun) {
             const { error } = await supabase
-              .from('users')
+              .from('user_data')
               .delete()
-              .eq('id', dbUser.id)
+              .eq('user_id', dbUser.user_id)
 
             if (error) {
-              errors.push(`Failed to remove user ${dbUser.email}: ${error.message}`)
+              errors.push(`Failed to remove user ${dbUser.user_id}: ${error.message}`)
             } else {
               usersRemoved++
-              console.log(`🗑️ Removed user: ${dbUser.email}`)
+              console.log(`🗑️ Removed user: ${dbUser.user_id}`)
             }
           } else {
             usersRemoved++
-            console.log(`[DRY RUN] Would remove user: ${dbUser.email}`)
+            console.log(`[DRY RUN] Would remove user: ${dbUser.user_id}`)
           }
         } catch (error) {
-          errors.push(`Error removing user ${dbUser.email}: ${error.message}`)
+          errors.push(`Error removing user ${dbUser.user_id}: ${error.message}`)
         }
       }
     }
