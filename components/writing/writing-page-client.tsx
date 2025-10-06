@@ -184,7 +184,7 @@ const WritingPageClient = () => {
         setLastProcessedFeature("Grammar Check");
         setLastGrammarCheckHash(currentContentHash); // Track this content
         setLastGrammarCheckResult('had-issues'); // Mark that this content had issues
-        // Do NOT modify editor content with highlights
+        // Do NOT modify editor content with highlights - keep original content
         setHighlightedContent("");
         toast.info(`Found ${data.grammarIssues.length} grammar issue${data.grammarIssues.length > 1 ? 's' : ''} to review.`);
       } else {
@@ -390,6 +390,13 @@ const WritingPageClient = () => {
     }
     
     if (appliedCount > 0) {
+      // Preserve scroll position before updating content
+      const editorElement = editorRef?.current?.editor;
+      let scrollTop = 0;
+      if (editorElement) {
+        scrollTop = editorElement.scrollTop;
+      }
+      
       setEditorContent(updatedContent);
       setEditorKey(prev => prev + 1);
       setGrammarIssues([]);
@@ -399,6 +406,15 @@ const WritingPageClient = () => {
       setLastGrammarCheckResult(null); // Reset result since content changed
       setSelectedText("");
       setLastSelectedText(""); // Clear backup
+      
+      // Restore scroll position after content update
+      setTimeout(() => {
+        if (editorElement && scrollTop > 0) {
+          editorElement.scrollTop = scrollTop;
+        }
+        ensureEditorFocus();
+      }, 100);
+      
       toast.success(`All ${appliedCount} grammar issue${appliedCount > 1 ? 's' : ''} fixed successfully!`);
     } else {
       toast.error("Could not apply grammar fixes. Please try individual fixes.");
@@ -455,6 +471,13 @@ const WritingPageClient = () => {
         
         // Only proceed if content actually changed
         if (updatedContent !== editorContent) {
+          // Preserve scroll position before updating content
+          const editorElement = editorRef?.current?.editor;
+          let scrollTop = 0;
+          if (editorElement) {
+            scrollTop = editorElement.scrollTop;
+          }
+          
           // Force editor to update by setting content and incrementing key
           setEditorContent(updatedContent);
           setEditorKey(prev => prev + 1);
@@ -465,8 +488,11 @@ const WritingPageClient = () => {
             setEditorRawContent(updatedRawContent);
           }
           
-          // Ensure editor maintains focus and cursor visibility
+          // Restore scroll position and ensure editor maintains focus
           setTimeout(() => {
+            if (editorElement && scrollTop > 0) {
+              editorElement.scrollTop = scrollTop;
+            }
             ensureEditorFocus();
           }, 100);
           
@@ -484,13 +510,12 @@ const WritingPageClient = () => {
             setGrammarIssues(updatedGrammarIssues);
             setSelectedText("");
             
-            // Update highlights for remaining issues
-            if (updatedGrammarIssues.length > 0) {
-              const newHighlighted = highlightGrammarIssues(updatedContent, updatedGrammarIssues);
-              setHighlightedContent(newHighlighted);
-            } else {
-              setHighlightedContent("");
-              setCurrentIssueIndex(-1);
+            // Clear highlights since we're not using them in the editor
+            setHighlightedContent("");
+            setCurrentIssueIndex(-1);
+            
+            // If no more issues, reset tracking
+            if (updatedGrammarIssues.length === 0) {
               setLastGrammarCheckHash(""); // Reset hash since content changed
               setLastGrammarCheckResult(null); // Reset result since content changed
             }
@@ -520,8 +545,55 @@ const WritingPageClient = () => {
 
   // Scroll to the first occurrence of an issue in the editor (no inline highlighting)
   const revealIssueInEditor = (issue: GrammarIssue) => {
-    // No-op to avoid injecting any markup into the editor
-    return;
+    // Try to find and scroll to the text in the editor without modifying content
+    if (editorRef?.current?.editor && issue.original) {
+      const editorElement = editorRef.current.editor;
+      const editorContent = editorElement.textContent || editorElement.innerText || '';
+      
+      // Find the position of the issue text
+      const textIndex = editorContent.indexOf(issue.original);
+      if (textIndex !== -1) {
+        // Create a temporary selection to scroll to the text
+        const range = document.createRange();
+        const walker = document.createTreeWalker(
+          editorElement,
+          NodeFilter.SHOW_TEXT
+        );
+        
+        let currentIndex = 0;
+        let targetNode = null;
+        
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          const nodeLength = node.textContent?.length || 0;
+          
+          if (currentIndex + nodeLength >= textIndex) {
+            targetNode = node;
+            break;
+          }
+          currentIndex += nodeLength;
+        }
+        
+        if (targetNode) {
+          try {
+            range.setStart(targetNode, textIndex - currentIndex);
+            range.setEnd(targetNode, textIndex - currentIndex + issue.original.length);
+            
+            const selection = window.getSelection();
+            if (selection) {
+              selection.removeAllRanges();
+              selection.addRange(range);
+              
+              // Scroll the range into view
+              range.getBoundingClientRect();
+              editorElement.scrollTop = editorElement.scrollTop + range.getBoundingClientRect().top - editorElement.getBoundingClientRect().top - 100;
+            }
+          } catch (error) {
+            console.log('Could not scroll to issue:', error);
+          }
+        }
+      }
+    }
   };
 
   // Function to handle rejecting suggestions
