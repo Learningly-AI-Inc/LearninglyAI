@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuthContext } from "@/components/auth/auth-provider"
 import { useRouter } from "next/navigation"
+import { useSubscription } from "@/hooks/use-subscription"
 
 interface NavigationItem {
   href: string;
@@ -109,12 +110,17 @@ export default function AppSidebar({
 }: AppSidebarProps) {
   const { signOut, user } = useAuthContext()
   const router = useRouter()
+  const { subscription } = useSubscription()
 
   // Show/hide Upgrade card (dismiss for current page only; resets on refresh)
+  // Only show for Free plan users
   const [showUpgradeCard, setShowUpgradeCard] = React.useState(true)
   const handleCloseUpgrade = () => {
     setShowUpgradeCard(false)
   }
+
+  // Only show upgrade card if user is on Free plan
+  const shouldShowUpgradeCard = showUpgradeCard && (!subscription || subscription.plan.name === 'Free')
 
   const handleLogout = async () => {
     try {
@@ -234,7 +240,7 @@ export default function AppSidebar({
       </div>
 
       <div className="p-4 border-t border-border/50 space-y-4">
-        {showUpgradeCard && (
+        {shouldShowUpgradeCard && (
         <div className={`relative rounded-2xl bg-blue-600 text-white ${sidebarCollapsed ? "p-2 flex justify-center" : "p-4"} modern-shadow`}>
           {!sidebarCollapsed && (
             <button

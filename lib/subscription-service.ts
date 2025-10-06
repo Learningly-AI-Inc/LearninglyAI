@@ -191,7 +191,14 @@ export class SubscriptionService {
             if (priceId || productId) {
               // Try to determine plan based on price
               if (price?.unit_amount) {
-                if (price.unit_amount >= 1500) planName = 'Premium'  // $15+ is Premium (both $15 and $100)
+                if (price.unit_amount === 1500) {
+                  planName = 'Premium (Monthly)'  // $15 is Premium Monthly
+                  planPrice = 1500
+                } else if (price.unit_amount === 10000) {
+                  planName = 'Premium (Yearly)'   // $100 is Premium Yearly
+                  planPrice = 10000
+                }
+                // Everything else is Free (default values above)
               }
             }
 
@@ -529,9 +536,15 @@ export class SubscriptionService {
       if (subscription.status === 'active' || subscription.status === 'trialing') {
         const price = subscription.items.data[0]?.price
         if (price?.unit_amount) {
-          if (price.unit_amount >= 1500) planName = 'Premium'  // $15+ is Premium (both $15 and $100)
+          if (price.unit_amount === 1500) {
+            planName = 'Premium (Monthly)'  // $15 is Premium Monthly
+            planPrice = 1500
+          } else if (price.unit_amount === 10000) {
+            planName = 'Premium (Yearly)'   // $100 is Premium Yearly
+            planPrice = 10000
+          }
+          // Everything else is Free (default values above)
         }
-        planPrice = price?.unit_amount || 0
       }
 
       const { error } = await supabase
@@ -616,9 +629,12 @@ export class SubscriptionService {
       const price = await stripe.prices.retrieve(priceId)
       
       if (price.unit_amount) {
-        if (price.unit_amount >= 1500) {
-          return { name: 'Premium', price_cents: price.unit_amount }  // $15+ is Premium (both $15 and $100)
+        if (price.unit_amount === 1500) {
+          return { name: 'Premium (Monthly)', price_cents: price.unit_amount }  // $15 is Premium Monthly
+        } else if (price.unit_amount === 10000) {
+          return { name: 'Premium (Yearly)', price_cents: price.unit_amount }   // $100 is Premium Yearly
         }
+        // Everything else is Free - return null to use default Free plan
       }
 
       return null
@@ -669,7 +685,7 @@ export class SubscriptionService {
       const supabase = await this.getSupabase()
       const { data, error } = await supabase
         .from('user_data')
-        .select('plan_name, documents_uploaded, ai_requests, search_queries, exam_sessions')
+        .select('plan_name, documents_uploaded, ai_requests, search_queries, exam_sessions, storage_used_bytes')
         .eq('user_id', userId)
         .single()
 
@@ -686,6 +702,7 @@ export class SubscriptionService {
             case 'documents_uploaded': limit = 1; break
             case 'search_queries': limit = 50; break
             case 'exam_sessions': limit = 5; break
+            case 'storage_used_bytes': limit = 100 * 1024 * 1024; break // 100MB
             default: limit = 0
           }
           break
@@ -695,6 +712,7 @@ export class SubscriptionService {
             case 'documents_uploaded': limit = 20; break
             case 'search_queries': limit = 500; break
             case 'exam_sessions': limit = 50; break
+            case 'storage_used_bytes': limit = 1024 * 1024 * 1024; break // 1GB
             default: limit = 0
           }
           break

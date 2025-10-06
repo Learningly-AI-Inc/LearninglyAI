@@ -93,7 +93,16 @@ export default function PricingPage() {
       const response = await fetch('/api/subscriptions/status')
       if (response.ok) {
         const data = await response.json()
-        setCurrentPlan(data.plan.name)
+        // Determine plan type based on price_cents
+        if (data.plan.price_cents === 1500) {
+          setCurrentPlan('Premium (Monthly)')
+        } else if (data.plan.price_cents === 10000) {
+          setCurrentPlan('Premium (Yearly)')
+        } else if (data.plan.price_cents === 0) {
+          setCurrentPlan('Freemium')
+        } else {
+          setCurrentPlan(data.plan.name)
+        }
       }
     } catch (error) {
       console.error('Error fetching current subscription:', error)
@@ -143,21 +152,21 @@ export default function PricingPage() {
           {/* Freemium (free) */}
           <SubscriptionCard
             plan={plans.find(p => p.id === 'free')!}
-            isCurrentPlan={currentPlan.toLowerCase().includes('free')}
+            isCurrentPlan={currentPlan === 'Freemium'}
             isPopular={false}
             checkoutPlan={'freemium'}
           />
           {/* Premium Monthly – maps to previous freemium price per instruction */}
           <SubscriptionCard
             plan={plans.find(p => p.id === 'premium-monthly')!}
-            isCurrentPlan={currentPlan.toLowerCase().includes('freemium')}
+            isCurrentPlan={currentPlan === 'Premium (Monthly)'}
             isPopular={true}
             checkoutPlan={'freemium'}
           />
           {/* Premium Yearly – maps to previous premium price */}
           <SubscriptionCard
             plan={plans.find(p => p.id === 'premium-yearly')!}
-            isCurrentPlan={currentPlan.toLowerCase().includes('premium')}
+            isCurrentPlan={currentPlan === 'Premium (Yearly)'}
             isPopular={false}
             checkoutPlan={'premium_yearly'}
           />

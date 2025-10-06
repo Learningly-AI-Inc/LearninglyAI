@@ -234,7 +234,7 @@ export class StripeSyncService {
               perPage: 1000
             })
             
-            const user = authUsers?.users?.find(u => u.email === email)
+            const user = authUsers?.users?.find((u: any) => u.email === email)
             
             if (user) {
               console.log(`🔗 Linking orphaned subscription to user: ${email}`)
