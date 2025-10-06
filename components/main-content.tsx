@@ -11,9 +11,11 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { PremiumIndicator } from "@/components/ui/premium-indicator"
 import { Header } from "@/components/ui/header"
 import { motion } from "framer-motion"
 import { useAuthContext } from "@/components/auth/auth-provider"
+import { useSubscription } from "@/hooks/use-subscription"
 import { getUserMetadata } from "@/types/auth"
 
 const featureCards = [
@@ -70,6 +72,7 @@ interface MainContentProps {
 
 export default function MainContent({ sidebarCollapsed }: MainContentProps) {
   const { user } = useAuthContext()
+  const { subscription } = useSubscription()
   
   // Extract user information
   const userMetadata = user ? getUserMetadata(user) : null
@@ -112,12 +115,15 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
             <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-gradient-to-br from-red-400 to-red-600 rounded-full border-2 border-white animate-pulse"></span>
           </Button>
           <div className="flex items-center space-x-3">
-            <Avatar className="h-9 w-9 ring-2 ring-primary/20">
-              <AvatarImage src={userMetadata?.avatar_url || userMetadata?.picture} />
-              <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-medium">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="h-9 w-9 ring-2 ring-primary/20">
+                <AvatarImage src={userMetadata?.avatar_url || userMetadata?.picture} />
+                <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-medium">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <PremiumIndicator />
+            </div>
           </div>
         </div>
       </header>

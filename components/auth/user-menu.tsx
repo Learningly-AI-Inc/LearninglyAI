@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { PremiumIndicator } from '@/components/ui/premium-indicator'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -210,12 +211,7 @@ export function UserMenu() {
               )}
             </AvatarFallback>
           </Avatar>
-          {subscription && (subscription.status === 'active' || subscription.status === 'trialing') && subscription.subscription_plans && subscription.subscription_plans.name !== 'Free' && (
-            <span title="Premium"
-              className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-400 text-white shadow">
-              PRO
-            </span>
-          )}
+          <PremiumIndicator />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
