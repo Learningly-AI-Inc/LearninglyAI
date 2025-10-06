@@ -42,10 +42,11 @@ export async function POST(req: NextRequest) {
 
     // Get document from database
     const { data: document, error: docError } = await supabase
-      .from('reading_documents')
+      .from('documents')
       .select('*')
       .eq('id', documentId)
       .eq('user_id', user.id)
+      .eq('document_type', 'reading')
       .single();
 
     if (docError || !document) {
@@ -230,7 +231,7 @@ export async function POST(req: NextRequest) {
       if (updatedExtractedText && updatedExtractedText.length > 0) {
         try {
           await supabase
-            .from('reading_documents')
+            .from('documents')
             .update({
               extracted_text: updatedExtractedText,
               text_length: updatedExtractedText.length,
@@ -240,6 +241,7 @@ export async function POST(req: NextRequest) {
             })
             .eq('id', document.id)
             .eq('user_id', user.id)
+            .eq('document_type', 'reading')
         } catch {}
         // Reflect in-memory
         document.extracted_text = updatedExtractedText

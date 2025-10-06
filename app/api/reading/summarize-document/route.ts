@@ -170,10 +170,11 @@ export async function POST(req: NextRequest) {
 
     // Get document from database
     const { data: document, error: docError } = await supabase
-      .from('reading_documents')
+      .from('documents')
       .select('*')
       .eq('id', documentId)
       .eq('user_id', user.id)
+      .eq('document_type', 'reading')
       .single();
 
     if (docError || !document) {
@@ -265,7 +266,7 @@ export async function POST(req: NextRequest) {
 
           if (freshText && freshText.trim().length >= 50) {
             await supabase
-              .from('reading_documents')
+              .from('documents')
               .update({
                 extracted_text: freshText,
                 text_length: freshText.length,
@@ -274,6 +275,7 @@ export async function POST(req: NextRequest) {
                 updated_at: new Date().toISOString()
               })
               .eq('id', document.id)
+              .eq('document_type', 'reading')
             // Update in-memory object for downstream context
             document.extracted_text = freshText
             document.text_length = freshText.length
@@ -358,7 +360,7 @@ export async function POST(req: NextRequest) {
           const pages = document.page_count || 1
           if (fresh && fresh.length > 50) {
               await supabase2
-                .from('reading_documents')
+                .from('documents')
                 .update({
                   extracted_text: fresh,
                   text_length: fresh.length,
@@ -367,6 +369,7 @@ export async function POST(req: NextRequest) {
                   updated_at: new Date().toISOString()
                 })
                 .eq('id', document.id)
+                .eq('document_type', 'reading')
               // Re-fetch context
               const contextResponse2 = await fetch(`${req.nextUrl.origin}/api/reading/get-context`, {
                 method: 'POST',
@@ -435,14 +438,15 @@ export async function POST(req: NextRequest) {
     // Save summary to database (with caching consideration)
     try {
       const { error: saveError } = await supabase
-        .from('reading_documents')
+        .from('documents')
         .update({
           summary: summary,
           summary_type: summaryType,
           summary_updated_at: new Date().toISOString(),
           summary_cached: true // Mark as cached for future optimization
         })
-        .eq('id', documentId);
+        .eq('id', documentId)
+        .eq('document_type', 'reading');
       if (saveError) {
         const code = (saveError as any)?.code || ''
         if (code === 'PGRST204') {

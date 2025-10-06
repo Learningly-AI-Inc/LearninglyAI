@@ -815,7 +815,7 @@ Note: The document has been processed through our webhook system and is availabl
     
     // Store document metadata in database
     const { data: documentRecord, error: dbError } = await supabase
-      .from('reading_documents')
+      .from('documents')
       .insert({
         user_id: user.id,
         title: fileName.replace(/\.(pdf|txt|docx)$/i, ''),
@@ -824,11 +824,11 @@ Note: The document has been processed through our webhook system and is availabl
         file_type: fileExtension,
         file_size: fileSize,
         mime_type: fileType,
+        document_type: 'reading',
         extracted_text: useClientText ? (extractedText || '') : (serverExtractedText || ''),
         page_count: useClientText ? parseInt(pageCount) || 1 : serverPageCount,
         text_length: useClientText ? (extractedText ? extractedText.length : 0) : (serverExtractedText ? serverExtractedText.length : 0),
         processing_status: (useClientText ? (extractedText && extractedText.trim().length > 0) : (serverExtractedText && serverExtractedText.trim().length > 0)) ? 'completed' : 'failed',
-        processing_notes: processingNotes,
         public_url: fileUrl,
         metadata: {
           uploadedAt: new Date().toISOString(),

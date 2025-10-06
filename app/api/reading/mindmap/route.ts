@@ -73,10 +73,11 @@ export async function POST(req: NextRequest) {
 
     // Get document from database
     const { data: document, error: docError } = await supabase
-      .from('reading_documents')
+      .from('documents')
       .select('*')
       .eq('id', documentId)
       .eq('user_id', user.id)
+      .eq('document_type', 'reading')
       .single();
 
     if (docError || !document) {

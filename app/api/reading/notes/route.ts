@@ -20,10 +20,11 @@ export async function POST(req: NextRequest) {
     }
 
     const { data: document, error: docError } = await supabase
-      .from('reading_documents')
+      .from('documents')
       .select('*')
       .eq('id', documentId)
       .eq('user_id', user.id)
+      .eq('document_type', 'reading')
       .single();
 
     if (docError || !document) {
@@ -88,9 +89,10 @@ Return ONLY markdown with optional small headings and bullet lists.`;
 
     // Optionally store latest notes snapshot
     await supabase
-      .from('reading_documents')
+      .from('documents')
       .update({ notes_md: notes, notes_updated_at: new Date().toISOString() })
-      .eq('id', documentId);
+      .eq('id', documentId)
+      .eq('document_type', 'reading');
 
     return NextResponse.json({ success: true, notes, metadata: { model, contextChunks: context.chunks.length } });
   } catch (error: any) {

@@ -19,9 +19,10 @@ export async function GET(request: NextRequest) {
 
     // Fetch user's documents from database
     const { data: documents, error: dbError } = await supabase
-      .from('reading_documents')
+      .from('documents')
       .select('*')
       .eq('user_id', user.id)
+      .eq('document_type', 'reading')
       .order('created_at', { ascending: false });
 
     if (dbError) {
@@ -41,8 +42,8 @@ export async function GET(request: NextRequest) {
       originalFilename: doc.original_filename,
       fileType: doc.file_type,
       fileSize: doc.file_size,
-      pageCount: doc.page_count,
-      textLength: doc.text_length,
+      pageCount: doc.page_count || 1,
+      textLength: doc.text_length || 0,
       processingStatus: doc.processing_status,
       publicUrl: doc.public_url,
       filePath: doc.file_path,
@@ -103,10 +104,11 @@ export async function DELETE(request: NextRequest) {
     // Get document details first
     console.log('🔍 Fetching document details for:', documentId);
     const { data: document, error: fetchError } = await supabase
-      .from('reading_documents')
+      .from('documents')
       .select('file_path')
       .eq('id', documentId)
       .eq('user_id', user.id)
+      .eq('document_type', 'reading')
       .single();
 
     console.log('📄 Document fetch result:', { document, fetchError });
@@ -135,10 +137,11 @@ export async function DELETE(request: NextRequest) {
     // Delete from database
     console.log('🗃️ Deleting from database:', documentId);
     const { error: dbError } = await supabase
-      .from('reading_documents')
+      .from('documents')
       .delete()
       .eq('id', documentId)
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .eq('document_type', 'reading');
 
     if (dbError) {
       console.error('❌ Database deletion error:', dbError);

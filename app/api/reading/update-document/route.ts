@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     // Update the document with the extracted text
     const { data, error } = await supabase
-      .from('reading_documents')
+      .from('documents')
       .update({
         extracted_text: extractedText,
         page_count: pageCount || 1,
@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
       })
       .eq('id', documentId)
       .eq('user_id', user.id)
+      .eq('document_type', 'reading')
       .select()
       .single();
 
