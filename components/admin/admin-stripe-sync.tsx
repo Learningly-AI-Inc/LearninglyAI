@@ -186,7 +186,7 @@ export function AdminStripeSync() {
           </div>
 
           {/* Health Issues */}
-          {stats?.syncHealth.errors.length > 0 && (
+          {stats?.syncHealth.errors && stats.syncHealth.errors.length > 0 && (
             <Alert variant="destructive">
               <XCircle className="h-4 w-4" />
               <AlertDescription>
@@ -200,7 +200,7 @@ export function AdminStripeSync() {
             </Alert>
           )}
 
-          {stats?.syncHealth.warnings.length > 0 && (
+          {stats?.syncHealth.warnings && stats.syncHealth.warnings.length > 0 && (
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
@@ -215,7 +215,7 @@ export function AdminStripeSync() {
           )}
 
           {/* Recommendations */}
-          {stats?.syncHealth.recommendations.length > 0 && (
+          {stats?.syncHealth.recommendations && stats.syncHealth.recommendations.length > 0 && (
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>

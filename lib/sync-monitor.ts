@@ -167,7 +167,7 @@ export class SyncMonitor {
         totalUsers,
         activeSubscriptions,
         freeUsers,
-        lastSync: lastSync?.getTime() > 0 ? lastSync : null,
+        lastSync: lastSync && lastSync.getTime() > 0 ? lastSync : null,
         syncHealth
       }
 
