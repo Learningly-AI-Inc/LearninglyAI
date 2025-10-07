@@ -8,6 +8,7 @@ import { EventForm } from "@/components/calendar/event-form"
 import { SyllabusUpload } from "@/components/calendar/syllabus-upload"
 import { VoiceEditor } from "@/components/calendar/voice-editor"
 import { CalendarIntegrationComponent } from "@/components/calendar/calendar-integration"
+import { CalendarSettings } from "@/components/calendar/calendar-settings"
 import { useCalendar } from "@/hooks/use-calendar"
 import { CalendarEvent, EventFormData, GeneratedSchedule } from "@/types/calendar"
 
@@ -127,9 +128,7 @@ const CalendarPage = () => {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
-          <div className="text-center py-12 text-muted-foreground">
-            <p>Calendar settings coming soon...</p>
-          </div>
+          <CalendarSettings />
         </TabsContent>
       </Tabs>
 
