@@ -163,6 +163,9 @@ const WritingPageClient = () => {
     setIsProcessing(true);
     setProcessingAction('grammar');
     
+    // Preserve scroll position before grammar check to prevent content shifting
+    const scrollPreservation = preserveScrollPosition();
+    
     try {
       // Call our API for grammar checking
       const response = await fetch('/api/writing/grammar', {
@@ -180,22 +183,36 @@ const WritingPageClient = () => {
       
       const data = await response.json();
       if (data.grammarIssues && data.grammarIssues.length > 0) {
-        setGrammarIssues(data.grammarIssues);
-        setLastProcessedFeature("Grammar Check");
-        setLastGrammarCheckHash(currentContentHash); // Track this content
-        setLastGrammarCheckResult('had-issues'); // Mark that this content had issues
-        // Do NOT modify editor content with highlights - keep original content
-        setHighlightedContent("");
+        // Use requestAnimationFrame to batch state updates and prevent layout shifts
+        requestAnimationFrame(() => {
+          setGrammarIssues(data.grammarIssues);
+          setLastProcessedFeature("Grammar Check");
+          setLastGrammarCheckHash(currentContentHash); // Track this content
+          setLastGrammarCheckResult('had-issues'); // Mark that this content had issues
+          // Do NOT modify editor content with highlights - keep original content
+          setHighlightedContent("");
+        });
         toast.info(`Found ${data.grammarIssues.length} grammar issue${data.grammarIssues.length > 1 ? 's' : ''} to review.`);
       } else {
-        setGrammarIssues([]);
-        setHighlightedContent("");
-        setCurrentIssueIndex(-1);
-        setLastProcessedFeature("Grammar Check (No issues)");
-        setLastGrammarCheckHash(currentContentHash); // Mark this content as checked
-        setLastGrammarCheckResult('no-issues'); // Mark that this content has no issues
+        // Use requestAnimationFrame to batch state updates and prevent layout shifts
+        requestAnimationFrame(() => {
+          setGrammarIssues([]);
+          setHighlightedContent("");
+          setCurrentIssueIndex(-1);
+          setLastProcessedFeature("Grammar Check (No issues)");
+          setLastGrammarCheckHash(currentContentHash); // Mark this content as checked
+          setLastGrammarCheckResult('no-issues'); // Mark that this content has no issues
+        });
         toast.success('No grammar issues found. Your text looks great!');
       }
+      
+      // Restore scroll position after grammar check to prevent content shifting
+      if (scrollPreservation) {
+        setTimeout(() => {
+          scrollPreservation.restore();
+        }, 100);
+      }
+      
       setIsProcessing(false);
       setProcessingAction(null);
     } catch (error) {
@@ -393,6 +410,12 @@ const WritingPageClient = () => {
       // Preserve exact scroll position before updating
       const scrollPreservation = preserveScrollPosition();
       
+      // Temporarily disable editor auto-scroll to prevent jumping
+      const editorElement = editorRef?.current?.editor;
+      if (editorElement) {
+        editorElement.style.scrollBehavior = 'auto';
+      }
+      
       // In-place update to avoid jump
       setEditorContent(updatedContent);
       if (editorRef && (editorRef as any).replaceHtmlContent) {
@@ -408,13 +431,24 @@ const WritingPageClient = () => {
       setSelectedText("");
       setLastSelectedText(""); // Clear backup
       
-      // Restore exact scroll position to keep text in same place
-      setTimeout(() => {
+      // Use requestAnimationFrame for better timing and multiple attempts to restore scroll
+      const restoreScrollAndFocus = () => {
         if (scrollPreservation) {
           scrollPreservation.restore();
         }
         ensureEditorFocus();
-      }, 100);
+        // Re-enable smooth scrolling after restoration
+        if (editorElement) {
+          editorElement.style.scrollBehavior = 'smooth';
+        }
+      };
+      
+      // Try multiple times to ensure scroll position is restored
+      requestAnimationFrame(() => {
+        restoreScrollAndFocus();
+        // Single additional attempt for stubborn cases
+        setTimeout(restoreScrollAndFocus, 50);
+      });
       
       toast.success(`All ${appliedCount} grammar issue${appliedCount > 1 ? 's' : ''} fixed successfully!`);
     } else {
@@ -501,6 +535,12 @@ const WritingPageClient = () => {
           // Preserve exact scroll position before updating
           const scrollPreservation = preserveScrollPosition();
           
+          // Temporarily disable editor auto-scroll to prevent jumping
+          const editorElement = editorRef?.current?.editor;
+          if (editorElement) {
+            editorElement.style.scrollBehavior = 'auto';
+          }
+          
           // Update content in-place to avoid visual jump
           setEditorContent(updatedContent);
           if (editorRef && (editorRef as any).replaceHtmlContent) {
@@ -515,13 +555,24 @@ const WritingPageClient = () => {
             setEditorRawContent(updatedRawContent);
           }
           
-          // Restore exact scroll position to keep text in same place
-          setTimeout(() => {
+          // Use requestAnimationFrame for better timing and multiple attempts to restore scroll
+          const restoreScrollAndFocus = () => {
             if (scrollPreservation) {
               scrollPreservation.restore();
             }
             ensureEditorFocus();
-          }, 100);
+            // Re-enable smooth scrolling after restoration
+            if (editorElement) {
+              editorElement.style.scrollBehavior = 'smooth';
+            }
+          };
+          
+          // Try multiple times to ensure scroll position is restored
+          requestAnimationFrame(() => {
+            restoreScrollAndFocus();
+            // Single additional attempt for stubborn cases
+            setTimeout(restoreScrollAndFocus, 50);
+          });
           
           if (isParaphrase) {
             // Clear paraphrase suggestions
@@ -922,18 +973,54 @@ const WritingPageClient = () => {
       const scrollHeight = editorElement.scrollHeight || 0;
       const clientHeight = editorElement.clientHeight || 0;
       
-      // Store the exact scroll position and dimensions
+      // Only preserve scroll if we're actually scrolled down
+      if (scrollTop <= 10) {
+        return null; // Don't preserve scroll if we're near the top
+      }
+      
+      // Calculate relative position as a percentage of scrollable content
+      const maxScrollTop = Math.max(0, scrollHeight - clientHeight);
+      const relativePosition = maxScrollTop > 0 ? scrollTop / maxScrollTop : 0;
+      
       return {
         scrollTop,
         scrollHeight,
         clientHeight,
+        relativePosition,
         restore: () => {
           if (editorElement) {
-            // Calculate the new scroll position to maintain the same visual position
-            const newScrollHeight = editorElement.scrollHeight || 0;
-            const heightDiff = newScrollHeight - scrollHeight;
-            const newScrollTop = Math.max(0, scrollTop + heightDiff);
-            editorElement.scrollTop = newScrollTop;
+            // Use requestAnimationFrame for better timing
+            requestAnimationFrame(() => {
+              const newScrollHeight = editorElement.scrollHeight || 0;
+              const newClientHeight = editorElement.clientHeight || 0;
+              const newMaxScrollTop = Math.max(0, newScrollHeight - newClientHeight);
+              
+              // Only restore if we have meaningful scrollable content
+              if (newMaxScrollTop > 50) {
+                // Try relative position first (more accurate for content changes)
+                if (newMaxScrollTop > 0) {
+                  const newScrollTop = relativePosition * newMaxScrollTop;
+                  editorElement.scrollTop = Math.max(0, newScrollTop);
+                }
+                
+                // Fallback to height difference method
+                const heightDiff = newScrollHeight - scrollHeight;
+                const fallbackScrollTop = Math.max(0, scrollTop + heightDiff);
+                
+                // Use the method that results in a position closer to the original
+                const relativeScrollTop = relativePosition * newMaxScrollTop;
+                const finalScrollTop = Math.abs(relativeScrollTop - scrollTop) < Math.abs(fallbackScrollTop - scrollTop) 
+                  ? relativeScrollTop 
+                  : fallbackScrollTop;
+                
+                editorElement.scrollTop = Math.max(0, finalScrollTop);
+                
+                // Single additional attempt for stubborn cases
+                setTimeout(() => {
+                  editorElement.scrollTop = Math.max(0, finalScrollTop);
+                }, 50);
+              }
+            });
           }
         }
       };

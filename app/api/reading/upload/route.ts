@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { uploadKnowledgeBaseAs, webhookDebugger } from '@/api-config';
+import { subscriptionService } from '@/lib/subscription-service';
 
 // Ensure large form-data uploads are handled by Node runtime and allow bigger bodies
 export const runtime = 'nodejs'
@@ -149,6 +150,25 @@ export async function POST(req: NextRequest) {
     }
 
     console.log('✅ User authenticated:', user.id);
+
+    // Check usage limits before processing
+    const canUpload = await subscriptionService.checkUsageLimit(user.id, 'documents_uploaded', 1);
+    if (!canUpload) {
+      const subscription = await subscriptionService.getUserSubscriptionWithPlan(user.id);
+      const isFreePlan = subscription?.subscription_plans?.name?.toLowerCase().includes('free');
+      
+      return NextResponse.json(
+        { 
+          error: 'Upload limit exceeded',
+          message: isFreePlan 
+            ? 'You\'ve reached your free plan document upload limit. Upgrade to continue uploading documents.'
+            : 'Document upload limit exceeded.',
+          needsUpgrade: isFreePlan,
+          limitType: 'documents_uploaded'
+        },
+        { status: 429 }
+      );
+    }
 
     // Obtain the file buffer (from binary upload or by downloading from Supabase via fileUrl)
     let buffer: Buffer | null = null;
@@ -903,6 +923,15 @@ Note: The document has been processed through our webhook system and is availabl
       textLength: metadata.textLength,
       storagePath
     });
+    
+    // Track usage after successful upload
+    try {
+      await subscriptionService.incrementUsage(user.id, 'documents_uploaded', 1);
+      console.log('✅ Usage tracked for document upload');
+    } catch (usageError) {
+      console.error('⚠️ Failed to track usage:', usageError);
+      // Don't fail the upload if usage tracking fails
+    }
     
     // Return success response with public URL
     return NextResponse.json({

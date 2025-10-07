@@ -15,6 +15,20 @@
     backface-visibility: hidden;
   }
   
+  /* Prevent layout shifts from grammar highlighting */
+  .grammar-issue {
+    display: inline;
+    box-sizing: border-box;
+    /* Ensure borders don't affect layout */
+    border-bottom-width: 2px;
+    border-bottom-style: solid;
+    /* Prevent any margin/padding that could cause shifts */
+    margin: 0;
+    padding: 0;
+    /* Ensure the element doesn't create new lines */
+    white-space: nowrap;
+  }
+  
   /* Smooth scrolling */
   html {
     scroll-behavior: smooth;

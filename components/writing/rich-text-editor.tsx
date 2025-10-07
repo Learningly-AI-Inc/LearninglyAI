@@ -29,6 +29,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 }) => {
   // Create a reference to the editor
   const editorRef = React.useRef<any>(null);
+  // Track if component is mounted to prevent setState on unmounted component
+  const isMountedRef = React.useRef(true);
   const [editorState, setEditorState] = useState(() => {
     if (initialContent && initialContent.trim()) {
       const contentBlock = htmlToDraft(initialContent);
@@ -54,18 +56,33 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
           const element: any = editorRef.current?.editor;
           const prevScrollTop = element?.scrollTop || 0;
+          const prevScrollHeight = element?.scrollHeight || 0;
 
           const contentState = ContentState.createFromBlockArray(contentBlock.contentBlocks);
           const newState = EditorState.createWithContent(contentState);
           setEditorState(newState);
 
-          // Restore scroll without jumping
-          setTimeout(() => {
-            if (element && typeof prevScrollTop === 'number') {
-              element.scrollTop = prevScrollTop;
-              element.focus?.();
-            }
-          }, 0);
+          // Only restore scroll if we're actually scrolled down and have meaningful content
+          if (prevScrollTop > 10 && prevScrollHeight > 200) {
+            const restoreScroll = () => {
+              if (element && typeof prevScrollTop === 'number' && isMountedRef.current) {
+                // Calculate the height difference to maintain relative position
+                const newScrollHeight = element.scrollHeight || 0;
+                const heightDiff = newScrollHeight - prevScrollHeight;
+                const newScrollTop = Math.max(0, prevScrollTop + heightDiff);
+                
+                element.scrollTop = newScrollTop;
+                if (isMountedRef.current) {
+                  element.focus?.();
+                }
+              }
+            };
+
+            // Single attempt to restore scroll position
+            requestAnimationFrame(() => {
+              restoreScroll();
+            });
+          }
         } catch {
           // no-op
         }
@@ -79,6 +96,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       });
     }
   }, [setEditorRef, editorState]);
+  
+  // Cleanup effect to prevent setState on unmounted component
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   
   // IMPORTANT: Do NOT re-import HTML on every keystroke.
   // The parent passes updated HTML back as initialContent, but we only want
@@ -197,14 +221,16 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   // Handle click to focus editor and show cursor
   const handleEditorClick = () => {
-    if (editorRef.current?.editor) {
+    if (editorRef.current?.editor && isMountedRef.current) {
       setTimeout(() => {
-        editorRef.current.editor.focus();
-        // Force cursor to appear
-        const editorElement = editorRef.current.editor;
-        if (editorElement) {
-          editorElement.click();
-          editorElement.focus();
+        // Check if component is still mounted before calling focus
+        if (editorRef.current?.editor && isMountedRef.current) {
+          editorRef.current.editor.focus();
+          // Force cursor to appear
+          const editorElement = editorRef.current.editor;
+          if (editorElement && isMountedRef.current) {
+            editorElement.focus();
+          }
         }
       }, 10);
     }

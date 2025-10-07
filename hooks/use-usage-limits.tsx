@@ -1,151 +1,242 @@
-'use client'
+"use client";
 
-import { useSubscription } from './use-subscription'
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/use-auth';
 
-export interface UsageLimitConfig {
-  action: 'documents_uploaded' | 'writing_words' | 'search_queries' | 'exam_sessions'
-  amount?: number
-  showUpgradePrompt?: boolean
+export interface UsageData {
+  documents_uploaded: number;
+  writing_words: number;
+  search_queries: number;
+  exam_sessions: number;
+  storage_used_bytes: number;
+}
+
+export interface UsageLimits {
+  document_uploads_per_week?: number;
+  document_uploads_per_day?: number;
+  writing_words_per_month?: number;
+  writing_words_per_day?: number;
+  search_queries_per_week?: number;
+  search_queries_per_day?: number;
+  exam_sessions_per_month?: number;
+  exam_sessions_per_week?: number;
+  storage_mb?: number;
+}
+
+export interface UsageCheckResult {
+  canProceed: boolean;
+  needsUpgrade: boolean;
+  currentUsage: number;
+  limit: number;
+  percentage: number;
+  message?: string;
 }
 
 export function useUsageLimits() {
-  const { subscription, checkUsageLimit, incrementUsage, canUseFeature, getUsagePercentage } = useSubscription()
+  const { user } = useAuth();
+  const [usage, setUsage] = useState<UsageData>({
+    documents_uploaded: 0,
+    writing_words: 0,
+    search_queries: 0,
+    exam_sessions: 0,
+    storage_used_bytes: 0,
+  });
+  const [limits, setLimits] = useState<UsageLimits>({});
+  const [planName, setPlanName] = useState<string>('Free');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const withUsageCheck = async <T,>(
-    config: UsageLimitConfig,
-    operation: () => Promise<T>
-  ): Promise<{ success: boolean; result?: T; error?: string; needsUpgrade?: boolean }> => {
-    const { action, amount = 1, showUpgradePrompt = true } = config
+  // Fetch usage data and limits
+  const fetchUsageData = async () => {
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
-      // Check if user can perform the action
-      const canProceed = await checkUsageLimit(action, amount)
-      
-      if (!canProceed) {
-        if (showUpgradePrompt) {
-          return {
-            success: false,
-            error: 'Usage limit exceeded. Please upgrade your plan to continue.',
-            needsUpgrade: true,
-          }
-        }
-        return {
-          success: false,
-          error: 'Usage limit exceeded.',
-        }
+      setIsLoading(true);
+      setError(null);
+
+      // Fetch current usage
+      const usageResponse = await fetch('/api/usage/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+
+      if (!usageResponse.ok) {
+        throw new Error('Failed to fetch usage data');
       }
 
-      // Perform the operation
-      const result = await operation()
+      const usageData = await usageResponse.json();
+      setUsage(usageData.usage || usage);
 
-      // Increment usage after successful operation
-      await incrementUsage(action, amount)
+      // Fetch subscription and limits
+      const subscriptionResponse = await fetch('/api/subscriptions/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
 
+      if (!subscriptionResponse.ok) {
+        throw new Error('Failed to fetch subscription data');
+      }
+
+      const subscriptionData = await subscriptionResponse.json();
+      setLimits(subscriptionData.plan?.limits || {});
+      setPlanName(subscriptionData.plan?.name || 'Free');
+
+    } catch (err) {
+      console.error('Error fetching usage data:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Check if user can perform a specific action
+  const checkUsageLimit = async (
+    action: keyof UsageData, 
+    amount: number = 1
+  ): Promise<UsageCheckResult> => {
+    if (!user) {
       return {
-        success: true,
-        result,
+        canProceed: false,
+        needsUpgrade: false,
+        currentUsage: 0,
+        limit: 0,
+        percentage: 0,
+        message: 'Please log in to continue'
+      };
+    }
+
+    try {
+      const response = await fetch('/api/usage/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: user.id,
+          action,
+          amount 
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to check usage limit');
       }
-    } catch (error) {
-      console.error('Error in withUsageCheck:', error)
+
+      const data = await response.json();
+      return data;
+    } catch (err) {
+      console.error('Error checking usage limit:', err);
       return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        canProceed: false,
+        needsUpgrade: false,
+        currentUsage: 0,
+        limit: 0,
+        percentage: 0,
+        message: 'Error checking usage limits'
+      };
+    }
+  };
+
+  // Increment usage after successful operation
+  const incrementUsage = async (
+    action: keyof UsageData, 
+    amount: number = 1
+  ): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const response = await fetch('/api/usage/increment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: user.id,
+          action,
+          amount 
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to increment usage');
       }
+
+      // Refresh usage data
+      await fetchUsageData();
+      return true;
+    } catch (err) {
+      console.error('Error incrementing usage:', err);
+      return false;
     }
-  }
+  };
 
-  const checkDocumentUpload = (fileCount: number = 1): boolean => {
-    return canUseFeature('document_uploads', fileCount)
-  }
-
-  const checkWritingWords = (wordCount: number = 1): boolean => {
-    return canUseFeature('writing_words', wordCount)
-  }
-
-  const checkSearchQuery = (queryCount: number = 1): boolean => {
-    return canUseFeature('search_queries', queryCount)
-  }
-
-  const checkExamSession = (sessionCount: number = 1): boolean => {
-    return canUseFeature('exam_sessions', sessionCount)
-  }
-
-  const getDocumentUploadPercentage = (): number => {
-    return getUsagePercentage('document_uploads')
-  }
-
-  const getWritingWordsPercentage = (): number => {
-    return getUsagePercentage('writing_words')
-  }
-
-  const getSearchQueryPercentage = (): number => {
-    return getUsagePercentage('search_queries')
-  }
-
-  const getExamSessionPercentage = (): number => {
-    return getUsagePercentage('exam_sessions')
-  }
-
-  const getUsageStats = () => {
-    if (!subscription) {
-    return {
-      documents: { used: 0, limit: 3, percentage: 0 },
-      writingWords: { used: 0, limit: 5000, percentage: 0 },
-      searchQueries: { used: 0, limit: 40, percentage: 0 },
-      examSessions: { used: 0, limit: 4, percentage: 0 },
+  // Get current limit for a specific action
+  const getCurrentLimit = (action: keyof UsageData): number => {
+    switch (action) {
+      case 'documents_uploaded':
+        return limits.document_uploads_per_day || limits.document_uploads_per_week || 0;
+      case 'writing_words':
+        return limits.writing_words_per_day || limits.writing_words_per_month || 0;
+      case 'search_queries':
+        return limits.search_queries_per_day || limits.search_queries_per_week || 0;
+      case 'exam_sessions':
+        return limits.exam_sessions_per_week || limits.exam_sessions_per_month || 0;
+      case 'storage_used_bytes':
+        return (limits.storage_mb || 0) * 1024 * 1024; // Convert MB to bytes
+      default:
+        return 0;
     }
-    }
+  };
 
-    const plan = subscription.plan
-    const usage = subscription.usage
+  // Get current usage for a specific action
+  const getCurrentUsage = (action: keyof UsageData): number => {
+    return usage[action] || 0;
+  };
 
-    return {
-      documents: {
-        used: usage.documents_uploaded,
-        limit: plan.limits.document_uploads === -1 ? 'Unlimited' : plan.limits.document_uploads,
-        percentage: getDocumentUploadPercentage(),
-      },
-      writingWords: {
-        used: usage.writing_words,
-        limit: plan.limits.writing_words === -1 ? 'Unlimited' : plan.limits.writing_words,
-        percentage: getWritingWordsPercentage(),
-      },
-      searchQueries: {
-        used: usage.search_queries,
-        limit: plan.limits.search_queries === -1 ? 'Unlimited' : plan.limits.search_queries,
-        percentage: getSearchQueryPercentage(),
-      },
-      examSessions: {
-        used: usage.exam_sessions,
-        limit: plan.limits.exam_sessions === -1 ? 'Unlimited' : plan.limits.exam_sessions,
-        percentage: getExamSessionPercentage(),
-      },
-    }
-  }
+  // Check if user is on free plan
+  const isFreePlan = planName.toLowerCase().includes('free') || 
+                    Object.values(limits).every(limit => 
+                      typeof limit === 'number' && limit < 100
+                    );
 
-  const isLimitReached = (feature: string): boolean => {
-    const percentage = getUsagePercentage(feature as any)
-    return percentage >= 100
-  }
+  // Check if user is near or at limit
+  const isNearLimit = (action: keyof UsageData): boolean => {
+    const currentUsage = getCurrentUsage(action);
+    const limit = getCurrentLimit(action);
+    if (limit === 0) return false;
+    return (currentUsage / limit) >= 0.75;
+  };
 
-  const isNearLimit = (feature: string, threshold: number = 80): boolean => {
-    const percentage = getUsagePercentage(feature as any)
-    return percentage >= threshold
-  }
+  const isAtLimit = (action: keyof UsageData): boolean => {
+    const currentUsage = getCurrentUsage(action);
+    const limit = getCurrentLimit(action);
+    if (limit === 0) return false;
+    return currentUsage >= limit;
+  };
+
+  // Refresh usage data
+  const refreshUsage = () => {
+    fetchUsageData();
+  };
+
+  useEffect(() => {
+    fetchUsageData();
+  }, [user]);
 
   return {
-    subscription,
-    withUsageCheck,
-    checkDocumentUpload,
-    checkWritingWords,
-    checkSearchQuery,
-    checkExamSession,
-    getDocumentUploadPercentage,
-    getWritingWordsPercentage,
-    getSearchQueryPercentage,
-    getExamSessionPercentage,
-    getUsageStats,
-    isLimitReached,
+    usage,
+    limits,
+    planName,
+    isLoading,
+    error,
+    isFreePlan,
+    checkUsageLimit,
+    incrementUsage,
+    getCurrentLimit,
+    getCurrentUsage,
     isNearLimit,
-  }
+    isAtLimit,
+    refreshUsage,
+  };
 }

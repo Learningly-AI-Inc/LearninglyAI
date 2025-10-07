@@ -25,7 +25,7 @@ interface GeneratedExam {
 
 export default function ExamPrepPage() {
   const router = useRouter();
-  const { withUsageCheck } = useUsageLimits();
+  const { checkUsageLimit } = useUsageLimits();
   const [uploadedDocs, setUploadedDocs] = useState<Array<{ documentId?: string; name?: string }>>([])
   const [count, setCount] = useState(20)
   const [duration, setDuration] = useState(60)

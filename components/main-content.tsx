@@ -17,6 +17,8 @@ import { motion } from "framer-motion"
 import { useAuthContext } from "@/components/auth/auth-provider"
 import { useSubscription } from "@/hooks/use-subscription"
 import { getUserMetadata } from "@/types/auth"
+import { useUsageLimits } from "@/hooks/use-usage-limits"
+import { UsageDisplay } from "@/components/ui/usage-display"
 
 const featureCards = [
   {
@@ -90,6 +92,9 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
   
   const initials = getInitials(displayName).toUpperCase()
   
+  // Get usage limits data
+  const { usage, limits, planName, isFreePlan, isLoading: usageLoading } = useUsageLimits()
+  
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -138,6 +143,18 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
             Let's make learning easier and faster today. ✨
           </p>
         </div>
+
+        {/* Usage Overview */}
+        {!usageLoading && (
+          <div className="max-w-4xl">
+            <UsageDisplay 
+              usage={usage}
+              limits={limits}
+              planName={planName}
+              isFreePlan={isFreePlan}
+            />
+          </div>
+        )}
 
         {/* Modern Bento Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase-server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import OpenAI from 'openai'
 import { trackApiUsage } from '@/middleware/api-usage'
+import { subscriptionService } from '@/lib/subscription-service'
 
 // Simplified model mapping - just use the basic model name
 const mapModelToDatabaseModel = (model: string): string => {
@@ -66,6 +67,25 @@ export async function POST(request: NextRequest) {
     
     const userId = user.id
     let newUser: any = null // Declare newUser variable for potential user creation/update
+    
+    // Check usage limits for search queries
+    const canSearch = await subscriptionService.checkUsageLimit(userId, 'search_queries', 1);
+    if (!canSearch) {
+      const subscription = await subscriptionService.getUserSubscriptionWithPlan(userId);
+      const isFreePlan = subscription?.subscription_plans?.name?.toLowerCase().includes('free');
+      
+      return NextResponse.json(
+        { 
+          error: 'Search limit exceeded',
+          message: isFreePlan 
+            ? 'You\'ve reached your free plan search limit. Upgrade to continue searching.'
+            : 'Search query limit exceeded.',
+          needsUpgrade: isFreePlan,
+          limitType: 'search_queries'
+        },
+        { status: 429 }
+      );
+    }
     
     console.log('🔍 [SEARCH API] Authenticated user:', {
       userId,
@@ -375,6 +395,13 @@ export async function POST(request: NextRequest) {
 
       // Track usage after successful search
       await trackApiUsage(request, user.id)
+      
+      // Also track search query usage explicitly
+      try {
+        await subscriptionService.incrementUsage(userId, 'search_queries', 1);
+      } catch (usageError) {
+        console.error('Failed to track search usage:', usageError);
+      }
 
       return NextResponse.json({
         response: aiResponse,
