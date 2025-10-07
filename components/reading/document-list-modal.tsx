@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
+import { LoadingFacts } from './loading-facts';
 
 interface Document {
   id: string
@@ -291,20 +292,17 @@ export function DocumentListModal({ onClose }: DocumentListModalProps) {
       {/* Full Screen Loading Overlay */}
       {loadingDocumentId && (
         <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
-          <div className="text-center">
+          <div className="text-center max-w-md mx-auto px-6">
             <div className="relative mb-6">
               <div className="w-16 h-16 border-4 border-blue-200 rounded-full"></div>
               <div className="absolute top-0 left-0 w-16 h-16 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Document</h3>
-            <p className="text-gray-600 max-w-xs">
-              Preparing your PDF for enhanced reading experience...
-            </p>
-            <div className="mt-4 flex items-center justify-center gap-1">
-              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></div>
-              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Loading Document</h3>
+            <LoadingFacts 
+              isLoading={true}
+              loadingType="analyzing"
+              className="mb-0"
+            />
           </div>
         </div>
       )}

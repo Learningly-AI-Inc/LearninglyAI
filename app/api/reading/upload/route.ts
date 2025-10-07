@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   console.log('📤 Reading Upload API called');
   
   try {
-    // Parse form data (small payloads only)
+    // Parse form data with better error handling
     let formData: FormData;
     try {
       formData = await req.formData();
@@ -29,8 +29,9 @@ export async function POST(req: NextRequest) {
       console.error('❌ Failed to parse FormData:', error);
       return NextResponse.json(
         { 
-          error: 'Invalid request format. Please ensure you are uploading a file or fileUrl.',
-          details: 'FormData parsing failed'
+          error: 'Invalid request format. Please ensure you are uploading a file.',
+          details: 'FormData parsing failed',
+          code: 'PARSE_ERROR'
         },
         { status: 400 }
       );
@@ -213,7 +214,13 @@ export async function POST(req: NextRequest) {
     // Helper: Run OCR (Adobe PDF Services) to convert image-based PDFs into searchable text
     async function runAdobeOcrIfAvailable(pdfBuffer: Buffer): Promise<{ searchablePdf?: Buffer; note?: string } | null> {
       try {
-        const sdk: any = await import('@adobe/pdfservices-node-sdk')
+        const sdkModule = await eval('import("@adobe/pdfservices-node-sdk")').catch(() => null);
+        if (!sdkModule) {
+          console.log('Adobe PDF Services SDK not available');
+          return null;
+        }
+        
+        const sdk = sdkModule.default || sdkModule;
         const { Readable } = await import('stream')
         const clientId = process.env.PDF_SERVICES_CLIENT_ID || process.env.ADOBE_CLIENT_ID
         const clientSecret = process.env.PDF_SERVICES_CLIENT_SECRET || process.env.ADOBE_CLIENT_SECRET
@@ -286,7 +293,13 @@ export async function POST(req: NextRequest) {
     // Helper: Export PDF -> DOCX using Adobe Services then extract text via mammoth
     async function exportPdfToDocxExtractText(pdfBuffer: Buffer): Promise<string> {
       try {
-        const sdk: any = await import('@adobe/pdfservices-node-sdk')
+        const sdkModule = await eval('import("@adobe/pdfservices-node-sdk")').catch(() => null);
+        if (!sdkModule) {
+          console.log('Adobe PDF Services SDK not available');
+          return '';
+        }
+        
+        const sdk = sdkModule.default || sdkModule;
         const mammoth = await import('mammoth')
         const { Readable } = await import('stream')
         const clientId = process.env.PDF_SERVICES_CLIENT_ID || process.env.ADOBE_CLIENT_ID
@@ -489,31 +502,48 @@ Note: The document has been processed through our webhook system and is availabl
             if (!webhookResult.success) {
               console.error('❌ Webhook processing failed:', webhookResult.error);
             }
-            console.log('🛠️ Running local fallback extraction')
+            console.log('🛠️ Running optimized local extraction')
             
             try {
               if (fileExtension === 'pdf' || fileType === 'application/pdf') {
                 const cleanBuffer = Buffer.from(buffer as Buffer)
-                // Prefer Adobe export->DOCX path first
-                let text = await exportPdfToDocxExtractText(cleanBuffer)
-                if (text) {
-                  serverExtractedText = text
-                  serverPageCount = Math.max(1, Math.ceil(text.length / 2000))
-                  processingNotes.push('Webhook failed; Adobe export to DOCX used')
-              } else {
-                const viaPdfJs = await extractWithPdfJs(cleanBuffer)
-                if (viaPdfJs.text) {
-                  serverExtractedText = viaPdfJs.text
-                  serverPageCount = viaPdfJs.pages
-                  processingNotes.push('Webhook failed; pdfjs-dist extraction used')
+                
+                // Import optimized PDF extractor
+                const { extractPDFText } = await import('@/lib/pdf-extractor')
+                
+                // Try multiple extraction methods with fallbacks
+                const extractionResult = await extractPDFText(cleanBuffer, {
+                  preferClientSide: false,
+                  enableOCR: true,
+                  timeout: 30000,
+                })
+                
+                if (extractionResult.success && extractionResult.text) {
+                  serverExtractedText = extractionResult.text
+                  serverPageCount = extractionResult.pages
+                  processingNotes.push(`Optimized extraction (${extractionResult.method}) - ${extractionResult.processingTime}ms`)
                 } else {
-                  const { default: PDFParse } = await import('pdf-parse')
-                  const pdfData = await PDFParse(cleanBuffer, { max: 0 }) as any
-                  serverExtractedText = String(pdfData.text || '').trim()
-                  serverPageCount = pdfData.numpages || 1
-                  processingNotes.push('Webhook failed; used server PDF parsing fallback')
+                  // Fallback to original methods if optimized extraction fails
+                  let text = await exportPdfToDocxExtractText(cleanBuffer)
+                  if (text) {
+                    serverExtractedText = text
+                    serverPageCount = Math.max(1, Math.ceil(text.length / 2000))
+                    processingNotes.push('Optimized extraction failed; Adobe export to DOCX used')
+                  } else {
+                    const viaPdfJs = await extractWithPdfJs(cleanBuffer)
+                    if (viaPdfJs.text) {
+                      serverExtractedText = viaPdfJs.text
+                      serverPageCount = viaPdfJs.pages
+                      processingNotes.push('Optimized extraction failed; pdfjs-dist extraction used')
+                    } else {
+                      const { default: PDFParse } = await import('pdf-parse')
+                      const pdfData = await PDFParse(cleanBuffer, { max: 0 }) as any
+                      serverExtractedText = String(pdfData.text || '').trim()
+                      serverPageCount = pdfData.numpages || 1
+                      processingNotes.push('Optimized extraction failed; used server PDF parsing fallback')
+                    }
+                  }
                 }
-              }
 
                 // If still empty, attempt OCR using Adobe then parse again
                 if (!serverExtractedText) {
@@ -828,7 +858,7 @@ Note: The document has been processed through our webhook system and is availabl
         extracted_text: useClientText ? (extractedText || '') : (serverExtractedText || ''),
         page_count: useClientText ? parseInt(pageCount) || 1 : serverPageCount,
         text_length: useClientText ? (extractedText ? extractedText.length : 0) : (serverExtractedText ? serverExtractedText.length : 0),
-        processing_status: (useClientText ? (extractedText && extractedText.trim().length > 0) : (serverExtractedText && serverExtractedText.trim().length > 0)) ? 'completed' : 'failed',
+        processing_status: 'completed', // Always mark as completed if file uploaded successfully, even if text extraction failed
         public_url: fileUrl,
         metadata: {
           uploadedAt: new Date().toISOString(),

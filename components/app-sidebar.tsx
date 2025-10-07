@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Menu, LogOut, Settings, BrainCircuit, User, Bolt, ChevronRight, Clock, Crown, Zap, Shield, X } from "lucide-react"
+import { Menu, LogOut, Settings, Bolt, Clock, Crown, Zap, Shield, X, ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuthContext } from "@/components/auth/auth-provider"
@@ -198,7 +198,7 @@ export default function AppSidebar({
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="rounded-xl p-2 hover:bg-accent/60 transition-colors duration-200"
           >
-            <ChevronRight className={`h-4 w-4 transition-transform duration-300 ${sidebarCollapsed ? "rotate-180" : ""}`} />
+            <ChevronLeft className={`h-4 w-4 transition-transform duration-300 ${sidebarCollapsed ? "rotate-180" : ""}`} />
           </button>
         )}
       </div>
@@ -267,11 +267,11 @@ export default function AppSidebar({
           )}
           <button 
             onClick={() => router.push('/pricing')}
-            className={`${sidebarCollapsed ? "w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200" : "w-full px-3 py-2"} text-xs font-medium bg-white text-blue-700 rounded-full hover:bg-white/90 transition-colors duration-200 shadow-sm`}
+            className={`${sidebarCollapsed ? "w-8 h-6 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200" : "w-full px-3 py-2"} text-xs font-medium bg-white text-blue-700 rounded-full hover:bg-white/90 transition-colors duration-200 shadow-sm`}
           >
             {sidebarCollapsed ? <Crown className="h-5 w-5 text-white" /> : (
               <div className="flex items-center justify-center gap-1">
-                <Zap className="h-3 w-3" />
+                <Zap className="h-5 w-5" />
                 Upgrade
               </div>
             )}

@@ -13,6 +13,7 @@ import { FadeContent } from '@/components/react-bits/fade-content';
 import { ClickSpark } from '@/components/react-bits/click-spark';
 import { ChatMessage as ChatMessageComponent } from '@/components/ui/chat-message';
 import { Markdown } from '@/components/ui/markdown';
+import { LoadingFacts } from './loading-facts';
 
 interface ChipProps {
   text: string;
@@ -444,22 +445,14 @@ export function ChatInterface() {
         ))}
 
         {(isLoading || isContextLoading || isSummarizing || isGeneratingFlashcards) && (
-          <div className="flex justify-start mb-6">
-            <div className="max-w-[95%] rounded-2xl px-4 py-3 bg-white border border-gray-200 shadow-sm">
-              <div className="flex items-center space-x-3">
-                <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-sm">
-                  <Bot className="h-3 w-3 text-white" />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                  <span className="text-sm text-gray-600 font-medium">
-                    {isSummarizing ? 'Summarizing document...' : 
-                     isGeneratingFlashcards ? 'Generating flashcards...' : 'Thinking...'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <LoadingFacts 
+            isLoading={true}
+            loadingType={
+              isSummarizing ? 'summarizing' : 
+              isGeneratingFlashcards ? 'generating' : 
+              'thinking'
+            }
+          />
         )}
 
         <div ref={messagesEndRef} />

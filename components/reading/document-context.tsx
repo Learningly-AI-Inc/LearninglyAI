@@ -136,7 +136,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   }, []);
 
   const uploadDocument = React.useCallback(async (file: File) => {
-    console.log('🚀 Starting document upload process');
+    console.log('🚀 Starting optimized document upload process');
     
     setIsLoading(true);
     setUploadProgress({
@@ -146,6 +146,9 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     });
 
     try {
+      // Import optimized PDF extractor for client-side processing
+      const { extractPDFText, validatePDFFile } = await import('@/lib/pdf-extractor');
+      
       // Validate file on client side first
       if (!file) {
         throw new Error('No file selected');
@@ -168,15 +171,47 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
 
       console.log('✅ Client-side validation passed');
       
+      // Try client-side PDF text extraction for faster processing
+      let clientExtractedText = '';
+      let clientPageCount = 0;
+      
+      if (fileExtension === 'pdf') {
+        setUploadProgress({
+          stage: 'processing',
+          progress: 30,
+          message: 'Extracting text from PDF...'
+        });
+        
+        try {
+          const extractionResult = await extractPDFText(file, {
+            preferClientSide: true,
+            timeout: 30000,
+          });
+          
+          if (extractionResult.success && extractionResult.text) {
+            clientExtractedText = extractionResult.text;
+            clientPageCount = extractionResult.pages;
+            console.log(`✅ Client-side extraction successful: ${extractionResult.method} (${extractionResult.processingTime}ms)`);
+          }
+        } catch (error) {
+          console.warn('Client-side extraction failed, will use server-side:', error);
+        }
+      }
+      
       setUploadProgress({
         stage: 'uploading',
-        progress: 30,
+        progress: clientExtractedText ? 70 : 40,
         message: `Uploading file... (${Math.round(file.size / 1024 / 1024)}MB)`
       });
 
-      // Create FormData
+      // Create FormData with client-side extracted text if available
       const formData = new FormData();
       formData.append('file', file);
+      
+      if (clientExtractedText) {
+        formData.append('extractedText', clientExtractedText);
+        formData.append('pageCount', clientPageCount.toString());
+      }
 
       console.log('📤 Sending request to /api/reading/upload');
 
@@ -200,8 +235,8 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
 
       setUploadProgress({
         stage: 'processing',
-        progress: 70,
-        message: 'Processing document...'
+        progress: 90,
+        message: 'Finalizing document processing...'
       });
 
       if (!response.ok) {

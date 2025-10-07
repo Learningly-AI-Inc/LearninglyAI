@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation"
 
 import { DocumentProvider } from "@/components/reading/document-context"
 import { FileUploaderComponent } from "@/components/reading/file-uploader"
+import { OptimizedFileUploader } from "@/components/reading/optimized-file-uploader"
 import { DocumentListModal } from "@/components/reading/document-list-modal"
 
 const ReadingPage = () => {
@@ -132,7 +133,18 @@ const ReadingPage = () => {
       
       {/* Upload Modal */}
       {showUploadModal && (
-        <FileUploaderComponent onClose={() => setShowUploadModal(false)} />
+        <OptimizedFileUploader
+          onClose={() => setShowUploadModal(false)}
+          onUploaded={(result) => {
+            console.log('Upload completed:', result);
+            // Navigate to document viewer after successful upload
+            if (result?.fileUrl && result?.documentId) {
+              const title = result.title || 'Document';
+              router.push(`/reading/document-viewer?title=${encodeURIComponent(title)}&url=${encodeURIComponent(result.fileUrl)}&documentId=${encodeURIComponent(result.documentId)}`);
+            }
+          }}
+          enableClientSideExtraction={true}
+        />
       )}
       
       {/* Document List Modal */}

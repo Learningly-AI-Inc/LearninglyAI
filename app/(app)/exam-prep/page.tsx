@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DocumentProvider } from "@/components/reading/document-context";
 import { FileUploaderComponent } from "@/components/reading/file-uploader";
+import { OptimizedFileUploader } from "@/components/reading/optimized-file-uploader";
 import { StudyMaterialsUploader } from "@/components/exam-prep/study-materials-uploader";
 import { useUsageLimits } from "@/hooks/use-usage-limits";
 import { Separator } from "@/components/ui/separator";
