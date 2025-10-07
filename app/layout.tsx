@@ -8,6 +8,7 @@ import { Toaster } from "sonner";
 import { GlobalLoadingProvider } from "@/hooks/use-global-loading";
 import { GlobalSync } from "@/components/global-sync";
 import { ToastProvider } from "@/hooks/use-toast";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const fontSans = Inter({
   subsets: ["latin"],
@@ -94,6 +95,22 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/learningly_logo.jpg" />
         <link rel="manifest" href="/site.webmanifest" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const theme = localStorage.getItem('learningly-theme') || 'system';
+                const root = document.documentElement;
+                
+                if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                  root.classList.add('dark');
+                } else {
+                  root.classList.remove('dark');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
       </head>
       <body
         className={cn(
@@ -102,17 +119,19 @@ export default function RootLayout({
         )}
         suppressHydrationWarning
       >
-        <GlobalLoadingProvider>
-          <ToastProvider>
-            <GlobalSync />
-            <div className="relative flex min-h-screen flex-col">
-              <Suspense fallback={null}>
-                <div className="flex-1">{children}</div>
-              </Suspense>
-            </div>
-            <Toaster />
-          </ToastProvider>
-        </GlobalLoadingProvider>
+        <ThemeProvider defaultTheme="system" storageKey="learningly-theme">
+          <GlobalLoadingProvider>
+            <ToastProvider>
+              <GlobalSync />
+              <div className="relative flex min-h-screen flex-col">
+                <Suspense fallback={null}>
+                  <div className="flex-1">{children}</div>
+                </Suspense>
+              </div>
+              <Toaster />
+            </ToastProvider>
+          </GlobalLoadingProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -31,7 +31,7 @@ function SidebarSection({ title, children, collapsed }: { title: string; childre
   return (
     <div>
       {!collapsed && (
-        <div className="px-4 pt-6 pb-3 text-xs font-semibold uppercase tracking-wider text-slate-600">{title}</div>
+        <div className="px-4 pt-6 pb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</div>
       )}
       <div className={`px-2 ${collapsed ? "space-y-2" : "space-y-1"}`}>{children}</div>
     </div>
@@ -50,8 +50,8 @@ function SidebarItem({ icon, label, active, collapsed, href, onClick, comingSoon
 }) {
   const baseClasses = `w-full ${collapsed ? "justify-center" : "justify-start"} flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
     active 
-      ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm" 
-      : "text-slate-700 hover:text-blue-700 hover:bg-slate-50 hover:shadow-sm"
+      ? "bg-primary/10 text-primary border border-primary/20 shadow-sm" 
+      : "text-foreground hover:text-primary hover:bg-accent hover:shadow-sm"
   } ${comingSoon ? "opacity-75" : ""}`
 
   if (href) {
@@ -174,10 +174,10 @@ export default function AppSidebar({
 
   return (
       <aside
-       className={`${sidebarCollapsed ? "w-16" : "w-[240px] lg:w-[280px]"} ${isMobile ? 'flex' : 'hidden md:flex'} flex-col border-r border-border/50 bg-white transition-[width] duration-300 z-40 h-screen fixed modern-shadow-lg`}
+       className={`${sidebarCollapsed ? "w-16" : "w-[240px] lg:w-[280px]"} ${isMobile ? 'flex' : 'hidden md:flex'} flex-col border-r border-border/50 bg-card transition-[width] duration-300 z-40 h-screen fixed modern-shadow-lg`}
     >
       <div className="flex items-center gap-3 px-4 h-16 border-b border-border/50">
-        <div className="h-10 w-10 rounded-2xl overflow-hidden bg-white shadow-lg flex items-center justify-center">
+        <div className="h-10 w-10 rounded-2xl overflow-hidden bg-background shadow-lg flex items-center justify-center">
           <Image 
             src="/learningly_logo.jpg" 
             alt="Learningly Logo" 
@@ -188,7 +188,7 @@ export default function AppSidebar({
         </div>
         {!sidebarCollapsed && (
           <div className="flex-1">
-            <div className="font-bold text-lg text-blue-700">Learningly</div>
+            <div className="font-bold text-lg text-primary">Learningly</div>
             <div className="text-xs text-muted-foreground">AI Learning Platform</div>
           </div>
         )}
@@ -244,7 +244,7 @@ export default function AppSidebar({
 
       <div className="p-4 border-t border-border/50 space-y-4">
         {shouldShowUpgradeCard && (
-        <div className={`relative rounded-2xl bg-blue-600 text-white ${sidebarCollapsed ? "p-2 flex justify-center" : "p-4"} modern-shadow`}>
+        <div className={`relative rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 text-white ${sidebarCollapsed ? "p-2 flex justify-center" : "p-4"} modern-shadow`}>
           {!sidebarCollapsed && (
             <button
               aria-label="Close upgrade card"
@@ -267,7 +267,7 @@ export default function AppSidebar({
           )}
           <button 
             onClick={() => router.push('/pricing')}
-            className={`${sidebarCollapsed ? "w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200" : "w-full px-3 py-2"} text-xs font-medium bg-white text-blue-700 rounded-full hover:bg-white/90 transition-colors duration-200 shadow-sm`}
+            className={`${sidebarCollapsed ? "w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200" : "w-full px-3 py-2"} text-xs font-medium bg-white text-blue-700 dark:text-blue-600 rounded-full hover:bg-white/90 transition-colors duration-200 shadow-sm`}
           >
             {sidebarCollapsed ? <Crown className="h-5 w-5 text-white" /> : (
               <div className="flex items-center justify-center gap-1">
@@ -279,11 +279,11 @@ export default function AppSidebar({
         </div>
         )}
         <div className="flex items-center justify-between">
-          <Link href="/settings" className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-primary transition-colors duration-200">
+          <Link href="/settings" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors duration-200">
             <Settings className="h-4 w-4"/>
             {!sidebarCollapsed && "Settings"}
           </Link>
-          <button onClick={handleLogout} className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-red-600 transition-colors duration-200">
+          <button onClick={handleLogout} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors duration-200">
             <LogOut className="h-4 w-4"/>
             {!sidebarCollapsed && "Logout"}
           </button>

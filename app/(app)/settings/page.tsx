@@ -14,46 +14,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useTheme } from "@/components/theme-provider"
 
 const SettingsPage = () => {
-  // State for theme selection
-  const [theme, setTheme] = React.useState<string>("system")
+  // Use theme provider
+  const { theme, setTheme } = useTheme()
   
   // State for notification settings
   const [emailNotifications, setEmailNotifications] = React.useState<boolean>(false)
   const [pushNotifications, setPushNotifications] = React.useState<boolean>(false)
 
-  // Load settings from localStorage on component mount
+  // Load notification settings from localStorage on component mount
   React.useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") || "system"
     const savedEmailNotifications = localStorage.getItem("emailNotifications") === "true"
     const savedPushNotifications = localStorage.getItem("pushNotifications") === "true"
     
-    setTheme(savedTheme)
     setEmailNotifications(savedEmailNotifications)
     setPushNotifications(savedPushNotifications)
   }, [])
-
-  // Handle theme change
-  const handleThemeChange = (value: string) => {
-    setTheme(value)
-    localStorage.setItem("theme", value)
-    // TODO: Implement actual theme switching logic
-    console.log("Theme changed to:", value)
-  }
 
   // Handle email notifications toggle
   const handleEmailNotificationsChange = (checked: boolean) => {
     setEmailNotifications(checked)
     localStorage.setItem("emailNotifications", checked.toString())
-    console.log("Email notifications:", checked)
   }
 
   // Handle push notifications toggle
   const handlePushNotificationsChange = (checked: boolean) => {
     setPushNotifications(checked)
     localStorage.setItem("pushNotifications", checked.toString())
-    console.log("Push notifications:", checked)
   }
   return (
     <div className="p-6 space-y-8">
@@ -76,7 +65,7 @@ const SettingsPage = () => {
           <CardContent>
             <div className="flex items-center justify-between">
               <Label htmlFor="theme" className="text-foreground">Theme</Label>
-              <Select value={theme} onValueChange={handleThemeChange}>
+              <Select value={theme} onValueChange={setTheme}>
                 <SelectTrigger className="w-[180px] border-border">
                   <SelectValue placeholder="Select theme" />
                 </SelectTrigger>
