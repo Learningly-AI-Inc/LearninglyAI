@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { DatePicker } from "@/components/ui/date-picker"
+import { TimePicker } from "@/components/ui/time-picker"
 import { CalendarEvent, EventFormData } from "@/types/calendar"
 import { cn } from "@/lib/utils"
 
@@ -52,22 +54,35 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
     event_type: 'general',
   })
 
+  const [startDate, setStartDate] = React.useState<Date | undefined>()
+  const [endDate, setEndDate] = React.useState<Date | undefined>()
+  const [startTime, setStartTime] = React.useState<string>('')
+  const [endTime, setEndTime] = React.useState<string>('')
+
   const [errors, setErrors] = React.useState<{ [key: string]: string }>({})
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   // Initialize form data when event changes
   React.useEffect(() => {
     if (event) {
+      const startDate = new Date(event.start_time)
+      const endDate = new Date(event.end_time)
+      
       setFormData({
         title: event.title,
         description: event.description || '',
-        start_time: new Date(event.start_time).toISOString().slice(0, 16),
-        end_time: new Date(event.end_time).toISOString().slice(0, 16),
+        start_time: event.start_time,
+        end_time: event.end_time,
         all_day: event.all_day,
         color: event.color,
         location: event.location || '',
         event_type: event.event_type,
       })
+      
+      setStartDate(startDate)
+      setEndDate(endDate)
+      setStartTime(startDate.toTimeString().slice(0, 5))
+      setEndTime(endDate.toTimeString().slice(0, 5))
     } else {
       setFormData({
         title: '',
@@ -79,6 +94,11 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
         location: '',
         event_type: 'general',
       })
+      
+      setStartDate(undefined)
+      setEndDate(undefined)
+      setStartTime('')
+      setEndTime('')
     }
     setErrors({})
     setIsSubmitting(false) // Reset submitting state when form opens
@@ -99,6 +119,46 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
     }
   }
 
+  const handleStartDateChange = (date: Date | undefined) => {
+    setStartDate(date)
+    if (date && startTime) {
+      const [hours, minutes] = startTime.split(':')
+      const newDateTime = new Date(date)
+      newDateTime.setHours(parseInt(hours), parseInt(minutes))
+      setFormData(prev => ({ ...prev, start_time: newDateTime.toISOString() }))
+    }
+  }
+
+  const handleEndDateChange = (date: Date | undefined) => {
+    setEndDate(date)
+    if (date && endTime) {
+      const [hours, minutes] = endTime.split(':')
+      const newDateTime = new Date(date)
+      newDateTime.setHours(parseInt(hours), parseInt(minutes))
+      setFormData(prev => ({ ...prev, end_time: newDateTime.toISOString() }))
+    }
+  }
+
+  const handleStartTimeChange = (time: string) => {
+    setStartTime(time)
+    if (startDate && time) {
+      const [hours, minutes] = time.split(':')
+      const newDateTime = new Date(startDate)
+      newDateTime.setHours(parseInt(hours), parseInt(minutes))
+      setFormData(prev => ({ ...prev, start_time: newDateTime.toISOString() }))
+    }
+  }
+
+  const handleEndTimeChange = (time: string) => {
+    setEndTime(time)
+    if (endDate && time) {
+      const [hours, minutes] = time.split(':')
+      const newDateTime = new Date(endDate)
+      newDateTime.setHours(parseInt(hours), parseInt(minutes))
+      setFormData(prev => ({ ...prev, end_time: newDateTime.toISOString() }))
+    }
+  }
+
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {}
 
@@ -106,17 +166,30 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
       newErrors.title = 'Title is required'
     }
 
-    if (!formData.start_time) {
+    if (!startDate) {
+      newErrors.start_time = 'Start date is required'
+    }
+
+    if (!endDate) {
+      newErrors.end_time = 'End date is required'
+    }
+
+    if (!formData.all_day && !startTime) {
       newErrors.start_time = 'Start time is required'
     }
 
-    if (!formData.end_time) {
+    if (!formData.all_day && !endTime) {
       newErrors.end_time = 'End time is required'
     }
 
-    if (formData.start_time && formData.end_time) {
-      const start = new Date(formData.start_time)
-      const end = new Date(formData.end_time)
+    if (startDate && endDate && startTime && endTime) {
+      const start = new Date(startDate)
+      const [startHours, startMinutes] = startTime.split(':')
+      start.setHours(parseInt(startHours), parseInt(startMinutes))
+      
+      const end = new Date(endDate)
+      const [endHours, endMinutes] = endTime.split(':')
+      end.setHours(parseInt(endHours), parseInt(endMinutes))
       
       if (start >= end) {
         newErrors.end_time = 'End time must be after start time'
@@ -136,7 +209,39 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
 
     try {
       setIsSubmitting(true)
-      await onSubmit(formData)
+      
+      // Combine date and time for submission
+      let finalStartTime = ''
+      let finalEndTime = ''
+      
+      if (formData.all_day) {
+        // For all-day events, use just the date
+        finalStartTime = startDate?.toISOString().split('T')[0] + 'T00:00:00.000Z'
+        finalEndTime = endDate?.toISOString().split('T')[0] + 'T23:59:59.999Z'
+      } else {
+        // For timed events, combine date and time
+        if (startDate && startTime) {
+          const [hours, minutes] = startTime.split(':')
+          const startDateTime = new Date(startDate)
+          startDateTime.setHours(parseInt(hours), parseInt(minutes))
+          finalStartTime = startDateTime.toISOString()
+        }
+        
+        if (endDate && endTime) {
+          const [hours, minutes] = endTime.split(':')
+          const endDateTime = new Date(endDate)
+          endDateTime.setHours(parseInt(hours), parseInt(minutes))
+          finalEndTime = endDateTime.toISOString()
+        }
+      }
+      
+      const submitData = {
+        ...formData,
+        start_time: finalStartTime,
+        end_time: finalEndTime
+      }
+      
+      await onSubmit(submitData)
       onClose()
     } catch (error) {
       // Error handling is done in the parent component
@@ -149,16 +254,18 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
     setFormData(prev => ({ ...prev, all_day: checked }))
     
     if (checked) {
-      // Set times to start and end of day
-      const startDate = formData.start_time ? new Date(formData.start_time) : new Date()
-      const endDate = new Date(startDate)
-      endDate.setHours(23, 59, 59, 999)
+      // When switching to all-day, set times to start/end of day
+      if (startDate) {
+        const start = new Date(startDate)
+        start.setHours(0, 0, 0, 0)
+        setFormData(prev => ({ ...prev, start_time: start.toISOString() }))
+      }
       
-      setFormData(prev => ({
-        ...prev,
-        start_time: startDate.toISOString().slice(0, 16),
-        end_time: endDate.toISOString().slice(0, 16),
-      }))
+      if (endDate) {
+        const end = new Date(endDate)
+        end.setHours(23, 59, 59, 999)
+        setFormData(prev => ({ ...prev, end_time: end.toISOString() }))
+      }
     }
   }
 
@@ -216,30 +323,48 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
             </div>
 
             {/* Date and Time */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="start_time">Start {formData.all_day ? 'Date' : 'Date & Time'} *</Label>
-                <Input
-                  id="start_time"
-                  type={formData.all_day ? 'date' : 'datetime-local'}
-                  value={formData.start_time}
-                  onChange={(e) => handleInputChange('start_time', e.target.value)}
-                  className={errors.start_time ? 'border-destructive' : ''}
-                />
+                <Label>Start {formData.all_day ? 'Date' : 'Date & Time'} *</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <DatePicker
+                    value={startDate}
+                    onChange={handleStartDateChange}
+                    placeholder="Select start date"
+                    className={errors.start_time ? 'border-destructive' : ''}
+                  />
+                  {!formData.all_day && (
+                    <TimePicker
+                      value={startTime}
+                      onChange={handleStartTimeChange}
+                      placeholder="Select time"
+                      className={cn("w-full", errors.start_time ? 'border-destructive' : '')}
+                    />
+                  )}
+                </div>
                 {errors.start_time && (
                   <p className="text-sm text-destructive">{errors.start_time}</p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="end_time">End {formData.all_day ? 'Date' : 'Date & Time'} *</Label>
-                <Input
-                  id="end_time"
-                  type={formData.all_day ? 'date' : 'datetime-local'}
-                  value={formData.end_time}
-                  onChange={(e) => handleInputChange('end_time', e.target.value)}
-                  className={errors.end_time ? 'border-destructive' : ''}
-                />
+                <Label>End {formData.all_day ? 'Date' : 'Date & Time'} *</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <DatePicker
+                    value={endDate}
+                    onChange={handleEndDateChange}
+                    placeholder="Select end date"
+                    className={errors.end_time ? 'border-destructive' : ''}
+                  />
+                  {!formData.all_day && (
+                    <TimePicker
+                      value={endTime}
+                      onChange={handleEndTimeChange}
+                      placeholder="Select time"
+                      className={cn("w-full", errors.end_time ? 'border-destructive' : '')}
+                    />
+                  )}
+                </div>
                 {errors.end_time && (
                   <p className="text-sm text-destructive">{errors.end_time}</p>
                 )}
