@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useSupabase } from '@/hooks/use-supabase'
 import { CalendarEvent, EventFormData, CalendarView, GeneratedSchedule } from '@/types/calendar'
 import { useToast } from '@/hooks/use-toast'
 
@@ -13,7 +13,7 @@ export function useCalendar() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [isCreatingEvent, setIsCreatingEvent] = useState(false)
   
-  const supabase = createClientComponentClient()
+  const supabase = useSupabase()
   const { showSuccess, showError } = useToast()
 
   // Fetch events for the current view
@@ -53,8 +53,22 @@ export function useCalendar() {
   // Create a new event
   const createEvent = useCallback(async (eventData: EventFormData) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('User not authenticated')
+      console.log('Creating event with data:', eventData)
+      
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      console.log('User authentication check:', { user: !!user, userError })
+      
+      if (userError) {
+        console.error('User authentication error:', userError)
+        throw new Error(`Authentication error: ${userError.message}`)
+      }
+      
+      if (!user) {
+        console.error('No user found in session')
+        throw new Error('User not authenticated')
+      }
+
+      console.log('User authenticated, creating event for user:', user.id)
 
       const { data, error } = await supabase
         .from('calendar_events')
@@ -67,13 +81,18 @@ export function useCalendar() {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Database error:', error)
+        throw error
+      }
 
+      console.log('Event created successfully:', data)
       setEvents(prev => [...prev, data])
       showSuccess("Event created successfully")
       
       return data
     } catch (err) {
+      console.error('Error in createEvent:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to create event'
       showError(errorMessage)
       throw err

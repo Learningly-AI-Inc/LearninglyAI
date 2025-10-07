@@ -9,6 +9,7 @@ import { SyllabusUpload } from "@/components/calendar/syllabus-upload"
 import { VoiceEditor } from "@/components/calendar/voice-editor"
 import { CalendarIntegrationComponent } from "@/components/calendar/calendar-integration"
 import { CalendarSettings } from "@/components/calendar/calendar-settings"
+import { TestDbConnection } from "@/components/calendar/test-db-connection"
 import { useCalendar } from "@/hooks/use-calendar"
 import { CalendarEvent, EventFormData, GeneratedSchedule } from "@/types/calendar"
 
@@ -98,12 +99,13 @@ const CalendarPage = () => {
       />
 
       <Tabs defaultValue="calendar" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="syllabus">Syllabus Upload</TabsTrigger>
           <TabsTrigger value="voice">Voice Editor</TabsTrigger>
           <TabsTrigger value="integration">Integrations</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="debug">Debug</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendar" className="space-y-6">
@@ -132,6 +134,10 @@ const CalendarPage = () => {
 
         <TabsContent value="settings" className="space-y-6">
           <CalendarSettings />
+        </TabsContent>
+        
+        <TabsContent value="debug" className="space-y-6">
+          <TestDbConnection />
         </TabsContent>
       </Tabs>
 
