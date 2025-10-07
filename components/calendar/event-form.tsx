@@ -53,6 +53,7 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
   })
 
   const [errors, setErrors] = React.useState<{ [key: string]: string }>({})
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   // Initialize form data when event changes
   React.useEffect(() => {
@@ -80,7 +81,16 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
       })
     }
     setErrors({})
-  }, [event])
+    setIsSubmitting(false) // Reset submitting state when form opens
+  }, [event, isOpen])
+
+  // Reset form when modal closes
+  React.useEffect(() => {
+    if (!isOpen) {
+      setIsSubmitting(false)
+      setErrors({})
+    }
+  }, [isOpen])
 
   const handleInputChange = (field: keyof EventFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -125,10 +135,13 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
     }
 
     try {
+      setIsSubmitting(true)
       await onSubmit(formData)
       onClose()
     } catch (error) {
       // Error handling is done in the parent component
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -153,12 +166,12 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-gray-200">
+          <CardTitle className="text-xl font-semibold text-gray-900">
             {event ? 'Edit Event' : 'Create Event'}
           </CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-gray-100">
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
@@ -303,12 +316,12 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button type="button" variant="outline" onClick={onClose}>
+            <div className="flex justify-end space-x-2 pt-4 border-t border-gray-200">
+              <Button type="button" variant="outline" onClick={onClose} className="px-6">
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Saving...' : (event ? 'Update Event' : 'Create Event')}
+              <Button type="submit" disabled={isSubmitting || loading} className="px-6">
+                {isSubmitting || loading ? 'Saving...' : (event ? 'Update Event' : 'Create Event')}
               </Button>
             </div>
           </form>

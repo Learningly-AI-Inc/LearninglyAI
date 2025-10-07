@@ -32,7 +32,7 @@ const CalendarPage = () => {
 
   const handleCreateEvent = () => {
     setSelectedEvent(null)
-    setIsCreatingEvent(true)
+    setIsCreatingEvent(false)
     setIsEventFormOpen(true)
   }
 
@@ -44,6 +44,7 @@ const CalendarPage = () => {
 
   const handleEventSubmit = async (data: EventFormData) => {
     try {
+      setIsCreatingEvent(true)
       if (selectedEvent) {
         await updateEvent(selectedEvent.id, data)
       } else {
@@ -52,6 +53,8 @@ const CalendarPage = () => {
       handleEventFormClose()
     } catch (error) {
       // Error handling is done in the hook
+    } finally {
+      setIsCreatingEvent(false)
     }
   }
 
