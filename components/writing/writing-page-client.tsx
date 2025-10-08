@@ -2,8 +2,8 @@
 
 import * as React from "react"
 import { useState, useEffect } from "react"
-import { EditorState } from "draft-js"
-import RichTextEditor from "@/components/writing/rich-text-editor"
+import TiptapEditor from "@/components/writing/tiptap-editor"
+import { TiptapToolbar } from "@/components/writing/tiptap-toolbar"
 import WritingToolbar from "@/components/writing/writing-toolbar"
 import AISuggestionsPanel from "@/components/writing/ai-suggestions-panel"
 import DraftsManager from "@/components/writing/drafts-manager"
@@ -106,6 +106,9 @@ const WritingPageClient = () => {
 
   // Function to handle grammar checking
   const handleGrammarCheck = async () => {
+    // Store current editor content to prevent it from being cleared
+    const currentContent = editorContent;
+
     // Try to get current selection first
     let textToCheck = selectedText;
     if (!textToCheck.trim()) {
@@ -116,23 +119,23 @@ const WritingPageClient = () => {
           setSelectedText(textToCheck);
         }
       }
-      
+
       if (!textToCheck.trim() && lastSelectedText.trim()) {
         // Fall back to last known selection
         textToCheck = lastSelectedText;
         setSelectedText(textToCheck);
       }
     }
-    
+
     // If still no text selected, use the entire editor content
     if (!textToCheck.trim()) {
-      textToCheck = editorContent;
+      textToCheck = currentContent;
       // Strip HTML tags to get plain text for grammar checking
       if (textToCheck) {
         textToCheck = textToCheck.replace(/<[^>]*>?/gm, '').trim();
       }
     }
-    
+
     if (!textToCheck.trim()) {
       setSuggestedText("");
       setGrammarIssues([]);
@@ -148,7 +151,7 @@ const WritingPageClient = () => {
       setActiveTab("grammar");
       return;
     }
-    
+
     // If we've already processed this content and it had issues, but now has no issues,
     // it means the user fixed them, so show no issues
     if (currentContentHash === lastGrammarCheckHash && lastGrammarCheckResult === 'had-issues' && grammarIssues.length === 0) {
@@ -158,61 +161,50 @@ const WritingPageClient = () => {
       return;
     }
 
-    // Auto-switch to grammar tab
+    // Auto-switch to grammar tab BEFORE starting processing
     setActiveTab("grammar");
-    setIsProcessing(true);
-    setProcessingAction('grammar');
-    
-    // Preserve scroll position before grammar check to prevent content shifting
-    const scrollPreservation = preserveScrollPosition();
-    
+
+    // Set processing state AFTER switching tab to prevent UI flickering
+    setTimeout(() => {
+      setIsProcessing(true);
+      setProcessingAction('grammar');
+    }, 10);
+
     try {
       // Call our API for grammar checking
       const response = await fetch('/api/writing/grammar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           text: textToCheck,
           userId: getMockUserId()
         })
       });
-      
+
       if (!response.ok) {
         throw new Error('Grammar check request failed');
       }
-      
+
       const data = await response.json();
+
+      // IMPORTANT: Don't modify editor content - just update grammar issues
       if (data.grammarIssues && data.grammarIssues.length > 0) {
-        // Use requestAnimationFrame to batch state updates and prevent layout shifts
-        requestAnimationFrame(() => {
-          setGrammarIssues(data.grammarIssues);
-          setLastProcessedFeature("Grammar Check");
-          setLastGrammarCheckHash(currentContentHash); // Track this content
-          setLastGrammarCheckResult('had-issues'); // Mark that this content had issues
-          // Do NOT modify editor content with highlights - keep original content
-          setHighlightedContent("");
-        });
+        setGrammarIssues(data.grammarIssues);
+        setLastProcessedFeature("Grammar Check");
+        setLastGrammarCheckHash(currentContentHash);
+        setLastGrammarCheckResult('had-issues');
+        setHighlightedContent("");
         toast.info(`Found ${data.grammarIssues.length} grammar issue${data.grammarIssues.length > 1 ? 's' : ''} to review.`);
       } else {
-        // Use requestAnimationFrame to batch state updates and prevent layout shifts
-        requestAnimationFrame(() => {
-          setGrammarIssues([]);
-          setHighlightedContent("");
-          setCurrentIssueIndex(-1);
-          setLastProcessedFeature("Grammar Check (No issues)");
-          setLastGrammarCheckHash(currentContentHash); // Mark this content as checked
-          setLastGrammarCheckResult('no-issues'); // Mark that this content has no issues
-        });
+        setGrammarIssues([]);
+        setHighlightedContent("");
+        setCurrentIssueIndex(-1);
+        setLastProcessedFeature("Grammar Check (No issues)");
+        setLastGrammarCheckHash(currentContentHash);
+        setLastGrammarCheckResult('no-issues');
         toast.success('No grammar issues found. Your text looks great!');
       }
-      
-      // Restore scroll position after grammar check to prevent content shifting
-      if (scrollPreservation) {
-        setTimeout(() => {
-          scrollPreservation.restore();
-        }, 100);
-      }
-      
+
       setIsProcessing(false);
       setProcessingAction(null);
     } catch (error) {
@@ -251,52 +243,7 @@ const WritingPageClient = () => {
     return hash.toString();
   };
 
-  // Function to highlight grammar issues in the editor content
-  const highlightGrammarIssues = (content: string, issues: GrammarIssue[]) => {
-    if (!issues || issues.length === 0) {
-      return content;
-    }
-
-    let highlightedContent = content;
-    const issueHighlights: Array<{start: number, end: number, issue: GrammarIssue}> = [];
-
-    // Find all issue positions and sort by start position
-    issues.forEach((issue, index) => {
-      const regex = buildHtmlInterleavedRegex(issue.original);
-      const match = highlightedContent.match(regex);
-      if (match && match.index !== undefined) {
-        issueHighlights.push({
-          start: match.index,
-          end: match.index + match[0].length,
-          issue: { ...issue, id: `${issue.id}-${index}` }
-        });
-      }
-    });
-
-    // Sort by start position (descending to avoid offset issues)
-    issueHighlights.sort((a, b) => b.start - a.start);
-
-    // Apply highlights from end to beginning
-    issueHighlights.forEach((highlight, index) => {
-      const { start, end, issue } = highlight;
-      const before = highlightedContent.slice(0, start);
-      const issueText = highlightedContent.slice(start, end);
-      const after = highlightedContent.slice(end);
-      
-      const issueTypeClass = {
-        'grammar': 'bg-red-100 border-b-2 border-red-400',
-        'spelling': 'bg-orange-100 border-b-2 border-orange-400', 
-        'style': 'bg-yellow-100 border-b-2 border-yellow-400',
-        'clarity': 'bg-blue-100 border-b-2 border-blue-400'
-      }[issue.type] || 'bg-gray-100 border-b-2 border-gray-400';
-
-      const highlightedIssue = `<span class="grammar-issue ${issueTypeClass}" data-issue-id="${escapeHtmlAttribute(issue.id)}" data-issue-type="${escapeHtmlAttribute(issue.type)}" title="${escapeHtmlAttribute(issue.description)}">${issueText}</span>`;
-      
-      highlightedContent = before + highlightedIssue + after;
-    });
-
-    return highlightedContent;
-  };
+  // Removed highlightGrammarIssues function - no longer needed since we don't highlight in the editor
 
   // Function to navigate to next/previous issue
   const navigateToIssue = (direction: 'next' | 'prev') => {
@@ -323,11 +270,7 @@ const WritingPageClient = () => {
     }, 100);
   };
 
-  // Function to clear all highlights
-  const clearHighlights = () => {
-    setHighlightedContent("");
-    setCurrentIssueIndex(-1);
-  };
+  // Removed clearHighlights function - no longer needed since we don't use highlights
 
   // Build an HTML-tolerant regex that matches the target text even if
   // there are inline tags, whitespace differences, or typographic quotes/dashes
@@ -364,16 +307,16 @@ const WritingPageClient = () => {
   // Function to handle accepting all grammar suggestions
   const handleAcceptAll = async () => {
     if (grammarIssues.length === 0) return;
-    
+
     let updatedContent = editorContent;
     let appliedCount = 0;
-    
+
     // Apply each grammar fix sequentially
     for (const issue of grammarIssues) {
       try {
         if (updatedContent.includes(issue.original)) {
           updatedContent = updatedContent.replace(
-            new RegExp(issue.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 
+            new RegExp(issue.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
             issue.suggestion
           );
           appliedCount++;
@@ -385,7 +328,7 @@ const WritingPageClient = () => {
               .split(' ')
               .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
               .join('\\s+(?:<[^>]*>\\s*)*');
-            
+
             updatedContent = updatedContent.replace(
               new RegExp(flexiblePattern, 'i'),
               issue.suggestion
@@ -405,24 +348,13 @@ const WritingPageClient = () => {
         console.error(`Error applying fix for "${issue.original}":`, error);
       }
     }
-    
+
     if (appliedCount > 0) {
-      // Preserve exact scroll position before updating
-      const scrollPreservation = preserveScrollPosition();
-      
-      // Temporarily disable editor auto-scroll to prevent jumping
-      const editorElement = editorRef?.current?.editor;
-      if (editorElement) {
-        editorElement.style.scrollBehavior = 'auto';
-      }
-      
-      // In-place update to avoid jump
-      setEditorContent(updatedContent);
-      if (editorRef && (editorRef as any).replaceHtmlContent) {
-        (editorRef as any).replaceHtmlContent(updatedContent);
-      } else {
-        setEditorKey(prev => prev + 1);
-      }
+      // Clean up the updated content to prevent extra line breaks
+      let cleanedContent = updatedContent.trim();
+
+      // Update state first
+      setEditorContent(cleanedContent);
       setGrammarIssues([]);
       setHighlightedContent("");
       setCurrentIssueIndex(-1);
@@ -430,26 +362,21 @@ const WritingPageClient = () => {
       setLastGrammarCheckResult(null); // Reset result since content changed
       setSelectedText("");
       setLastSelectedText(""); // Clear backup
-      
-      // Use requestAnimationFrame for better timing and multiple attempts to restore scroll
-      const restoreScrollAndFocus = () => {
-        if (scrollPreservation) {
-          scrollPreservation.restore();
+
+      // Then update the editor with a slight delay to ensure state is synced
+      setTimeout(() => {
+        if (editorRef && (editorRef as any).replaceHtmlContent) {
+          (editorRef as any).replaceHtmlContent(cleanedContent);
+        } else {
+          setEditorKey(prev => prev + 1);
         }
-        ensureEditorFocus();
-        // Re-enable smooth scrolling after restoration
-        if (editorElement) {
-          editorElement.style.scrollBehavior = 'smooth';
-        }
-      };
-      
-      // Try multiple times to ensure scroll position is restored
-      requestAnimationFrame(() => {
-        restoreScrollAndFocus();
-        // Single additional attempt for stubborn cases
-        setTimeout(restoreScrollAndFocus, 50);
-      });
-      
+
+        // Ensure editor maintains focus after update
+        setTimeout(() => {
+          ensureEditorFocus();
+        }, 100);
+      }, 50);
+
       toast.success(`All ${appliedCount} grammar issue${appliedCount > 1 ? 's' : ''} fixed successfully!`);
     } else {
       toast.error("Could not apply grammar fixes. Please try individual fixes.");
@@ -532,47 +459,31 @@ const WritingPageClient = () => {
         
         // Only proceed if content actually changed
         if (updatedContent !== editorContent) {
-          // Preserve exact scroll position before updating
-          const scrollPreservation = preserveScrollPosition();
-          
-          // Temporarily disable editor auto-scroll to prevent jumping
-          const editorElement = editorRef?.current?.editor;
-          if (editorElement) {
-            editorElement.style.scrollBehavior = 'auto';
-          }
-          
-          // Update content in-place to avoid visual jump
-          setEditorContent(updatedContent);
-          if (editorRef && (editorRef as any).replaceHtmlContent) {
-            (editorRef as any).replaceHtmlContent(updatedContent);
-          } else {
-            setEditorKey(prev => prev + 1);
-          }
-          
+          // Clean up the content
+          const cleanedContent = updatedContent.trim();
+
+          // Update state first
+          setEditorContent(cleanedContent);
+
           // Update raw content if available
           if (editorRawContent) {
             const updatedRawContent = { ...editorRawContent };
             setEditorRawContent(updatedRawContent);
           }
-          
-          // Use requestAnimationFrame for better timing and multiple attempts to restore scroll
-          const restoreScrollAndFocus = () => {
-            if (scrollPreservation) {
-              scrollPreservation.restore();
+
+          // Then update the editor with a slight delay
+          setTimeout(() => {
+            if (editorRef && (editorRef as any).replaceHtmlContent) {
+              (editorRef as any).replaceHtmlContent(cleanedContent);
+            } else {
+              setEditorKey(prev => prev + 1);
             }
-            ensureEditorFocus();
-            // Re-enable smooth scrolling after restoration
-            if (editorElement) {
-              editorElement.style.scrollBehavior = 'smooth';
-            }
-          };
-          
-          // Try multiple times to ensure scroll position is restored
-          requestAnimationFrame(() => {
-            restoreScrollAndFocus();
-            // Single additional attempt for stubborn cases
-            setTimeout(restoreScrollAndFocus, 50);
-          });
+
+            // Ensure editor maintains focus
+            setTimeout(() => {
+              ensureEditorFocus();
+            }, 100);
+          }, 50);
           
           if (isParaphrase) {
             // Clear paraphrase suggestions
@@ -944,9 +855,9 @@ const WritingPageClient = () => {
   };
 
   // Handle editor content changes
-  const handleEditorChange = (html: string, raw: any) => {
+  const handleEditorChange = (html: string, editor: any) => {
     setEditorContent(html);
-    setEditorRawContent(raw);
+    setEditorRawContent(editor); // Store the editor instance instead
     // Reset grammar check hash when content changes manually
     setLastGrammarCheckHash("");
     setLastGrammarCheckResult(null);
@@ -965,68 +876,7 @@ const WritingPageClient = () => {
     // Don't clear selectedText immediately - let user actions handle it
   };
 
-  // Function to preserve exact scroll position during content updates
-  const preserveScrollPosition = () => {
-    const editorElement = editorRef?.current?.editor;
-    if (editorElement) {
-      const scrollTop = editorElement.scrollTop || 0;
-      const scrollHeight = editorElement.scrollHeight || 0;
-      const clientHeight = editorElement.clientHeight || 0;
-      
-      // Only preserve scroll if we're actually scrolled down
-      if (scrollTop <= 10) {
-        return null; // Don't preserve scroll if we're near the top
-      }
-      
-      // Calculate relative position as a percentage of scrollable content
-      const maxScrollTop = Math.max(0, scrollHeight - clientHeight);
-      const relativePosition = maxScrollTop > 0 ? scrollTop / maxScrollTop : 0;
-      
-      return {
-        scrollTop,
-        scrollHeight,
-        clientHeight,
-        relativePosition,
-        restore: () => {
-          if (editorElement) {
-            // Use requestAnimationFrame for better timing
-            requestAnimationFrame(() => {
-              const newScrollHeight = editorElement.scrollHeight || 0;
-              const newClientHeight = editorElement.clientHeight || 0;
-              const newMaxScrollTop = Math.max(0, newScrollHeight - newClientHeight);
-              
-              // Only restore if we have meaningful scrollable content
-              if (newMaxScrollTop > 50) {
-                // Try relative position first (more accurate for content changes)
-                if (newMaxScrollTop > 0) {
-                  const newScrollTop = relativePosition * newMaxScrollTop;
-                  editorElement.scrollTop = Math.max(0, newScrollTop);
-                }
-                
-                // Fallback to height difference method
-                const heightDiff = newScrollHeight - scrollHeight;
-                const fallbackScrollTop = Math.max(0, scrollTop + heightDiff);
-                
-                // Use the method that results in a position closer to the original
-                const relativeScrollTop = relativePosition * newMaxScrollTop;
-                const finalScrollTop = Math.abs(relativeScrollTop - scrollTop) < Math.abs(fallbackScrollTop - scrollTop) 
-                  ? relativeScrollTop 
-                  : fallbackScrollTop;
-                
-                editorElement.scrollTop = Math.max(0, finalScrollTop);
-                
-                // Single additional attempt for stubborn cases
-                setTimeout(() => {
-                  editorElement.scrollTop = Math.max(0, finalScrollTop);
-                }, 50);
-              }
-            });
-          }
-        }
-      };
-    }
-    return null;
-  };
+  // Removed preserveScrollPosition function - no longer needed after fixing scroll issues
 
   // Function to ensure editor has focus and cursor is visible
   const ensureEditorFocus = () => {
@@ -1121,14 +971,17 @@ const WritingPageClient = () => {
         />
       }
       richTextEditor={
-        <RichTextEditor
-          key={`editor-${editorKey}`}
-          initialContent={editorContent}
-          onChange={handleEditorChange}
-          height="100%"
-          onSelectedTextChange={setSelectedText}
-          setEditorRef={setEditorRef}
-        />
+        <>
+          {editorRef && <TiptapToolbar editor={editorRef.getEditor?.()} />}
+          <TiptapEditor
+            key={`editor-${editorKey}`}
+            initialContent={editorContent}
+            onChange={handleEditorChange}
+            height="calc(100% - 56px)"
+            onSelectedTextChange={setSelectedText}
+            setEditorRef={setEditorRef}
+          />
+        </>
       }
       wordCounter={
         <WordCounter text={editorContent} />

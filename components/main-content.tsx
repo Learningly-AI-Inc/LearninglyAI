@@ -62,7 +62,6 @@ const featureCards = [
     cta: "Start Preparing",
     gradient: "from-indigo-500/20 to-violet-500/20",
     iconBg: "bg-gradient-to-br from-indigo-500 to-violet-500",
-    className: "lg:col-span-2",
     badge: "AI-Powered",
     badgeVariant: "default" as const,
   },
@@ -147,11 +146,10 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
         {/* Usage Overview */}
         {!usageLoading && (
           <div className="max-w-4xl">
-            <UsageDisplay 
+            <UsageDisplay
               usage={usage}
               limits={limits}
               planName={planName}
-              isFreePlan={isFreePlan}
             />
           </div>
         )}
@@ -164,7 +162,7 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 * index }}
-              className={card.className}
+              // className={card?.className || ""}
             >
               <Card className={`h-full group card-hover bg-white border border-border/50 modern-shadow-lg overflow-hidden relative`}>
                 <Link href={card.href} className="block h-full p-6">

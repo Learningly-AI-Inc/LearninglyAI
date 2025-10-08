@@ -4,9 +4,12 @@ import * as React from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
+import { UsageProgressBar } from "@/components/ui/usage-progress-bar"
+import { useUsageLimits } from "@/hooks/use-usage-limits"
+import { PencilRuler } from "lucide-react"
 
 interface ImprovedWritingPageProps {
-  header: React.ReactNode
+  header?: React.ReactNode // Optional since we're building header internally
   draftsManager: React.ReactNode
   writingToolbar: React.ReactNode
   richTextEditor: React.ReactNode
@@ -15,7 +18,6 @@ interface ImprovedWritingPageProps {
 }
 
 export function ImprovedWritingPage({
-  header,
   draftsManager,
   writingToolbar,
   richTextEditor,
@@ -23,6 +25,7 @@ export function ImprovedWritingPage({
   aiSuggestionsPanel,
 }: ImprovedWritingPageProps) {
   const [isMobile, setIsMobile] = React.useState(false)
+  const { getCurrentUsage, getCurrentLimit, isLoading: usageLoading } = useUsageLimits()
 
   React.useEffect(() => {
     if (typeof window === "undefined") return
@@ -36,16 +39,35 @@ export function ImprovedWritingPage({
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-      {/* Slim header: remove large title space; keep drafts on the right */}
-      {(header || draftsManager) && (
-        <div className="p-2 border-b bg-white">
-          <div className="flex justify-between items-center">
-            {/* Intentionally keep left side minimal to maximize editor space */}
-            {header}
-            {draftsManager}
+      {/* Header with usage limits */}
+      <div className="p-3 border-b bg-white">
+        <div className="flex justify-between items-center gap-4">
+          {/* Left: Title */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <PencilRuler className="h-4 w-4 text-white" />
+            </div>
+            <h1 className="text-xl font-bold text-blue-700">Writing Assistant</h1>
           </div>
+
+          {/* Center: Usage Limit */}
+          {!usageLoading && (
+            <div className="flex-1 max-w-md">
+              <UsageProgressBar
+                current={getCurrentUsage('writing_words')}
+                limit={getCurrentLimit('writing_words')}
+                label="Words Written"
+                unit="words"
+                size="sm"
+                showValues={true}
+              />
+            </div>
+          )}
+
+          {/* Right: Drafts Manager */}
+          {draftsManager}
         </div>
-      )}
+      </div>
 
       <div className="flex-grow p-4 overflow-hidden">
         {isMobile ? (

@@ -59,9 +59,8 @@ export function useUsageLimits() {
 
       // Fetch current usage
       const usageResponse = await fetch('/api/usage/summary', {
-        method: 'POST',
+        method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id })
       });
 
       if (!usageResponse.ok) {
@@ -69,13 +68,13 @@ export function useUsageLimits() {
       }
 
       const usageData = await usageResponse.json();
-      setUsage(usageData.usage || usage);
+      console.log('📊 Usage API Response:', usageData);
+      setUsage(usageData.summary?.usage || usageData.usage || usage);
 
       // Fetch subscription and limits
       const subscriptionResponse = await fetch('/api/subscriptions/status', {
-        method: 'POST',
+        method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id })
       });
 
       if (!subscriptionResponse.ok) {
@@ -83,6 +82,7 @@ export function useUsageLimits() {
       }
 
       const subscriptionData = await subscriptionResponse.json();
+      console.log('📊 Subscription API Response:', subscriptionData);
       setLimits(subscriptionData.plan?.limits || {});
       setPlanName(subscriptionData.plan?.name || 'Free');
 
@@ -171,19 +171,47 @@ export function useUsageLimits() {
     }
   };
 
-  // Get current limit for a specific action
+  // Get current limit for a specific action based on plan
   const getCurrentLimit = (action: keyof UsageData): number => {
+    // Premium plans have higher daily/weekly limits
+    const isPremium = planName.toLowerCase().includes('premium');
+
     switch (action) {
       case 'documents_uploaded':
-        return limits.document_uploads_per_day || limits.document_uploads_per_week || 0;
+        // Premium: 100/day, Free: 3/week
+        if (isPremium) {
+          return limits.document_uploads_per_day || 100;
+        }
+        return limits.document_uploads_per_week || limits.document_uploads_per_day || 3;
+
       case 'writing_words':
-        return limits.writing_words_per_day || limits.writing_words_per_month || 0;
+        // Premium: 25,000/day, Free: 5,000/month
+        if (isPremium) {
+          return limits.writing_words_per_day || 25000;
+        }
+        return limits.writing_words_per_month || limits.writing_words_per_day || 5000;
+
       case 'search_queries':
-        return limits.search_queries_per_day || limits.search_queries_per_week || 0;
+        // Premium: 500/day, Free: 10/week
+        if (isPremium) {
+          return limits.search_queries_per_day || 500;
+        }
+        return limits.search_queries_per_week || limits.search_queries_per_day || 10;
+
       case 'exam_sessions':
-        return limits.exam_sessions_per_week || limits.exam_sessions_per_month || 0;
+        // Premium: 50/week, Free: 1/month
+        if (isPremium) {
+          return limits.exam_sessions_per_week || 50;
+        }
+        return limits.exam_sessions_per_month || limits.exam_sessions_per_week || 1;
+
       case 'storage_used_bytes':
-        return (limits.storage_mb || 0) * 1024 * 1024; // Convert MB to bytes
+        // Premium: 10GB, Free: 250MB
+        const storageMB = isPremium
+          ? (limits.storage_mb || 10240) // 10GB = 10240MB
+          : (limits.storage_mb || 250);
+        return storageMB * 1024 * 1024; // Convert MB to bytes
+
       default:
         return 0;
     }

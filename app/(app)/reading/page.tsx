@@ -24,11 +24,25 @@ import { DocumentProvider } from "@/components/reading/document-context"
 import { FileUploaderComponent } from "@/components/reading/file-uploader"
 import { OptimizedFileUploader } from "@/components/reading/optimized-file-uploader"
 import { DocumentListModal } from "@/components/reading/document-list-modal"
+import { UsageProgressBar } from "@/components/ui/usage-progress-bar"
+import { useUsageLimits } from "@/hooks/use-usage-limits"
 
 const ReadingPage = () => {
   const router = useRouter()
   const [showUploadModal, setShowUploadModal] = React.useState(false)
   const [showDocumentListModal, setShowDocumentListModal] = React.useState(false)
+  const { getCurrentUsage, getCurrentLimit, isLoading: usageLoading, usage, limits } = useUsageLimits()
+
+  // Debug: Log usage data
+  React.useEffect(() => {
+    console.log('📊 Reading Page Usage Data:', {
+      usage,
+      limits,
+      current: getCurrentUsage('documents_uploaded'),
+      limit: getCurrentLimit('documents_uploaded'),
+      isLoading: usageLoading
+    });
+  }, [usage, limits, usageLoading])
 
   const uploadOptions = [
     {
@@ -77,7 +91,7 @@ const ReadingPage = () => {
         {/* Modern Header */}
         <div className="bg-white border-b border-border/50 sticky top-0 z-40">
           <div className="w-full max-w-[85vw] mx-auto px-6 py-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">
                   <BookOpen className="h-5 w-5 text-white" />
@@ -86,6 +100,20 @@ const ReadingPage = () => {
                   Reading Hub
                 </h1>
               </div>
+
+              {/* Usage Limit Indicator */}
+              {!usageLoading && (
+                <div className="min-w-[280px]">
+                  <UsageProgressBar
+                    current={getCurrentUsage('documents_uploaded')}
+                    limit={getCurrentLimit('documents_uploaded')}
+                    label="Documents Uploaded"
+                    unit="docs"
+                    size="sm"
+                    showValues={true}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -82,16 +82,10 @@ export function ChatInterface() {
     // Check if this is a summarize action
     if (message.toLowerCase().includes('summarize') && document) {
       console.log('📄 Detected summarize action, triggering summarization...');
-      
+
       // Add user message to chat
       addMessage({ role: 'user', content: message });
-      
-      // Add loading message
-      addMessage({ 
-        role: 'assistant', 
-        content: 'Generating document summary... Please wait.' 
-      });
-      
+
       try {
         // Check if document has a valid UUID (database-stored document)
         if (document.id && isValidUUID(document.id)) {
@@ -103,30 +97,16 @@ export function ChatInterface() {
           });
 
           if (result) {
-            // Replace the loading message with the actual summary
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessageIndex = newMessages.length - 1;
-              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
-                newMessages[lastMessageIndex] = {
-                  ...newMessages[lastMessageIndex],
-                  content: `**Document Summary**\n\n${result.summary}`
-                };
-              }
-              return newMessages;
+            // Add the summary as a new message
+            addMessage({
+              role: 'assistant',
+              content: `**Document Summary**\n\n${result.summary}`
             });
           } else {
-            // Replace loading message with error
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessageIndex = newMessages.length - 1;
-              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
-                newMessages[lastMessageIndex] = {
-                  ...newMessages[lastMessageIndex],
-                  content: 'Sorry, I encountered an error while generating the summary. Please try again.'
-                };
-              }
-              return newMessages;
+            // Add error message
+            addMessage({
+              role: 'assistant',
+              content: 'Sorry, I encountered an error while generating the summary. Please try again.'
             });
           }
         } else {
@@ -146,17 +126,10 @@ export function ChatInterface() {
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.summary) {
-              // Replace the loading message with the actual summary
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const lastMessageIndex = newMessages.length - 1;
-                if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
-                  newMessages[lastMessageIndex] = {
-                    ...newMessages[lastMessageIndex],
-                    content: `**Document Summary**\n\n${data.summary}`
-                  };
-                }
-                return newMessages;
+              // Add the summary as a new message
+              addMessage({
+                role: 'assistant',
+                content: `**Document Summary**\n\n${data.summary}`
               });
             } else {
               throw new Error('Failed to generate summary');
@@ -167,17 +140,10 @@ export function ChatInterface() {
         }
       } catch (error: any) {
         console.error('❌ Summarization error:', error);
-        // Replace loading message with error
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMessageIndex = newMessages.length - 1;
-          if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
-            newMessages[lastMessageIndex] = {
-              ...newMessages[lastMessageIndex],
-              content: `Sorry, I encountered an error while generating the summary: ${error.message}. Please try again.`
-            };
-          }
-          return newMessages;
+        // Add error message
+        addMessage({
+          role: 'assistant',
+          content: `Sorry, I encountered an error while generating the summary: ${error.message}. Please try again.`
         });
       }
       return;
@@ -186,16 +152,10 @@ export function ChatInterface() {
     // Check if this is a flashcard action
     if ((message.toLowerCase().includes('flashcard') || message.toLowerCase().includes('flash card')) && document) {
       console.log('🃏 Detected flashcard action, triggering flashcard generation...');
-      
+
       // Add user message to chat
       addMessage({ role: 'user', content: message });
-      
-      // Add loading message
-      addMessage({ 
-        role: 'assistant', 
-        content: 'Generating flashcards... Please wait.' 
-      });
-      
+
       try {
         // Check if document has a valid UUID (database-stored document)
         if (document.id && isValidUUID(document.id)) {
@@ -207,61 +167,33 @@ export function ChatInterface() {
           });
 
           if (result) {
-            // Replace the loading message with the flashcard results
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessageIndex = newMessages.length - 1;
-              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
-                newMessages[lastMessageIndex] = {
-                  ...newMessages[lastMessageIndex],
-                  content: `**Flashcards Generated!**\n\nI've created ${result.flashcards.length} flashcards from your document "${result.metadata.title}".\n\n**Sample Cards:**\n\n${result.flashcards.slice(0, 3).map((card, index) => 
-                    `**Card ${index + 1}:**\n**Q:** ${card.front}\n**A:** ${card.back}\n`
-                  ).join('\n')}\n\nYou can view and study all flashcards in the Flashcards tab!`
-                };
-              }
-              return newMessages;
+            // Add the flashcard results as a new message
+            addMessage({
+              role: 'assistant',
+              content: `**Flashcards Generated!**\n\nI've created ${result.flashcards.length} flashcards from your document "${result.metadata.title}".\n\n**Sample Cards:**\n\n${result.flashcards.slice(0, 3).map((card, index) =>
+                `**Card ${index + 1}:**\n**Q:** ${card.front}\n**A:** ${card.back}\n`
+              ).join('\n')}\n\nYou can view and study all flashcards in the Flashcards tab!`
             });
           } else {
-            // Replace loading message with error
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessageIndex = newMessages.length - 1;
-              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
-                newMessages[lastMessageIndex] = {
-                  ...newMessages[lastMessageIndex],
-                  content: 'Sorry, I encountered an error while generating flashcards. Please try again.'
-                };
-              }
-              return newMessages;
+            // Add error message
+            addMessage({
+              role: 'assistant',
+              content: 'Sorry, I encountered an error while generating flashcards. Please try again.'
             });
           }
         } else {
           // For sample documents, show error
-          setMessages(prev => {
-            const newMessages = [...prev];
-            const lastMessageIndex = newMessages.length - 1;
-            if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
-              newMessages[lastMessageIndex] = {
-                ...newMessages[lastMessageIndex],
-                content: 'Flashcard generation requires a properly uploaded document. Please upload your document first.'
-              };
-            }
-            return newMessages;
+          addMessage({
+            role: 'assistant',
+            content: 'Flashcard generation requires a properly uploaded document. Please upload your document first.'
           });
         }
       } catch (error: any) {
         console.error('❌ Flashcard generation error:', error);
-        // Replace loading message with error
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMessageIndex = newMessages.length - 1;
-          if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
-            newMessages[lastMessageIndex] = {
-              ...newMessages[lastMessageIndex],
-              content: `Sorry, I encountered an error while generating flashcards: ${error.message}. Please try again.`
-            };
-          }
-          return newMessages;
+        // Add error message
+        addMessage({
+          role: 'assistant',
+          content: `Sorry, I encountered an error while generating flashcards: ${error.message}. Please try again.`
         });
       }
       return;

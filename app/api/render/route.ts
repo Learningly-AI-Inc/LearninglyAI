@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
         console.error('Failed to cleanup video file:', error)
       }
 
-      return new NextResponse(videoBuffer, {
+      return new NextResponse(new Uint8Array(videoBuffer), {
         status: 200,
         headers: {
           'Content-Type': 'video/mp4',

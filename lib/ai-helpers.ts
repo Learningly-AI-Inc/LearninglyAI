@@ -245,6 +245,7 @@ async function checkGrammarWithTrinka(text: string): Promise<GrammarIssue[]> {
       body: JSON.stringify({ text })
     });
 
+    console.log('Trinka grammar API response:', response);
     if (!response.ok) {
       try {
         const errText = await response.text();

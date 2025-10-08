@@ -51,40 +51,51 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (setEditorRef) {
       const replaceHtmlContent = (html: string) => {
         try {
-          const contentBlock = htmlToDraft(html || '');
+          // Clean the HTML to prevent extra line breaks
+          let cleanedHtml = html || '';
+          // Remove leading/trailing whitespace and normalize line breaks
+          cleanedHtml = cleanedHtml.trim();
+          // Ensure we don't have duplicate line breaks at the start
+          cleanedHtml = cleanedHtml.replace(/^(<p><br><\/p>)+/, '');
+
+          const contentBlock = htmlToDraft(cleanedHtml);
           if (!contentBlock || !contentBlock.contentBlocks) return;
 
           const element: any = editorRef.current?.editor;
           const prevScrollTop = element?.scrollTop || 0;
-          const prevScrollHeight = element?.scrollHeight || 0;
+
+          // Get current selection/cursor position
+          const currentSelection = editorState.getSelection();
+          const currentOffset = currentSelection.getAnchorOffset();
 
           const contentState = ContentState.createFromBlockArray(contentBlock.contentBlocks);
-          const newState = EditorState.createWithContent(contentState);
+          let newState = EditorState.createWithContent(contentState);
+
+          // Try to restore cursor position if we had one
+          if (currentOffset > 0) {
+            const firstBlock = newState.getCurrentContent().getFirstBlock();
+            const newSelection = currentSelection.merge({
+              anchorKey: firstBlock.getKey(),
+              anchorOffset: Math.min(currentOffset, firstBlock.getLength()),
+              focusKey: firstBlock.getKey(),
+              focusOffset: Math.min(currentOffset, firstBlock.getLength()),
+            });
+            newState = EditorState.forceSelection(newState, newSelection);
+          }
+
           setEditorState(newState);
 
-          // Only restore scroll if we're actually scrolled down and have meaningful content
-          if (prevScrollTop > 10 && prevScrollHeight > 200) {
-            const restoreScroll = () => {
-              if (element && typeof prevScrollTop === 'number' && isMountedRef.current) {
-                // Calculate the height difference to maintain relative position
-                const newScrollHeight = element.scrollHeight || 0;
-                const heightDiff = newScrollHeight - prevScrollHeight;
-                const newScrollTop = Math.max(0, prevScrollTop + heightDiff);
-                
-                element.scrollTop = newScrollTop;
-                if (isMountedRef.current) {
-                  element.focus?.();
-                }
+          // Maintain the exact scroll position
+          requestAnimationFrame(() => {
+            if (element) {
+              element.scrollTop = prevScrollTop;
+              if (isMountedRef.current) {
+                element.focus?.();
               }
-            };
-
-            // Single attempt to restore scroll position
-            requestAnimationFrame(() => {
-              restoreScroll();
-            });
-          }
-        } catch {
-          // no-op
+            }
+          });
+        } catch (err) {
+          console.error('Error replacing HTML content:', err);
         }
       };
 
