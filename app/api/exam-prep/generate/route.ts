@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 import { openai, DEFAULT_MODEL } from '@/lib/openai'
+import { subscriptionService } from '@/lib/subscription-service'
 
 export const runtime = 'nodejs'
 
@@ -110,6 +111,25 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // Check usage limits for exam sessions
+    const canGenerate = await subscriptionService.checkUsageLimit(user.id, 'exam_sessions', 1);
+    if (!canGenerate) {
+      const subscription = await subscriptionService.getUserSubscriptionWithPlan(user.id);
+      const isFreePlan = subscription?.subscription_plans?.name?.toLowerCase().includes('free');
+      
+      return NextResponse.json(
+        { 
+          error: 'Exam session limit exceeded',
+          message: isFreePlan 
+            ? 'You\'ve reached your free plan exam session limit. Upgrade to continue generating exams.'
+            : 'Exam session limit exceeded.',
+          needsUpgrade: isFreePlan,
+          limitType: 'exam_sessions'
+        },
+        { status: 429 }
+      );
+    }
 
     // Collect texts strictly from the user's own uploads
     let textsA = await fetchTextsForExamFiles(supabase, body.fileIds || [], user.id)
@@ -568,6 +588,13 @@ Output format (strict JSON):
       ...normalized, 
       instructions: body.instructions || normalized.instructions,
       quizMode: body.quizMode || 'rapid-fire'
+    }
+
+    // Track usage after successful exam generation
+    try {
+      await subscriptionService.incrementUsage(user.id, 'exam_sessions', 1);
+    } catch (usageError) {
+      console.error('Failed to track exam session usage:', usageError);
     }
 
     return NextResponse.json({ success: true, exam })

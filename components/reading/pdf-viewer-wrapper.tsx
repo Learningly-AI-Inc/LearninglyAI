@@ -148,13 +148,13 @@ export const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = ({
       {/* Simple toolbar with refresh option */}
       <div className="flex items-center justify-between p-2 bg-gray-100 border-b">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-700">
+          <span className="text-sm text-gray-700 ps-2">
             PDF Document - Using Browser Viewer
           </span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 pe-2">
             Native browser PDF controls available
           </span>
         </div>

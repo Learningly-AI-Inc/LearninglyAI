@@ -12,6 +12,7 @@ import { useDocument } from "./document-context"
 interface FileUploaderProps {
   onClose?: () => void
   onUploaded?: (result: { fileUrl?: string; documentId?: string; title?: string }) => void
+  enableClientSideExtraction?: boolean
 }
 
 const SUPPORTED_TYPES = {
@@ -22,7 +23,7 @@ const SUPPORTED_TYPES = {
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
-export function FileUploaderComponent({ onClose, onUploaded }: FileUploaderProps) {
+export function FileUploaderComponent({ onClose, onUploaded, enableClientSideExtraction = false }: FileUploaderProps) {
   const router = useRouter()
   const { uploadDocument, uploadProgress, resetUpload } = useDocument()
   const [file, setFile] = useState<File | null>(null)

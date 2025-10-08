@@ -3,12 +3,14 @@
 import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Menu, LogOut, Settings, BrainCircuit, User, Bolt, ChevronRight, Clock, Crown, Zap, Shield, X } from "lucide-react"
+import { Menu, LogOut, Settings, Bolt, Clock, Crown, Zap, Shield, X, ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuthContext } from "@/components/auth/auth-provider"
 import { useRouter } from "next/navigation"
 import { useSubscription } from "@/hooks/use-subscription"
+import { useUsageLimits } from "@/hooks/use-usage-limits"
+import { Progress } from "@/components/ui/progress"
 
 interface NavigationItem {
   href: string;
@@ -111,6 +113,7 @@ export default function AppSidebar({
   const { signOut, user } = useAuthContext()
   const router = useRouter()
   const { subscription, loading: subscriptionLoading } = useSubscription()
+  const { getCurrentUsage, getCurrentLimit, isLoading: usageLoading } = useUsageLimits()
 
   // Show/hide Upgrade card (dismiss for current page only; resets on refresh)
   // Only show for Free plan users
@@ -172,6 +175,34 @@ export default function AppSidebar({
     }
   })()
 
+  // Calculate average usage percentage across key metrics
+  const getAverageUsage = () => {
+    if (usageLoading) return 0;
+
+    const metrics = [
+      { current: getCurrentUsage('documents_uploaded'), limit: getCurrentLimit('documents_uploaded') },
+      { current: getCurrentUsage('writing_words'), limit: getCurrentLimit('writing_words') },
+      { current: getCurrentUsage('search_queries'), limit: getCurrentLimit('search_queries') },
+    ];
+
+    const percentages = metrics
+      .filter(m => m.limit > 0)
+      .map(m => (m.current / m.limit) * 100);
+
+    if (percentages.length === 0) return 0;
+
+    const avg = percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+    return Math.min(avg, 100);
+  };
+
+  const averageUsage = getAverageUsage();
+
+  const getUsageColor = (percentage: number) => {
+    if (percentage >= 90) return 'bg-red-500';
+    if (percentage >= 75) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
   return (
       <aside
        className={`${sidebarCollapsed ? "w-16" : "w-[240px] lg:w-[280px]"} ${isMobile ? 'flex' : 'hidden md:flex'} flex-col border-r border-border/50 bg-white transition-[width] duration-300 z-40 h-screen fixed modern-shadow-lg`}
@@ -198,7 +229,7 @@ export default function AppSidebar({
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="rounded-xl p-2 hover:bg-accent/60 transition-colors duration-200"
           >
-            <ChevronRight className={`h-4 w-4 transition-transform duration-300 ${sidebarCollapsed ? "rotate-180" : ""}`} />
+            <ChevronLeft className={`h-4 w-4 transition-transform duration-300 ${sidebarCollapsed ? "rotate-180" : ""}`} />
           </button>
         )}
       </div>
@@ -243,6 +274,41 @@ export default function AppSidebar({
       </div>
 
       <div className="p-4 border-t border-border/50 space-y-4">
+        {/* Average Usage Display */}
+        {!usageLoading && (
+          <div className={`${sidebarCollapsed ? "px-1" : "px-3 py-3"} bg-gray-50 rounded-xl border border-gray-200`}>
+            {sidebarCollapsed ? (
+              <div className="flex flex-col items-center gap-1 py-2">
+                <div className="w-8 h-8 rounded-full bg-gray-200 relative overflow-hidden">
+                  <div
+                    className={`absolute bottom-0 left-0 right-0 ${getUsageColor(averageUsage)} transition-all duration-500`}
+                    style={{ height: `${averageUsage}%` }}
+                  />
+                </div>
+                <span className="text-[10px] font-semibold text-gray-700">{averageUsage.toFixed(0)}%</span>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-gray-700">Overall Usage</span>
+                  <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs px-2 py-0.5">
+                    {averageUsage.toFixed(0)}%
+                  </Badge>
+                </div>
+                <div className="relative w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`${getUsageColor(averageUsage)} h-full rounded-full transition-all duration-500`}
+                    style={{ width: `${averageUsage}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-500 mt-1.5">
+                  Average across all services
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
         {shouldShowUpgradeCard && (
         <div className={`relative rounded-2xl bg-blue-600 text-white ${sidebarCollapsed ? "p-2 flex justify-center" : "p-4"} modern-shadow`}>
           {!sidebarCollapsed && (
@@ -267,11 +333,11 @@ export default function AppSidebar({
           )}
           <button 
             onClick={() => router.push('/pricing')}
-            className={`${sidebarCollapsed ? "w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200" : "w-full px-3 py-2"} text-xs font-medium bg-white text-blue-700 rounded-full hover:bg-white/90 transition-colors duration-200 shadow-sm`}
+            className={`${sidebarCollapsed ? "w-8 h-6 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200" : "w-full px-3 py-2"} text-xs font-medium bg-white text-blue-700 rounded-full hover:bg-white/90 transition-colors duration-200 shadow-sm`}
           >
             {sidebarCollapsed ? <Crown className="h-5 w-5 text-white" /> : (
               <div className="flex items-center justify-center gap-1">
-                <Zap className="h-3 w-3" />
+                <Zap className="h-5 w-5" />
                 Upgrade
               </div>
             )}

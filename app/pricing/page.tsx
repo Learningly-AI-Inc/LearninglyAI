@@ -39,43 +39,84 @@ export default function PricingPage() {
       const mockPlans: SubscriptionPlan[] = [
         {
           id: 'free',
-          name: 'Freemium',
-          description: 'Extremely limited access per month',
+          name: 'Free',
+          description: 'Best for trying Learningly',
           price_cents: 0,
           currency: 'USD',
           interval: 'month',
-          features: { ai_requests: 10, document_uploads: 1, search_queries: 20 },
-          limits: { storage_mb: 50, max_file_size_mb: 10, ai_requests: 10, document_uploads: 1, search_queries: 20, exam_sessions: 2 },
+          features: { 
+            basic_summaries: true, 
+            flashcards: true, 
+            quizzes: true,
+            calendar_sync: true,
+            analytics: false,
+            ai_customization: false,
+            priority_support: false,
+            custom_models: false,
+            early_access: false
+          },
+          limits: { 
+            document_uploads_per_week: 3, 
+            writing_words_per_month: 5000, 
+            search_queries_per_week: 10, 
+            exam_sessions_per_month: 1,
+            storage_mb: 250,
+            calendar_sync_days: 3
+          },
         },
         {
           id: 'premium-monthly',
-          name: 'Premium (Monthly)',
-          description: 'Unlimited use per month',
+          name: 'Premium',
+          description: 'Best for daily activities',
           price_cents: 1500,
           currency: 'USD',
           interval: 'month',
-          features: { ai_requests: -1, document_uploads: -1, search_queries: -1, priority_support: true },
-          limits: { storage_mb: 5000, max_file_size_mb: 200, ai_requests: -1, document_uploads: -1, search_queries: -1, exam_sessions: -1 },
+          features: { 
+            basic_summaries: true, 
+            flashcards: true, 
+            quizzes: true,
+            calendar_sync: true,
+            analytics: true,
+            ai_customization: true,
+            priority_support: true,
+            custom_models: true,
+            early_access: true
+          },
+          limits: { 
+            document_uploads_per_day: 100, 
+            writing_words_per_day: 25000, 
+            search_queries_per_day: 500, 
+            exam_sessions_per_week: 50,
+            storage_mb: 10240, // 10GB
+            calendar_sync_days: -1 // unlimited
+          },
         },
         {
           id: 'premium-yearly',
-          name: 'Premium (Yearly)',
-          description: 'Best value – limited to the first few weeks',
+          name: 'Premium Elite',
+          description: 'Save 45% - Everything in Premium',
           price_cents: 10000,
           currency: 'USD',
           interval: 'year',
-          features: { ai_requests: -1, document_uploads: -1, search_queries: -1, priority_support: true },
-          limits: { storage_mb: 10000, max_file_size_mb: 500, ai_requests: -1, document_uploads: -1, search_queries: -1, exam_sessions: -1 },
-        },
-        {
-          id: 'custom',
-          name: 'Custom Model',
-          description: 'Tailored models and enterprise setup – contact us',
-          price_cents: 0,
-          currency: 'USD',
-          interval: 'month',
-          features: {},
-          limits: { storage_mb: 0, max_file_size_mb: 0, ai_requests: 0, document_uploads: 0, search_queries: 0, exam_sessions: 0 },
+          features: { 
+            basic_summaries: true, 
+            flashcards: true, 
+            quizzes: true,
+            calendar_sync: true,
+            analytics: true,
+            ai_customization: true,
+            priority_support: true,
+            custom_models: true,
+            early_access: true
+          },
+          limits: { 
+            document_uploads_per_day: 100, 
+            writing_words_per_day: 25000, 
+            search_queries_per_day: 500, 
+            exam_sessions_per_week: 50,
+            storage_mb: 10240, // 10GB
+            calendar_sync_days: -1 // unlimited
+          },
         },
       ]
       setPlans(mockPlans)
@@ -95,11 +136,11 @@ export default function PricingPage() {
         const data = await response.json()
         // Determine plan type based on price_cents
         if (data.plan.price_cents === 1500) {
-          setCurrentPlan('Premium (Monthly)')
+          setCurrentPlan('Premium')
         } else if (data.plan.price_cents === 10000) {
-          setCurrentPlan('Premium (Yearly)')
+          setCurrentPlan('Premium Elite')
         } else if (data.plan.price_cents === 0) {
-          setCurrentPlan('Freemium')
+          setCurrentPlan('Free')
         } else {
           setCurrentPlan(data.plan.name)
         }
@@ -148,34 +189,27 @@ export default function PricingPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-6xl mx-auto">
-          {/* Freemium (free) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          {/* Free */}
           <SubscriptionCard
             plan={plans.find(p => p.id === 'free')!}
-            isCurrentPlan={currentPlan === 'Freemium'}
+            isCurrentPlan={currentPlan === 'Free'}
             isPopular={false}
             checkoutPlan={'freemium'}
           />
-          {/* Premium Monthly – maps to previous freemium price per instruction */}
+          {/* Premium Monthly */}
           <SubscriptionCard
             plan={plans.find(p => p.id === 'premium-monthly')!}
-            isCurrentPlan={currentPlan === 'Premium (Monthly)'}
+            isCurrentPlan={currentPlan === 'Premium'}
             isPopular={true}
-            checkoutPlan={'freemium'}
+            checkoutPlan={'premium'}
           />
-          {/* Premium Yearly – maps to previous premium price */}
+          {/* Premium Elite Yearly */}
           <SubscriptionCard
             plan={plans.find(p => p.id === 'premium-yearly')!}
-            isCurrentPlan={currentPlan === 'Premium (Yearly)'}
+            isCurrentPlan={currentPlan === 'Premium Elite'}
             isPopular={false}
             checkoutPlan={'premium_yearly'}
-          />
-          {/* Custom Model – contact */}
-          <SubscriptionCard
-            plan={plans.find(p => p.id === 'custom')!}
-            isCurrentPlan={false}
-            isPopular={false}
-            checkoutPlan={'contact'}
           />
         </div>
 

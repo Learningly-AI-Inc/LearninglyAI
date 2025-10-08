@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { uploadKnowledgeBaseAs, webhookDebugger } from '@/api-config';
+import { subscriptionService } from '@/lib/subscription-service';
 
 // Ensure large form-data uploads are handled by Node runtime and allow bigger bodies
 export const runtime = 'nodejs'
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
   console.log('📤 Reading Upload API called');
   
   try {
-    // Parse form data (small payloads only)
+    // Parse form data with better error handling
     let formData: FormData;
     try {
       formData = await req.formData();
@@ -29,8 +30,9 @@ export async function POST(req: NextRequest) {
       console.error('❌ Failed to parse FormData:', error);
       return NextResponse.json(
         { 
-          error: 'Invalid request format. Please ensure you are uploading a file or fileUrl.',
-          details: 'FormData parsing failed'
+          error: 'Invalid request format. Please ensure you are uploading a file.',
+          details: 'FormData parsing failed',
+          code: 'PARSE_ERROR'
         },
         { status: 400 }
       );
@@ -149,6 +151,27 @@ export async function POST(req: NextRequest) {
 
     console.log('✅ User authenticated:', user.id);
 
+    // Check usage limits before processing
+    const canUpload = await subscriptionService.checkUsageLimit(user.id, 'documents_uploaded', 1);
+    if (!canUpload) {
+      const subscription = await subscriptionService.getUserSubscriptionWithPlan(user.id);
+      const isFreePlan = subscription?.subscription_plans?.name?.toLowerCase().includes('free');
+
+      console.log('❌ Upload limit exceeded:', isFreePlan);
+      
+      return NextResponse.json(
+        { 
+          error: 'Upload limit exceeded',
+          message: isFreePlan 
+            ? 'You\'ve reached your free plan document upload limit. Upgrade to continue uploading documents.'
+            : 'Document upload limit exceeded.',
+          needsUpgrade: isFreePlan,
+          limitType: 'documents_uploaded'
+        },
+        { status: 429 }
+      );
+    }
+
     // Obtain the file buffer (from binary upload or by downloading from Supabase via fileUrl)
     let buffer: Buffer | null = null;
     let storagePathFromUrl: string | null = null;
@@ -210,112 +233,8 @@ export async function POST(req: NextRequest) {
       console.log('🔍 Processing text on server side');
     }
 
-    // Helper: Run OCR (Adobe PDF Services) to convert image-based PDFs into searchable text
-    async function runAdobeOcrIfAvailable(pdfBuffer: Buffer): Promise<{ searchablePdf?: Buffer; note?: string } | null> {
-      try {
-        const sdk: any = await import('@adobe/pdfservices-node-sdk')
-        const { Readable } = await import('stream')
-        const clientId = process.env.PDF_SERVICES_CLIENT_ID || process.env.ADOBE_CLIENT_ID
-        const clientSecret = process.env.PDF_SERVICES_CLIENT_SECRET || process.env.ADOBE_CLIENT_SECRET
-
-        let resolvedClientId = clientId
-        let resolvedClientSecret = clientSecret
-
-        // Fallback: try reading credentials JSON if env vars are not set
-        if (!resolvedClientId || !resolvedClientSecret) {
-          try {
-            const fs = await import('fs/promises')
-            const path = await import('path')
-            // Try root credentials file
-            const credPathRoot = path.join(process.cwd(), 'pdfservices-api-credentials.json')
-            const rawRoot = await fs.readFile(credPathRoot, 'utf-8').catch(() => '')
-            if (rawRoot) {
-              const json = JSON.parse(rawRoot)
-              resolvedClientId = json?.client_id || json?.clientId || resolvedClientId
-              resolvedClientSecret = json?.client_secret || json?.clientSecret || resolvedClientSecret
-            }
-            // Try nested path used in some deployments
-            if (!resolvedClientId || !resolvedClientSecret) {
-              const credPathApp = path.join(process.cwd(), 'app', 'pdfservices-api-credentials.json')
-              const rawApp = await fs.readFile(credPathApp, 'utf-8').catch(() => '')
-              if (rawApp) {
-                const json = JSON.parse(rawApp)
-                resolvedClientId = json?.client_id || json?.clientId || resolvedClientId
-                resolvedClientSecret = json?.client_secret || json?.clientSecret || resolvedClientSecret
-              }
-            }
-          } catch {}
-        }
-
-        if (!resolvedClientId || !resolvedClientSecret) {
-          return { note: 'OCR skipped: Adobe credentials missing' }
-        }
-
-        const credentials = new sdk.ServicePrincipalCredentials({ clientId: resolvedClientId, clientSecret: resolvedClientSecret })
-        const pdfServices = new sdk.PDFServices({ credentials })
-        const readStream = Readable.from(pdfBuffer)
-        const inputAsset = await pdfServices.upload({ readStream, mimeType: sdk.MimeType.PDF })
-
-        // Optional params (use US English and accurate mode)
-        let params: any = undefined
-        try {
-          params = new sdk.OCRParams({ ocrLocale: sdk.OCRSupportedLocale.EN_US, ocrType: sdk.OCRSupportedType.SEARCHABLE_IMAGE_EXACT })
-        } catch {}
-
-        const job = params ? new sdk.OCRJob({ inputAsset, params }) : new sdk.OCRJob({ inputAsset })
-        const pollingURL = await pdfServices.submit({ job })
-        const resp = await pdfServices.getJobResult({ pollingURL, resultType: sdk.OCRResult })
-        const resultAsset = resp.result.asset
-        const streamAsset = await pdfServices.getContent({ asset: resultAsset })
-
-        const chunks: Buffer[] = []
-        const rs: any = streamAsset.readStream
-        await new Promise<void>((resolve, reject) => {
-          rs.on('data', (c: Buffer) => chunks.push(c))
-          rs.on('end', () => resolve())
-          rs.on('error', (e: any) => reject(e))
-        })
-        const out = Buffer.concat(chunks)
-        return { searchablePdf: out, note: 'OCR used: Adobe PDF Services' }
-      } catch (e) {
-        console.error('⚠️ OCR attempt failed:', e)
-        return { note: 'OCR failed' }
-      }
-    }
-
-    // Helper: Export PDF -> DOCX using Adobe Services then extract text via mammoth
-    async function exportPdfToDocxExtractText(pdfBuffer: Buffer): Promise<string> {
-      try {
-        const sdk: any = await import('@adobe/pdfservices-node-sdk')
-        const mammoth = await import('mammoth')
-        const { Readable } = await import('stream')
-        const clientId = process.env.PDF_SERVICES_CLIENT_ID || process.env.ADOBE_CLIENT_ID
-        const clientSecret = process.env.PDF_SERVICES_CLIENT_SECRET || process.env.ADOBE_CLIENT_SECRET
-        if (!clientId || !clientSecret) return ''
-        const credentials = new sdk.ServicePrincipalCredentials({ clientId, clientSecret })
-        const pdfServices = new sdk.PDFServices({ credentials })
-        const readStream = Readable.from(pdfBuffer)
-        const inputAsset = await pdfServices.upload({ readStream, mimeType: sdk.MimeType.PDF })
-        const params = new sdk.ExportPDFParams({ targetFormat: sdk.ExportPDFTargetFormat.DOCX, ocrLocale: sdk.ExportOCRLocale.EN_US })
-        const job = new sdk.ExportPDFJob({ inputAsset: inputAsset, params })
-        const poll = await pdfServices.submit({ job })
-        const resp = await pdfServices.getJobResult({ pollingURL: poll, resultType: sdk.ExportPDFResult })
-        const docxAsset = resp.result.asset
-        const streamAsset = await pdfServices.getContent({ asset: docxAsset })
-        const chunks: Buffer[] = []
-        const rs: any = streamAsset.readStream
-        await new Promise<void>((resolve, reject) => {
-          rs.on('data', (c: Buffer) => chunks.push(c))
-          rs.on('end', () => resolve())
-          rs.on('error', (e: any) => reject(e))
-        })
-        const docxBuffer = Buffer.concat(chunks)
-        const { value } = await mammoth.extractRawText({ buffer: docxBuffer })
-        return String(value || '').trim()
-      } catch {
-        return ''
-      }
-    }
+    // Removed Adobe OCR helpers to optimize upload speed
+    // These can be re-enabled if needed for image-based PDFs
 
     // Helper: Extract text using pdfjs-dist (no filesystem access)
     async function extractWithPdfJs(buffer: Buffer): Promise<{ text: string; pages: number }> {
@@ -418,58 +337,32 @@ Note: The document has been processed through our webhook system and is availabl
               try {
                 if (fileExtension === 'pdf' || fileType === 'application/pdf') {
                   const cleanBuffer = Buffer.from(buffer as Buffer)
-                  // Prefer Adobe export->DOCX path to avoid pdf-parse environment issues
-                  let text = await exportPdfToDocxExtractText(cleanBuffer)
-                  if (text) {
-                    serverExtractedText = text
-                    serverPageCount = Math.max(1, Math.ceil(text.length / 2000))
-                    processingNotes.push('Adobe export to DOCX fallback used')
-                } else {
-                  // Try pdfjs-dist first to avoid pdf-parse test path issue
+                  // Try pdfjs-dist first (faster)
                   const viaPdfJs = await extractWithPdfJs(cleanBuffer)
                   if (viaPdfJs.text) {
                     serverExtractedText = viaPdfJs.text
                     serverPageCount = viaPdfJs.pages
-                    processingNotes.push('Server PDF parsing via pdfjs-dist')
+                    processingNotes.push('Fallback: pdfjs-dist extraction')
                   } else {
+                    // Fallback to pdf-parse if pdfjs fails
                     const { default: PDFParse } = await import('pdf-parse')
                     const pdfData = await PDFParse(cleanBuffer, { max: 0 }) as any
                     serverExtractedText = String(pdfData.text || '').trim()
-                    serverPageCount = pdfData.numpages || serverPageCount
-                    processingNotes.push('Server PDF parsing fallback used')
+                    serverPageCount = pdfData.numpages || 1
+                    processingNotes.push('Fallback: pdf-parse extraction')
                   }
+                } else if (fileExtension === 'docx' || fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                  const mammoth = await import('mammoth')
+                  const buf = buffer as Buffer
+                  const result = await mammoth.extractRawText({ buffer: buf })
+                  serverExtractedText = String(result.value || '').trim()
+                  serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000))
+                  processingNotes.push('Fallback: DOCX extraction via mammoth')
+                } else if (fileExtension === 'txt' || fileType === 'text/plain') {
+                  serverExtractedText = (buffer as Buffer).toString('utf-8');
+                  serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000));
+                  processingNotes.push('Fallback: TXT extraction')
                 }
-
-                  // If still empty, attempt OCR using Adobe then parse again
-                  if (!serverExtractedText) {
-                    const ocr = await runAdobeOcrIfAvailable(cleanBuffer)
-                    if (ocr?.searchablePdf) {
-                      // Try export path again after OCR
-                      let ocrText = await exportPdfToDocxExtractText(ocr.searchablePdf)
-                      if (!ocrText) {
-                        const { default: PDFParse } = await import('pdf-parse')
-                        const parsed = await PDFParse(ocr.searchablePdf, { max: 0 }) as any
-                        ocrText = String(parsed.text || '').trim()
-                        serverPageCount = parsed.numpages || serverPageCount
-                      }
-                      serverExtractedText = ocrText
-                      if (ocr.note) processingNotes.push(ocr.note)
-                    } else if (ocr?.note) {
-                      processingNotes.push(ocr.note)
-                    }
-                  }
-              } else if (fileExtension === 'docx' || fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-                const mammoth = await import('mammoth')
-                const buf = buffer as Buffer
-                const result = await mammoth.extractRawText({ buffer: buf })
-                serverExtractedText = String(result.value || '').trim()
-                serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000))
-                processingNotes.push('DOCX text extraction via mammoth (fallback)')
-              } else if (fileExtension === 'txt' || fileType === 'text/plain') {
-                serverExtractedText = (buffer as Buffer).toString('utf-8');
-                serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000));
-                processingNotes.push('TXT text extraction (fallback)')
-              }
               } catch (fallbackErr: any) {
                 processingNotes.push(`Fallback extraction failed: ${fallbackErr?.message || String(fallbackErr)}`)
               }
@@ -489,49 +382,23 @@ Note: The document has been processed through our webhook system and is availabl
             if (!webhookResult.success) {
               console.error('❌ Webhook processing failed:', webhookResult.error);
             }
-            console.log('🛠️ Running local fallback extraction')
+            console.log('🛠️ Running optimized local extraction')
             
             try {
               if (fileExtension === 'pdf' || fileType === 'application/pdf') {
                 const cleanBuffer = Buffer.from(buffer as Buffer)
-                // Prefer Adobe export->DOCX path first
-                let text = await exportPdfToDocxExtractText(cleanBuffer)
-                if (text) {
-                  serverExtractedText = text
-                  serverPageCount = Math.max(1, Math.ceil(text.length / 2000))
-                  processingNotes.push('Webhook failed; Adobe export to DOCX used')
-              } else {
+                // Simple fallback: try pdfjs-dist first, then pdf-parse
                 const viaPdfJs = await extractWithPdfJs(cleanBuffer)
                 if (viaPdfJs.text) {
                   serverExtractedText = viaPdfJs.text
                   serverPageCount = viaPdfJs.pages
-                  processingNotes.push('Webhook failed; pdfjs-dist extraction used')
+                  processingNotes.push('Local extraction via pdfjs-dist')
                 } else {
                   const { default: PDFParse } = await import('pdf-parse')
                   const pdfData = await PDFParse(cleanBuffer, { max: 0 }) as any
                   serverExtractedText = String(pdfData.text || '').trim()
                   serverPageCount = pdfData.numpages || 1
-                  processingNotes.push('Webhook failed; used server PDF parsing fallback')
-                }
-              }
-
-                // If still empty, attempt OCR using Adobe then parse again
-                if (!serverExtractedText) {
-                  const ocr = await runAdobeOcrIfAvailable(cleanBuffer)
-                  if (ocr?.searchablePdf) {
-                    // Try export path after OCR
-                    let ocrText = await exportPdfToDocxExtractText(ocr.searchablePdf)
-                    if (!ocrText) {
-                      const { default: PDFParse } = await import('pdf-parse')
-                      const parsed = await PDFParse(ocr.searchablePdf, { max: 0 }) as any
-                      ocrText = String(parsed.text || '').trim()
-                      serverPageCount = parsed.numpages || serverPageCount
-                    }
-                    serverExtractedText = ocrText
-                    if (ocr.note) processingNotes.push(ocr.note)
-                  } else if (ocr?.note) {
-                    processingNotes.push(ocr.note)
-                  }
+                  processingNotes.push('Local extraction via pdf-parse')
                 }
               } else if (fileExtension === 'docx' || fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
                 const mammoth = await import('mammoth')
@@ -539,62 +406,38 @@ Note: The document has been processed through our webhook system and is availabl
                 const result = await mammoth.extractRawText({ buffer: buf })
                 serverExtractedText = String(result.value || '').trim()
                 serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000))
-                processingNotes.push('Webhook failed; DOCX text extraction via mammoth')
+                processingNotes.push('Local DOCX extraction via mammoth')
               } else if (fileExtension === 'txt' || fileType === 'text/plain') {
                 serverExtractedText = (buffer as Buffer).toString('utf-8');
                 serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000));
-                processingNotes.push('Webhook failed; TXT text extraction')
+                processingNotes.push('Local TXT extraction')
               } else {
-                processingNotes.push(`Webhook processing failed and no local extractor available for type: ${fileExtension}`)
+                processingNotes.push(`No local extractor available for type: ${fileExtension}`)
               }
             } catch (fbErr: any) {
-              processingNotes.push(`Webhook failed; fallback extraction also failed: ${fbErr?.message || String(fbErr)}`)
+              processingNotes.push(`Local extraction failed: ${fbErr?.message || String(fbErr)}`)
             }
           }
           
         } catch (webhookError: any) {
           console.error('❌ Webhook processing error:', webhookError);
           console.log('🛠️ Running local fallback extraction after exception')
-          
+
           // Fallback: Try local extraction when webhook throws
           try {
             if (fileExtension === 'pdf' || fileType === 'application/pdf') {
               const cleanBuffer = Buffer.from(buffer as Buffer)
-              let text = await exportPdfToDocxExtractText(cleanBuffer)
-              if (text) {
-                serverExtractedText = text
-                serverPageCount = Math.max(1, Math.ceil(text.length / 2000))
-                processingNotes.push('Webhook error; Adobe export to DOCX used')
+              const viaPdfJs = await extractWithPdfJs(cleanBuffer)
+              if (viaPdfJs.text) {
+                serverExtractedText = viaPdfJs.text
+                serverPageCount = viaPdfJs.pages
+                processingNotes.push('Error recovery: pdfjs-dist extraction')
               } else {
-                const viaPdfJs = await extractWithPdfJs(cleanBuffer)
-                if (viaPdfJs.text) {
-                  serverExtractedText = viaPdfJs.text
-                  serverPageCount = viaPdfJs.pages
-                  processingNotes.push('Webhook error; pdfjs-dist extraction used')
-                } else {
-                  const { default: PDFParse } = await import('pdf-parse')
-                  const pdfData = await PDFParse(cleanBuffer, { max: 0 }) as any
-                  serverExtractedText = String(pdfData.text || '').trim()
-                  serverPageCount = pdfData.numpages || 1
-                  processingNotes.push('Webhook error; used server PDF parsing fallback')
-                }
-              }
-
-              if (!serverExtractedText) {
-                const ocr = await runAdobeOcrIfAvailable(cleanBuffer)
-                if (ocr?.searchablePdf) {
-                  let ocrText = await exportPdfToDocxExtractText(ocr.searchablePdf)
-                  if (!ocrText) {
-                    const { default: PDFParse } = await import('pdf-parse')
-                    const parsed = await PDFParse(ocr.searchablePdf, { max: 0 }) as any
-                    ocrText = String(parsed.text || '').trim()
-                    serverPageCount = parsed.numpages || serverPageCount
-                  }
-                  serverExtractedText = ocrText
-                  if (ocr.note) processingNotes.push(ocr.note)
-                } else if (ocr?.note) {
-                  processingNotes.push(ocr.note)
-                }
+                const { default: PDFParse } = await import('pdf-parse')
+                const pdfData = await PDFParse(cleanBuffer, { max: 0 }) as any
+                serverExtractedText = String(pdfData.text || '').trim()
+                serverPageCount = pdfData.numpages || 1
+                processingNotes.push('Error recovery: pdf-parse extraction')
               }
             } else if (fileExtension === 'docx' || fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
               const mammoth = await import('mammoth')
@@ -602,14 +445,14 @@ Note: The document has been processed through our webhook system and is availabl
               const result = await mammoth.extractRawText({ buffer: buf })
               serverExtractedText = String(result.value || '').trim()
               serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000))
-              processingNotes.push('Webhook error; DOCX text extraction via mammoth')
+              processingNotes.push('Error recovery: DOCX extraction via mammoth')
             } else if (fileExtension === 'txt' || fileType === 'text/plain') {
               serverExtractedText = (buffer as Buffer).toString('utf-8');
               serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000));
-              processingNotes.push('Webhook error; TXT text extraction')
+              processingNotes.push('Error recovery: TXT extraction')
             }
           } catch (fbErr: any) {
-            processingNotes.push(`Webhook error; fallback extraction also failed: ${fbErr?.message || String(fbErr)}`)
+            processingNotes.push(`Error recovery failed: ${fbErr?.message || String(fbErr)}`)
           }
         }
         
@@ -786,7 +629,7 @@ Note: The document has been processed through our webhook system and is availabl
       fileName: finalFileName
     });
     
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('reading-documents')
       .upload(storagePath, finalBuffer, {
         contentType: finalMimeType,
@@ -828,7 +671,7 @@ Note: The document has been processed through our webhook system and is availabl
         extracted_text: useClientText ? (extractedText || '') : (serverExtractedText || ''),
         page_count: useClientText ? parseInt(pageCount) || 1 : serverPageCount,
         text_length: useClientText ? (extractedText ? extractedText.length : 0) : (serverExtractedText ? serverExtractedText.length : 0),
-        processing_status: (useClientText ? (extractedText && extractedText.trim().length > 0) : (serverExtractedText && serverExtractedText.trim().length > 0)) ? 'completed' : 'failed',
+        processing_status: 'completed', // Always mark as completed if file uploaded successfully, even if text extraction failed
         public_url: fileUrl,
         metadata: {
           uploadedAt: new Date().toISOString(),
@@ -873,6 +716,15 @@ Note: The document has been processed through our webhook system and is availabl
       textLength: metadata.textLength,
       storagePath
     });
+    
+    // Track usage after successful upload
+    try {
+      await subscriptionService.incrementUsage(user.id, 'documents_uploaded', 1);
+      console.log('✅ Usage tracked for document upload');
+    } catch (usageError) {
+      console.error('⚠️ Failed to track usage:', usageError);
+      // Don't fail the upload if usage tracking fails
+    }
     
     // Return success response with public URL
     return NextResponse.json({

@@ -104,7 +104,7 @@ BEGIN
   CASE user_plan
     WHEN 'Free' THEN
       CASE limit_type
-        WHEN 'documents_uploaded' THEN usage_limit := 3; -- 3 per week = ~12 per month
+        WHEN 'documents_uploaded' THEN usage_limit := 50; -- 50 documents per month
         WHEN 'writing_words' THEN usage_limit := 5000; -- 5,000 words/month
         WHEN 'search_queries' THEN usage_limit := 40; -- 10 per week = ~40 per month
         WHEN 'exam_sessions' THEN usage_limit := 4; -- 1 per week = ~4 per month
@@ -247,7 +247,7 @@ RETURNS TABLE (
 BEGIN
   CASE plan_name
     WHEN 'Free' THEN
-      RETURN QUERY SELECT 12, 5000, 40, 4, 250 * 1024 * 1024;
+      RETURN QUERY SELECT 50, 5000, 40, 4, 250 * 1024 * 1024;
     WHEN 'Premium (Monthly)' THEN
       RETURN QUERY SELECT 3000, 750000, 15000, 1400, 10 * 1024 * 1024 * 1024;
     WHEN 'Premium (Yearly)' THEN

@@ -455,7 +455,7 @@ export class SubscriptionService {
           page: 1,
           perPage: 1000
         })
-        const existingUser = users?.users?.find(u => u.email === customerEmail)
+        const existingUser = users?.users?.find((u: any) => u.email === customerEmail)
         if (existingUser) {
           userId = existingUser.id
           console.log('Found existing user with email:', customerEmail)
@@ -689,7 +689,7 @@ export class SubscriptionService {
     switch (planName) {
       case 'Free':
         return {
-          documents_uploaded: 12, // 3 per week = ~12 per month
+          documents_uploaded: 50, // 50 documents per month (increased for better UX)
           writing_words: 5000, // 5,000 words/month
           search_queries: 40, // 10 per week = ~40 per month
           exam_sessions: 4, // 1 per week = ~4 per month

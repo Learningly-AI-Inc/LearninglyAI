@@ -32,7 +32,7 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB as per requirements
 const MAX_FILES = 10; // Allow up to 10 files as per requirements
 
 export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FILES }: StudyMaterialsUploaderProps) {
-  const { withUsageCheck } = useUsageLimits();
+  const { checkUsageLimit } = useUsageLimits();
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -156,73 +156,68 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
     if (filesToProcess.length === 0) return;
 
     // Check usage limits before starting upload
-    const usageResult = await withUsageCheck(
-      { action: 'documents_uploaded', amount: filesToProcess.length },
-      async () => {
-        setIsUploading(true);
-        const results: Array<{ documentId: string; title: string }> = [];
-        
-        for (let i = 0; i < filesToProcess.length; i++) {
-          const file = filesToProcess[i];
-          
-          // Update status to uploading
-          setFiles(prev => prev.map(f => 
-            f.id === file.id ? { ...f, status: 'uploading', progress: 0 } : f
-          ));
-
-          try {
-            const result = await uploadFile(file);
-            
-            // Update status to completed
-            setFiles(prev => prev.map(f => 
-              f.id === file.id ? { 
-                ...f, 
-                status: 'completed', 
-                documentId: result.documentId,
-                title: result.title,
-                progress: 100
-              } : f
-            ));
-
-            results.push(result);
-          } catch (error: any) {
-            console.error('Upload failed for file:', file.file.name, error);
-            
-            // Update status to error
-            setFiles(prev => prev.map(f => 
-              f.id === file.id ? { 
-                ...f, 
-                status: 'error', 
-                error: error.message || 'Upload failed'
-              } : f
-            ));
-          }
-        }
-
-        return results;
+    const usageResult = await checkUsageLimit('documents_uploaded', filesToProcess.length);
+    if (!usageResult.canProceed) {
+      toast({
+        title: "Upload limit exceeded",
+        description: usageResult.message || 'Upload limit exceeded',
+        variant: "destructive"
+      });
+      if (usageResult.needsUpgrade) {
+        // Could redirect to pricing page here
+        console.log('User needs to upgrade');
       }
-    );
+      return;
+    }
 
-    if (usageResult.success && usageResult.result) {
+    setIsUploading(true);
+    const results: Array<{ documentId: string; title: string }> = [];
+    
+    for (let i = 0; i < filesToProcess.length; i++) {
+      const file = filesToProcess[i];
+      
+      // Update status to uploading
+      setFiles(prev => prev.map(f => 
+        f.id === file.id ? { ...f, status: 'uploading', progress: 0 } : f
+      ));
+
+      try {
+        const result = await uploadFile(file);
+        
+        // Update status to completed
+        setFiles(prev => prev.map(f => 
+          f.id === file.id ? { 
+            ...f, 
+            status: 'completed', 
+            documentId: result.documentId,
+            title: result.title,
+            progress: 100
+          } : f
+        ));
+
+        results.push(result);
+      } catch (error: any) {
+        console.error('Upload failed for file:', file.file.name, error);
+        
+        // Update status to error
+        setFiles(prev => prev.map(f => 
+          f.id === file.id ? { 
+            ...f, 
+            status: 'error', 
+            error: error.message || 'Upload failed'
+          } : f
+        ));
+      }
+    }
+
+    if (results.length > 0) {
       toast({
         title: "Upload completed",
-        description: `Successfully uploaded ${usageResult.result.length} file${usageResult.result.length > 1 ? 's' : ''}.`,
+        description: `Successfully uploaded ${results.length} file${results.length > 1 ? 's' : ''}.`,
       });
       
-      onUploaded(usageResult.result);
+      onUploaded(results);
       onClose();
-    } else if (usageResult.needsUpgrade) {
-      toast({
-        title: "Upgrade required",
-        description: "You've reached your upload limit. Please upgrade to continue uploading more files.",
-        variant: "destructive"
-      });
-    } else {
-      toast({
-        title: "Upload failed",
-        description: usageResult.error || "Please try again or contact support if the issue persists.",
-        variant: "destructive"
-      });
     }
 
     setIsUploading(false);
