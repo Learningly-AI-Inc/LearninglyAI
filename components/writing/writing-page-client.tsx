@@ -54,13 +54,19 @@ const WritingPageClient = () => {
   const handleParaphrase = async (sourceText?: string) => {
     // Use provided source text (e.g., current suggestion) or entire editor content
     let textToParaphrase = sourceText ?? editorContent;
-    
+
+    // Ensure textToParaphrase is a string
+    if (typeof textToParaphrase !== 'string') {
+      console.error('textToParaphrase is not a string:', typeof textToParaphrase, textToParaphrase);
+      textToParaphrase = '';
+    }
+
     // Strip HTML tags to get plain text for paraphrasing
     if (textToParaphrase) {
       textToParaphrase = textToParaphrase.replace(/<[^>]*>?/gm, '').trim();
     }
-    
-    if (!textToParaphrase) {
+
+    if (!textToParaphrase || textToParaphrase.trim() === '') {
       setSuggestedText("");
       setGrammarIssues([]);
       setLastProcessedFeature("Content Required");
@@ -72,15 +78,18 @@ const WritingPageClient = () => {
     setActiveTab("paraphrase");
     setIsProcessing(true);
     setProcessingAction('paraphrase');
-    
+
     try {
-      console.log('Paraphrasing entire content with tone:', tone); // Debug log
+      console.log('Paraphrasing text:', textToParaphrase.substring(0, 100)); // Debug log
+      console.log('Text type:', typeof textToParaphrase); // Debug log
+      console.log('Tone:', tone); // Debug log
+
       // Call our API for paraphrasing
       const response = await fetch('/api/writing/paraphrase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          text: textToParaphrase, 
+        body: JSON.stringify({
+          text: String(textToParaphrase), // Ensure it's a string
           tone: tone.toLowerCase(), // Ensure consistent case
           userId: getMockUserId()
         })
@@ -95,7 +104,7 @@ const WritingPageClient = () => {
       setLastProcessedFeature("Paraphrase");
       setIsProcessing(false);
       setProcessingAction(null);
-      toast.info(`Entire content paraphrased successfully in ${tone} tone!`);
+      toast.success(`Entire content paraphrased successfully in ${tone} tone!`);
     } catch (error) {
       console.error("Error during paraphrasing:", error);
       setIsProcessing(false);
@@ -130,6 +139,10 @@ const WritingPageClient = () => {
     // If still no text selected, use the entire editor content
     if (!textToCheck.trim()) {
       textToCheck = currentContent;
+      // Ensure textToCheck is a string
+      if (typeof textToCheck !== 'string') {
+        textToCheck = String(textToCheck || '');
+      }
       // Strip HTML tags to get plain text for grammar checking
       if (textToCheck) {
         textToCheck = textToCheck.replace(/<[^>]*>?/gm, '').trim();

@@ -131,7 +131,7 @@ const TiptapEditor = forwardRef<any, TiptapEditorProps>(
 
     return (
       <div className="tiptap-wrapper h-full flex flex-col">
-        <EditorContent editor={editor} className="flex-1 min-h-0 overflow-y-auto" />
+        <EditorContent editor={editor} className="flex-1 min-h-0 overflow-y-auto p-3" />
       </div>
     );
   }
