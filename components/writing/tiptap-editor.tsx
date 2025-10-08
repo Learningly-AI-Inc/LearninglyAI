@@ -15,7 +15,6 @@ interface TiptapEditorProps {
   initialContent?: string;
   onChange?: (html: string, editor: Editor) => void;
   placeholder?: string;
-  height?: string;
   readOnly?: boolean;
   onSelectedTextChange?: (selectedText: string) => void;
   setEditorRef?: (ref: any) => void;
@@ -27,7 +26,6 @@ const TiptapEditor = forwardRef<any, TiptapEditorProps>(
       initialContent = "",
       onChange,
       placeholder = "Start writing or paste text here...",
-      height = "400px",
       readOnly = false,
       onSelectedTextChange,
       setEditorRef,
@@ -63,7 +61,6 @@ const TiptapEditor = forwardRef<any, TiptapEditorProps>(
       editorProps: {
         attributes: {
           class: "tiptap-content focus:outline-none",
-          style: `min-height: ${height}; max-height: ${height}; overflow-y: auto;`,
         },
       },
       onUpdate: ({ editor }) => {
@@ -133,8 +130,8 @@ const TiptapEditor = forwardRef<any, TiptapEditorProps>(
     }
 
     return (
-      <div className="tiptap-wrapper">
-        <EditorContent editor={editor} />
+      <div className="tiptap-wrapper h-full flex flex-col">
+        <EditorContent editor={editor} className="flex-1 min-h-0 overflow-y-auto" />
       </div>
     );
   }

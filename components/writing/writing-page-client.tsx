@@ -971,17 +971,18 @@ const WritingPageClient = () => {
         />
       }
       richTextEditor={
-        <>
+        <div className="h-full flex flex-col overflow-hidden">
           {editorRef && <TiptapToolbar editor={editorRef.getEditor?.()} />}
-          <TiptapEditor
-            key={`editor-${editorKey}`}
-            initialContent={editorContent}
-            onChange={handleEditorChange}
-            height="calc(100% - 56px)"
-            onSelectedTextChange={setSelectedText}
-            setEditorRef={setEditorRef}
-          />
-        </>
+          <div className="flex-1 min-h-0">
+            <TiptapEditor
+              key={`editor-${editorKey}`}
+              initialContent={editorContent}
+              onChange={handleEditorChange}
+              onSelectedTextChange={setSelectedText}
+              setEditorRef={setEditorRef}
+            />
+          </div>
+        </div>
       }
       wordCounter={
         <WordCounter text={editorContent} />
