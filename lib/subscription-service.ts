@@ -689,20 +689,28 @@ export class SubscriptionService {
     switch (planName) {
       case 'Free':
         return {
-          documents_uploaded: 50, // 50 documents per month (increased for better UX)
+          documents_uploaded: 12, // 3 per week = ~12 per month
           writing_words: 5000, // 5,000 words/month
           search_queries: 40, // 10 per week = ~40 per month
-          exam_sessions: 4, // 1 per week = ~4 per month
+          exam_sessions: 1, // 1 per month
           storage_used_bytes: 250 * 1024 * 1024, // 250MB
         }
       case 'Premium (Monthly)':
-      case 'Premium (Yearly)':
         return {
           documents_uploaded: 3000, // 100 per day = ~3000 per month
           writing_words: 750000, // 25,000 per day = ~750,000 per month
           search_queries: 15000, // 500 per day = ~15,000 per month
-          exam_sessions: 1400, // 50 per week = ~1400 per month
+          exam_sessions: 200, // 50 per week = ~200 per month
           storage_used_bytes: 10 * 1024 * 1024 * 1024, // 10GB
+        }
+      case 'Premium (Yearly)':
+      case 'Premium Elite':
+        return {
+          documents_uploaded: -1, // Unlimited
+          writing_words: -1, // Unlimited
+          search_queries: -1, // Unlimited
+          exam_sessions: -1, // Unlimited
+          storage_used_bytes: 100 * 1024 * 1024 * 1024, // 100GB
         }
       default:
         return {

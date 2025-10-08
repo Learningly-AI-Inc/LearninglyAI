@@ -54,13 +54,19 @@ const WritingPageClient = () => {
   const handleParaphrase = async (sourceText?: string) => {
     // Use provided source text (e.g., current suggestion) or entire editor content
     let textToParaphrase = sourceText ?? editorContent;
-    
+
+    // Ensure textToParaphrase is a string
+    if (typeof textToParaphrase !== 'string') {
+      console.error('textToParaphrase is not a string:', typeof textToParaphrase, textToParaphrase);
+      textToParaphrase = '';
+    }
+
     // Strip HTML tags to get plain text for paraphrasing
     if (textToParaphrase) {
       textToParaphrase = textToParaphrase.replace(/<[^>]*>?/gm, '').trim();
     }
-    
-    if (!textToParaphrase) {
+
+    if (!textToParaphrase || textToParaphrase.trim() === '') {
       setSuggestedText("");
       setGrammarIssues([]);
       setLastProcessedFeature("Content Required");
@@ -72,15 +78,18 @@ const WritingPageClient = () => {
     setActiveTab("paraphrase");
     setIsProcessing(true);
     setProcessingAction('paraphrase');
-    
+
     try {
-      console.log('Paraphrasing entire content with tone:', tone); // Debug log
+      console.log('Paraphrasing text:', textToParaphrase.substring(0, 100)); // Debug log
+      console.log('Text type:', typeof textToParaphrase); // Debug log
+      console.log('Tone:', tone); // Debug log
+
       // Call our API for paraphrasing
       const response = await fetch('/api/writing/paraphrase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          text: textToParaphrase, 
+        body: JSON.stringify({
+          text: String(textToParaphrase), // Ensure it's a string
           tone: tone.toLowerCase(), // Ensure consistent case
           userId: getMockUserId()
         })
@@ -95,7 +104,7 @@ const WritingPageClient = () => {
       setLastProcessedFeature("Paraphrase");
       setIsProcessing(false);
       setProcessingAction(null);
-      toast.info(`Entire content paraphrased successfully in ${tone} tone!`);
+      toast.success(`Entire content paraphrased successfully in ${tone} tone!`);
     } catch (error) {
       console.error("Error during paraphrasing:", error);
       setIsProcessing(false);
@@ -130,6 +139,10 @@ const WritingPageClient = () => {
     // If still no text selected, use the entire editor content
     if (!textToCheck.trim()) {
       textToCheck = currentContent;
+      // Ensure textToCheck is a string
+      if (typeof textToCheck !== 'string') {
+        textToCheck = String(textToCheck || '');
+      }
       // Strip HTML tags to get plain text for grammar checking
       if (textToCheck) {
         textToCheck = textToCheck.replace(/<[^>]*>?/gm, '').trim();
@@ -194,6 +207,26 @@ const WritingPageClient = () => {
         setLastGrammarCheckHash(currentContentHash);
         setLastGrammarCheckResult('had-issues');
         setHighlightedContent("");
+
+        // Highlight grammar issues in the editor
+        if (editorRef && editorRef.clearGrammarHighlights) {
+          editorRef.clearGrammarHighlights(); // Clear old highlights first
+
+          // Apply new highlights
+          const editorText = editorRef.getText();
+          data.grammarIssues.forEach((issue: any) => {
+            const index = editorText.indexOf(issue.original);
+            if (index !== -1 && editorRef.highlightGrammarIssue) {
+              editorRef.highlightGrammarIssue(
+                index + 1, // +1 because Tiptap positions start at 1
+                index + 1 + issue.original.length,
+                issue.id,
+                issue.type
+              );
+            }
+          });
+        }
+
         toast.info(`Found ${data.grammarIssues.length} grammar issue${data.grammarIssues.length > 1 ? 's' : ''} to review.`);
       } else {
         setGrammarIssues([]);
@@ -365,14 +398,23 @@ const WritingPageClient = () => {
 
       // Then update the editor with a slight delay to ensure state is synced
       setTimeout(() => {
+        // First, clear all grammar highlights
+        if (editorRef && editorRef.clearGrammarHighlights) {
+          editorRef.clearGrammarHighlights();
+        }
+
+        // Then update content
         if (editorRef && (editorRef as any).replaceHtmlContent) {
           (editorRef as any).replaceHtmlContent(cleanedContent);
         } else {
           setEditorKey(prev => prev + 1);
         }
 
-        // Ensure editor maintains focus after update
+        // Clear highlights again after content update to ensure they're gone
         setTimeout(() => {
+          if (editorRef && editorRef.clearGrammarHighlights) {
+            editorRef.clearGrammarHighlights();
+          }
           ensureEditorFocus();
         }, 100);
       }, 50);
@@ -494,21 +536,29 @@ const WritingPageClient = () => {
             setLastGrammarCheckResult(null); // Reset result since content changed
             toast.success("Text paraphrased successfully!");
           } else if (issue) {
+            // Remove the grammar highlight from the editor
+            if (editorRef && editorRef.removeGrammarHighlight) {
+              editorRef.removeGrammarHighlight(issue.id);
+            }
+
             // Only remove the specific grammar issue that was accepted
             const updatedGrammarIssues = grammarIssues.filter(gi => gi.id !== issue.id);
             setGrammarIssues(updatedGrammarIssues);
             setSelectedText("");
-            
+
             // Clear highlights since we're not using them in the editor
             setHighlightedContent("");
             setCurrentIssueIndex(-1);
-            
-            // If no more issues, reset tracking
+
+            // If no more issues, reset tracking and clear all highlights
             if (updatedGrammarIssues.length === 0) {
               setLastGrammarCheckHash(""); // Reset hash since content changed
               setLastGrammarCheckResult(null); // Reset result since content changed
+              if (editorRef && editorRef.clearGrammarHighlights) {
+                editorRef.clearGrammarHighlights();
+              }
             }
-            
+
             // Success message for grammar
             const remainingCount = updatedGrammarIssues.length;
             if (remainingCount > 0) {
@@ -971,17 +1021,18 @@ const WritingPageClient = () => {
         />
       }
       richTextEditor={
-        <>
+        <div className="h-full flex flex-col overflow-hidden">
           {editorRef && <TiptapToolbar editor={editorRef.getEditor?.()} />}
-          <TiptapEditor
-            key={`editor-${editorKey}`}
-            initialContent={editorContent}
-            onChange={handleEditorChange}
-            height="calc(100% - 56px)"
-            onSelectedTextChange={setSelectedText}
-            setEditorRef={setEditorRef}
-          />
-        </>
+          <div className="flex-1 min-h-0">
+            <TiptapEditor
+              key={`editor-${editorKey}`}
+              initialContent={editorContent}
+              onChange={handleEditorChange}
+              onSelectedTextChange={setSelectedText}
+              setEditorRef={setEditorRef}
+            />
+          </div>
+        </div>
       }
       wordCounter={
         <WordCounter text={editorContent} />

@@ -9,13 +9,13 @@ import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import { Color } from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
+import { GrammarHighlight } from "./grammar-highlight-extension";
 import "./tiptap-styles.css";
 
 interface TiptapEditorProps {
   initialContent?: string;
   onChange?: (html: string, editor: Editor) => void;
   placeholder?: string;
-  height?: string;
   readOnly?: boolean;
   onSelectedTextChange?: (selectedText: string) => void;
   setEditorRef?: (ref: any) => void;
@@ -27,7 +27,6 @@ const TiptapEditor = forwardRef<any, TiptapEditorProps>(
       initialContent = "",
       onChange,
       placeholder = "Start writing or paste text here...",
-      height = "400px",
       readOnly = false,
       onSelectedTextChange,
       setEditorRef,
@@ -57,13 +56,13 @@ const TiptapEditor = forwardRef<any, TiptapEditorProps>(
         Underline,
         TextStyle,
         Color,
+        GrammarHighlight,
       ],
       content: initialContent || "",
       editable: !readOnly,
       editorProps: {
         attributes: {
           class: "tiptap-content focus:outline-none",
-          style: `min-height: ${height}; max-height: ${height}; overflow-y: auto;`,
         },
       },
       onUpdate: ({ editor }) => {
@@ -110,6 +109,15 @@ const TiptapEditor = forwardRef<any, TiptapEditorProps>(
           replaceHtmlContent,
           focus: () => editor.commands.focus(),
           clear: () => editor.commands.clearContent(),
+          highlightGrammarIssue: (from: number, to: number, id: string, type: string) => {
+            editor.chain().focus().setTextSelection({ from, to }).setGrammarHighlight({ id, type }).run();
+          },
+          removeGrammarHighlight: (id: string) => {
+            editor.commands.removeGrammarHighlight(id);
+          },
+          clearGrammarHighlights: () => {
+            editor.commands.clearGrammarHighlights();
+          },
         });
       }
     }, [editor, setEditorRef]);
@@ -133,8 +141,8 @@ const TiptapEditor = forwardRef<any, TiptapEditorProps>(
     }
 
     return (
-      <div className="tiptap-wrapper">
-        <EditorContent editor={editor} />
+      <div className="tiptap-wrapper h-full flex flex-col">
+        <EditorContent editor={editor} className="flex-1 min-h-0 overflow-y-auto p-3" />
       </div>
     );
   }

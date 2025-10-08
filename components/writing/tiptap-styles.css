@@ -4,13 +4,15 @@
   flex-direction: column;
   background: white;
   width: 100%;
+  height: 100%;
+  overflow: auto;
 }
 
 .tiptap,
 .tiptap-content {
   flex: 1;
   overflow-y: auto;
-  padding: 1rem;
+  padding: 0;
   outline: none;
   font-size: 16px;
   line-height: 1.6;
@@ -18,7 +20,9 @@
   width: 100%;
   max-width: 100%;
   text-align: left;
-  padding-top: 10px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Remove any centering */
@@ -29,6 +33,9 @@
   width: 100%;
   max-width: 100%;
   text-align: left;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Placeholder */
@@ -180,4 +187,45 @@
 
 .tiptap::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* Grammar Highlights */
+.grammar-highlight {
+  border-bottom: 2px solid #ef4444;
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.grammar-highlight:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* Different colors for different issue types */
+.grammar-highlight[data-grammar-type="spelling"] {
+  border-bottom-color: #f97316;
+  background-color: rgba(249, 115, 22, 0.05);
+}
+
+.grammar-highlight[data-grammar-type="spelling"]:hover {
+  background-color: rgba(249, 115, 22, 0.1);
+}
+
+.grammar-highlight[data-grammar-type="style"] {
+  border-bottom-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.grammar-highlight[data-grammar-type="style"]:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.grammar-highlight[data-grammar-type="clarity"] {
+  border-bottom-color: #8b5cf6;
+  background-color: rgba(139, 92, 246, 0.05);
+}
+
+.grammar-highlight[data-grammar-type="clarity"]:hover {
+  background-color: rgba(139, 92, 246, 0.1);
 }

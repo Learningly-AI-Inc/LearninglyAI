@@ -129,69 +129,75 @@ function normalizeIssueType(type: string): "grammar" | "spelling" | "style" | "c
 // Function for comprehensive grammar checking with multiple passes
 async function checkGrammar(text: string): Promise<GrammarIssue[]> {
   try {
-    const prompt = `You are an expert grammar and style checker. Perform a COMPREHENSIVE analysis of the following text to identify ALL issues in a single pass.
+    const prompt = `You are an expert English grammar and spelling checker. Analyze the text below and find EVERY SINGLE error.
 
-    CRITICAL REQUIREMENTS:
-    1. Find EVERY issue - don't miss any spelling, grammar, style, or clarity problems
-    2. Be thorough and systematic - check each word, phrase, and sentence
-    3. Include issues like: spelling errors, grammar mistakes, awkward phrasing, unclear sentences, style inconsistencies, punctuation errors, word choice issues, sentence structure problems
-    4. For each issue, provide the EXACT problematic text as it appears in the original
-    5. Give clear, concise suggestions that improve the text
-    6. Categorize each issue accurately
-    7. BE CONSISTENT - if you've already identified and fixed issues in this text, don't find new ones unless they are genuinely different problems
+INSTRUCTIONS:
+1. Check EVERY WORD for spelling mistakes
+2. Check EVERY VERB for tense agreement and conjugation errors
+3. Check EVERY SUBJECT-VERB pair for agreement
+4. Check word usage (e.g., "goes" vs "go", "was" vs "were", "seen" vs "saw")
+5. Check adverb forms (e.g., "fastly" should be "fast" or "quickly")
+6. Check article usage ("a" vs "an")
+7. Check punctuation and capitalization
+8. Check word order and sentence structure
 
-    For each issue found, provide:
-    1. The exact problematic text (copy it precisely from the original)
-    2. A suggested correction
-    3. The type of issue - MUST be exactly one of: "grammar", "spelling", "style", or "clarity"
-    4. A brief explanation of why this is an issue
+For EACH error you find, you MUST report it in this exact JSON format:
+[
+  {
+    "original": "exact wrong text from the original",
+    "suggestion": "corrected version",
+    "type": "spelling" or "grammar" or "style" or "clarity",
+    "description": "what's wrong"
+  }
+]
 
-    IMPORTANT: The "type" field must be exactly one of these four values:
-    - "grammar": For grammar errors, syntax issues, punctuation problems
-    - "spelling": For misspelled words, typos
-    - "style": For word choice, tone, repetition, formality issues
-    - "clarity": For unclear, confusing, or ambiguous sentences
+EXAMPLES of what to catch:
+- "i goes" → should be "I go" (grammar: subject-verb agreement + capitalization)
+- "we seen" → should be "we saw" (grammar: wrong verb form)
+- "was run" → should be "was running" (grammar: verb tense)
+- "very fastly" → should be "very fast" or "very quickly" (grammar: adverb form)
+- "we buyed" → should be "we bought" (spelling/grammar: irregular verb)
+- "some apple and banana" → should be "some apples and bananas" (grammar: plural)
+- "dont" → should be "don't" (spelling: missing apostrophe)
+- "we was" → should be "we were" (grammar: subject-verb agreement)
+- "maked" → should be "made" (spelling: irregular verb)
+- "it taste" → should be "it tasted" (grammar: verb tense)
 
-    Format your response as a JSON array with the following structure:
-    [
-      {
-        "original": "exact problematic text from original",
-        "suggestion": "corrected text",
-        "type": "grammar",
-        "description": "brief explanation of the issue"
-      }
-    ]
-    
-    IMPORTANT: 
-    - Find ALL issues in one comprehensive pass
-    - Use the exact text from the original for "original" field
-    - If no issues are found, return an empty array: []
-    - Be systematic and thorough - don't rush the analysis
-    - BE CONSISTENT - don't find new issues if the text has already been checked and fixed
-    
-    Text to analyze:
-    "${text}"`;
+TEXT TO CHECK:
+"${text}"
+
+Return ONLY the JSON array. No other text. If there are no errors, return [].`;
 
     const result = await geminiModel.generateContent(prompt);
     const response = await result.response;
     const responseText = response.text().trim();
-    
+
     try {
       // Extract JSON from response text (handle potential non-JSON wrapping)
-      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+      let jsonMatch = responseText.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        // Try to find JSON in markdown code blocks
+        const codeBlockMatch = responseText.match(/```(?:json)?\s*(\[[\s\S]*\])\s*```/);
+        if (codeBlockMatch) {
+          jsonMatch = [codeBlockMatch[1]];
+        }
+      }
+
       if (jsonMatch) {
         const jsonStr = jsonMatch[0];
         const issues: Omit<GrammarIssue, 'id'>[] = JSON.parse(jsonStr);
-        
+
+        console.log(`Found ${issues.length} grammar issues from AI`);
+
         // Add IDs to each issue and validate
         const validatedIssues = issues
           .filter(issue => {
             // Ensure we have both original and suggestion text, and they're different
-            return issue.original && 
-                   issue.suggestion && 
-                   issue.original.trim() !== '' && 
-                   issue.suggestion.trim() !== '' && 
-                   issue.original !== issue.suggestion;
+            return issue.original &&
+                   issue.suggestion &&
+                   issue.original.trim() !== '' &&
+                   issue.suggestion.trim() !== '' &&
+                   issue.original.trim() !== issue.suggestion.trim();
           })
           .map(issue => {
             // Normalize issue type to match our expected values
@@ -201,15 +207,19 @@ async function checkGrammar(text: string): Promise<GrammarIssue[]> {
               original: issue.original.trim(),
               suggestion: issue.suggestion.trim(),
               type: normalizedType,
+              description: issue.description || 'Needs correction',
               id: uuidv4()
             };
           });
-        
+
+        console.log(`Validated ${validatedIssues.length} grammar issues`);
         return validatedIssues;
       }
+      console.log('No JSON match found in response');
       return [];
     } catch (parseError) {
       console.error('Error parsing grammar check response:', parseError);
+      console.error('Response text:', responseText);
       return [];
     }
   } catch (error) {

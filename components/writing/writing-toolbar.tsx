@@ -74,7 +74,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
               <Button
                 variant="default"
                 size="sm"
-                onClick={onParaphrase}
+                onClick={() => onParaphrase()}
                 disabled={isProcessing || !hasContent}
                 className="bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-200 border-0 px-3 py-2 h-9"
                 onMouseDown={() => onSelectOutput('paraphrase')}
@@ -104,7 +104,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
               <Button
                 variant="default"
                 size="sm"
-                onClick={onCheckGrammar}
+                onClick={() => onCheckGrammar()}
                 disabled={isProcessing || !hasContent}
                 className="bg-sky-600 hover:bg-sky-700 text-white shadow-md hover:shadow-lg transition-all duration-200 border-0 px-3 py-2 h-9"
                 onMouseDown={() => onSelectOutput('grammar')}
@@ -250,7 +250,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={onSaveDraft}
+                onClick={() => onSaveDraft()}
                 disabled={isProcessing || !hasContent}
                 className="bg-white border-gray-300 hover:bg-gray-50 text-gray-700 shadow-sm hover:shadow-md transition-all duration-200 px-3 py-1 h-8"
               >
