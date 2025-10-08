@@ -9,6 +9,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import { Color } from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
+import { GrammarHighlight } from "./grammar-highlight-extension";
 import "./tiptap-styles.css";
 
 interface TiptapEditorProps {
@@ -55,6 +56,7 @@ const TiptapEditor = forwardRef<any, TiptapEditorProps>(
         Underline,
         TextStyle,
         Color,
+        GrammarHighlight,
       ],
       content: initialContent || "",
       editable: !readOnly,
@@ -107,6 +109,15 @@ const TiptapEditor = forwardRef<any, TiptapEditorProps>(
           replaceHtmlContent,
           focus: () => editor.commands.focus(),
           clear: () => editor.commands.clearContent(),
+          highlightGrammarIssue: (from: number, to: number, id: string, type: string) => {
+            editor.chain().focus().setTextSelection({ from, to }).setGrammarHighlight({ id, type }).run();
+          },
+          removeGrammarHighlight: (id: string) => {
+            editor.commands.removeGrammarHighlight(id);
+          },
+          clearGrammarHighlights: () => {
+            editor.commands.clearGrammarHighlights();
+          },
         });
       }
     }, [editor, setEditorRef]);

@@ -207,6 +207,26 @@ const WritingPageClient = () => {
         setLastGrammarCheckHash(currentContentHash);
         setLastGrammarCheckResult('had-issues');
         setHighlightedContent("");
+
+        // Highlight grammar issues in the editor
+        if (editorRef && editorRef.clearGrammarHighlights) {
+          editorRef.clearGrammarHighlights(); // Clear old highlights first
+
+          // Apply new highlights
+          const editorText = editorRef.getText();
+          data.grammarIssues.forEach((issue: any) => {
+            const index = editorText.indexOf(issue.original);
+            if (index !== -1 && editorRef.highlightGrammarIssue) {
+              editorRef.highlightGrammarIssue(
+                index + 1, // +1 because Tiptap positions start at 1
+                index + 1 + issue.original.length,
+                issue.id,
+                issue.type
+              );
+            }
+          });
+        }
+
         toast.info(`Found ${data.grammarIssues.length} grammar issue${data.grammarIssues.length > 1 ? 's' : ''} to review.`);
       } else {
         setGrammarIssues([]);
@@ -378,14 +398,23 @@ const WritingPageClient = () => {
 
       // Then update the editor with a slight delay to ensure state is synced
       setTimeout(() => {
+        // First, clear all grammar highlights
+        if (editorRef && editorRef.clearGrammarHighlights) {
+          editorRef.clearGrammarHighlights();
+        }
+
+        // Then update content
         if (editorRef && (editorRef as any).replaceHtmlContent) {
           (editorRef as any).replaceHtmlContent(cleanedContent);
         } else {
           setEditorKey(prev => prev + 1);
         }
 
-        // Ensure editor maintains focus after update
+        // Clear highlights again after content update to ensure they're gone
         setTimeout(() => {
+          if (editorRef && editorRef.clearGrammarHighlights) {
+            editorRef.clearGrammarHighlights();
+          }
           ensureEditorFocus();
         }, 100);
       }, 50);
@@ -507,21 +536,29 @@ const WritingPageClient = () => {
             setLastGrammarCheckResult(null); // Reset result since content changed
             toast.success("Text paraphrased successfully!");
           } else if (issue) {
+            // Remove the grammar highlight from the editor
+            if (editorRef && editorRef.removeGrammarHighlight) {
+              editorRef.removeGrammarHighlight(issue.id);
+            }
+
             // Only remove the specific grammar issue that was accepted
             const updatedGrammarIssues = grammarIssues.filter(gi => gi.id !== issue.id);
             setGrammarIssues(updatedGrammarIssues);
             setSelectedText("");
-            
+
             // Clear highlights since we're not using them in the editor
             setHighlightedContent("");
             setCurrentIssueIndex(-1);
-            
-            // If no more issues, reset tracking
+
+            // If no more issues, reset tracking and clear all highlights
             if (updatedGrammarIssues.length === 0) {
               setLastGrammarCheckHash(""); // Reset hash since content changed
               setLastGrammarCheckResult(null); // Reset result since content changed
+              if (editorRef && editorRef.clearGrammarHighlights) {
+                editorRef.clearGrammarHighlights();
+              }
             }
-            
+
             // Success message for grammar
             const remainingCount = updatedGrammarIssues.length;
             if (remainingCount > 0) {
