@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { uploadKnowledgeBaseAs, webhookDebugger } from '@/api-config';
+import { subscriptionService } from '@/lib/subscription-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,6 +49,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
+      );
+    }
+
+    // Check usage limits before processing
+    const canUpload = await subscriptionService.checkUsageLimit(user.id, 'documents_uploaded', 1);
+    if (!canUpload) {
+      const subscription = await subscriptionService.getUserSubscriptionWithPlan(user.id);
+      const isFreePlan = subscription?.subscription_plans?.name?.toLowerCase().includes('free');
+
+      console.log('❌ Upload limit exceeded for exam prep:', isFreePlan);
+
+      return NextResponse.json(
+        {
+          error: 'Upload limit exceeded',
+          message: isFreePlan
+            ? 'You\'ve reached your free plan document upload limit (3 uploads/week). Upgrade to continue uploading exam prep materials.'
+            : 'Document upload limit exceeded.',
+          needsUpgrade: isFreePlan,
+          limitType: 'documents_uploaded'
+        },
+        { status: 429 }
       );
     }
 
@@ -232,6 +254,15 @@ export async function POST(request: NextRequest) {
         error: webhookError instanceof Error ? webhookError.message : String(webhookError)
       });
       // Don't fail the upload if webhook fails
+    }
+
+    // Track usage after successful upload
+    try {
+      await subscriptionService.incrementUsage(user.id, 'documents_uploaded', 1);
+      console.log('✅ Usage tracked for exam prep document upload');
+    } catch (usageError) {
+      console.error('⚠️ Failed to track usage:', usageError);
+      // Don't fail the upload if usage tracking fails
     }
 
     return NextResponse.json({
