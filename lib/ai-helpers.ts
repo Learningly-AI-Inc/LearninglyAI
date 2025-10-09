@@ -211,13 +211,7 @@ IMPORTANT REMINDER:
 FINAL CHECK: Make sure you found all spelling errors, verb tense errors, and grammar errors. If the text is obviously poorly written but you only found 2-3 items, you missed errors!`;
 
     // First pass - comprehensive check
-    const result = await geminiModel.generateContent(prompt, {
-      generationConfig: {
-        temperature: 0.1, // Lower temperature for more consistent, thorough checking
-        topK: 1,
-        topP: 0.95,
-      }
-    });
+    const result = await geminiModel.generateContent(prompt);
     const response = await result.response;
     let responseText = response.text().trim();
 
