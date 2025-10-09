@@ -32,7 +32,7 @@ const features = [
 
 export function LandingFeatures() {
   return (
-    <section id="features" className="bg-gray-900 py-24 sm:py-32">
+    <section id="features" className="bg-background py-24 sm:py-32">
       <div className="container mx-auto px-4">
         <div className="text-center">
           <motion.div
@@ -51,7 +51,7 @@ export function LandingFeatures() {
             </GradientText>
           </motion.div>
           <motion.p 
-            className="mt-4 text-lg text-gray-400"
+            className="mt-4 text-lg text-muted-foreground"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}

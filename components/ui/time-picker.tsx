@@ -89,7 +89,7 @@ export function TimePicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-32 p-0" align="start">
-        <div className="bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+        <div className="bg-background border border-border rounded-lg shadow-lg max-h-64 overflow-y-auto">
           <div className="p-2">
             {timeOptions.map((time) => {
               const [hours, minutes] = time.split(':')
@@ -109,8 +109,8 @@ export function TimePicker({
                   variant="ghost"
                   className={cn(
                     "w-full justify-start text-left font-normal h-8 px-2 text-sm",
-                    isSelected(time) && "bg-blue-600 text-white hover:bg-blue-700",
-                    !isSelected(time) && "hover:bg-gray-100"
+                    isSelected(time) && "bg-primary text-primary-foreground hover:bg-primary/90",
+                    !isSelected(time) && "hover:bg-accent"
                   )}
                   onClick={() => handleTimeSelect(time)}
                 >

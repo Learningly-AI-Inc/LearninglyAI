@@ -35,10 +35,10 @@ export function ImprovedWritingPage({
   }, [])
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Slim header: remove large title space; keep drafts on the right */}
       {(header || draftsManager) && (
-        <div className="p-2 border-b bg-white">
+        <div className="p-2 border-b bg-background">
           <div className="flex justify-between items-center">
             {/* Intentionally keep left side minimal to maximize editor space */}
             {header}
@@ -59,7 +59,7 @@ export function ImprovedWritingPage({
                 {richTextEditor}
               </CardContent>
               <Separator />
-              <div className="p-3 bg-gray-50 border-t">
+              <div className="p-3 bg-muted border-t">
                 {wordCounter}
               </div>
             </Card>
@@ -79,7 +79,7 @@ export function ImprovedWritingPage({
                   {richTextEditor}
                 </CardContent>
                 <Separator />
-                <div className="p-3 bg-gray-50 border-t">
+                <div className="p-3 bg-muted border-t">
                   {wordCounter}
                 </div>
               </Card>

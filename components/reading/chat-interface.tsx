@@ -355,19 +355,19 @@ export function ChatInterface() {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-background">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {messages.length === 0 && !isLoading && !isContextLoading && !isSummarizing && (
           <FadeContent>
             <div className="text-center py-8 px-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <Bot className="h-8 w-8 text-white" />
+              <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Bot className="h-8 w-8 text-primary-foreground" />
               </div>
               {!document && (
-                <h3 className="font-bold text-gray-900 mb-2 text-lg">Upload a document to start</h3>
+                <h3 className="font-bold text-foreground mb-2 text-lg">Upload a document to start</h3>
               )}
-              <p className="text-gray-600 text-sm mb-6 px-4 leading-relaxed">
+              <p className="text-muted-foreground text-sm mb-6 px-4 leading-relaxed">
                 {document ? 
                   `I'm ready to help you with "${document.title}". Ask me anything or choose from the options below.` :
                   "Upload a document to start our conversation."
@@ -375,9 +375,9 @@ export function ChatInterface() {
               </p>
               
               {!document && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-blue-800 mb-2 font-medium">💡 Try asking me math questions like:</p>
-                  <div className="space-y-1 text-xs text-blue-700">
+                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-primary mb-2 font-medium">💡 Try asking me math questions like:</p>
+                  <div className="space-y-1 text-xs text-primary/80">
                     <p>• "What is the quadratic formula?"</p>
                     <p>• "Explain Euler's identity"</p>
                     <p>• "How do I solve $x^2 + 5x + 6 = 0$?"</p>

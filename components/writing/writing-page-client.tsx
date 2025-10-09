@@ -267,11 +267,11 @@ const WritingPageClient = () => {
       const after = highlightedContent.slice(end);
       
       const issueTypeClass = {
-        'grammar': 'bg-red-100 border-b-2 border-red-400',
-        'spelling': 'bg-orange-100 border-b-2 border-orange-400', 
-        'style': 'bg-yellow-100 border-b-2 border-yellow-400',
-        'clarity': 'bg-blue-100 border-b-2 border-blue-400'
-      }[issue.type] || 'bg-gray-100 border-b-2 border-gray-400';
+        'grammar': 'bg-red-100 dark:bg-red-900/20 border-b-2 border-red-400 dark:border-red-600',
+        'spelling': 'bg-orange-100 dark:bg-orange-900/20 border-b-2 border-orange-400 dark:border-orange-600', 
+        'style': 'bg-yellow-100 dark:bg-yellow-900/20 border-b-2 border-yellow-400 dark:border-yellow-600',
+        'clarity': 'bg-blue-100 dark:bg-blue-900/20 border-b-2 border-blue-400 dark:border-blue-600'
+      }[issue.type] || 'bg-muted border-b-2 border-border';
 
       const highlightedIssue = `<span class="grammar-issue ${issueTypeClass}" data-issue-id="${escapeHtmlAttribute(issue.id)}" data-issue-type="${escapeHtmlAttribute(issue.type)}" title="${escapeHtmlAttribute(issue.description)}">${issueText}</span>`;
       

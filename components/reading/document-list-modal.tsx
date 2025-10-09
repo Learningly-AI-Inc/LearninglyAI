@@ -160,9 +160,9 @@ export function DocumentListModal({ onClose }: DocumentListModalProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
-        return <Badge variant="default" className="bg-green-100 text-green-800">Completed</Badge>
+        return <Badge variant="default" className="bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400">Completed</Badge>
       case 'processing':
-        return <Badge variant="default" className="bg-yellow-100 text-yellow-800">Processing</Badge>
+        return <Badge variant="default" className="bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400">Processing</Badge>
       case 'failed':
         return <Badge variant="destructive">Failed</Badge>
       default:
@@ -173,14 +173,14 @@ export function DocumentListModal({ onClose }: DocumentListModalProps) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div 
-        className="bg-white rounded-xl shadow-lg w-full max-w-4xl max-h-[80vh] overflow-hidden relative"
+        className="bg-card rounded-xl shadow-lg w-full max-w-4xl max-h-[80vh] overflow-hidden relative"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <div>
             <h2 className="text-2xl font-semibold">Your Documents</h2>
-            <p className="text-gray-600 mt-1">Load an existing document to continue reading</p>
+            <p className="text-muted-foreground mt-1">Load an existing document to continue reading</p>
           </div>
           <div className="flex items-center gap-2">
             <Button

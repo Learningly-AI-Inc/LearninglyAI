@@ -8,7 +8,7 @@ import GradientText from "@/components/ui/gradient-text";
 
 export function LandingHero() {
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-gradient-to-br from-gray-900 via-purple-900 to-indigo-900">
+    <div className="relative h-screen w-full overflow-hidden bg-gradient-to-br from-background via-primary/20 to-primary/10">
       {/* Aurora effect overlay */}
       <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-indigo-500/20 to-blue-500/20 opacity-50"></div>
       
@@ -39,7 +39,7 @@ export function LandingHero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.6 }}
         >
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-300">
+          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
             Automatically generate quizzes, summaries, and flashcards from any
             document or video. Your personalized learning assistant is here.
           </p>

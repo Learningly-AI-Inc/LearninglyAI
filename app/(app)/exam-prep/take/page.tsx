@@ -74,7 +74,7 @@ export default function TakeExamPage() {
   if (!exam) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-slate-600">No exam loaded. Generate one first.</div>
+        <div className="text-muted-foreground">No exam loaded. Generate one first.</div>
       </div>
     )
   }
@@ -82,7 +82,7 @@ export default function TakeExamPage() {
   if (exam.questions.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-slate-600">No questions were generated from your documents. Please try again with clearer materials.</div>
+        <div className="text-muted-foreground">No questions were generated from your documents. Please try again with clearer materials.</div>
       </div>
     )
   }
@@ -140,11 +140,11 @@ export default function TakeExamPage() {
               <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="tracking-tight">{exam.examTitle}</CardTitle>
-                <div className="text-sm text-slate-600">Duration: {exam.duration} minutes</div>
+                <div className="text-sm text-muted-foreground">Duration: {exam.duration} minutes</div>
               </div>
                 <div className="flex items-center gap-4">
                   {secondsLeft !== null && (
-                    <div className="text-sm font-mono tabular-nums text-slate-700">
+                    <div className="text-sm font-mono tabular-nums text-foreground">
                       {Math.max(0, Math.floor(secondsLeft / 60)).toString().padStart(2, '0')}
                       :
                       {Math.max(0, secondsLeft % 60).toString().padStart(2, '0')}
@@ -163,7 +163,7 @@ export default function TakeExamPage() {
                 // Scheduled Mode: Show all questions
                 <>
                   <div className="flex justify-between items-center">
-                    <div className="text-sm text-slate-600">
+                    <div className="text-sm text-muted-foreground">
                       {Object.keys(answers).length} of {total} questions answered
                     </div>
                     <div className="flex gap-2">
@@ -189,7 +189,7 @@ export default function TakeExamPage() {
                   </div>
 
                   <div className="border-t pt-6">
-                    <div className="text-sm text-slate-600 mb-4">Question {index + 1} of {total}</div>
+                    <div className="text-sm text-muted-foreground mb-4">Question {index + 1} of {total}</div>
                     <div className="text-base leading-relaxed mb-6">{q?.question}</div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {q?.options?.map((opt, i) => {
@@ -200,7 +200,7 @@ export default function TakeExamPage() {
                             key={i}
                             variant={selected === value ? 'default' : 'outline'}
                             onClick={() => setSelected(value)}
-                            className={`w-full h-auto min-h-[3rem] py-3 justify-start items-start text-left whitespace-normal break-words text-wrap leading-snug ${selected === value ? '' : 'hover:bg-slate-50'}`}
+                            className={`w-full h-auto min-h-[3rem] py-3 justify-start items-start text-left whitespace-normal break-words text-wrap leading-snug ${selected === value ? '' : 'hover:bg-accent'}`}
                           >
                             <span className="mr-3 font-semibold shrink-0">{label}.</span>
                             <span className="flex-1 break-words">{opt}</span>
@@ -213,7 +213,7 @@ export default function TakeExamPage() {
               ) : (
                 // Rapid Fire Mode: One question at a time
                 <>
-                  <div className="text-sm text-slate-600">Question {index + 1} of {total}</div>
+                  <div className="text-sm text-muted-foreground">Question {index + 1} of {total}</div>
                   <div className="text-base leading-relaxed">{q?.question}</div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {q?.options?.map((opt, i) => {
@@ -224,7 +224,7 @@ export default function TakeExamPage() {
                           key={i}
                           variant={selected === value ? 'default' : 'outline'}
                           onClick={() => setSelected(value)}
-                          className={`w-full h-auto min-h-[3rem] py-3 justify-start items-start text-left whitespace-normal break-words text-wrap leading-snug ${selected === value ? '' : 'hover:bg-slate-50'}`}
+                          className={`w-full h-auto min-h-[3rem] py-3 justify-start items-start text-left whitespace-normal break-words text-wrap leading-snug ${selected === value ? '' : 'hover:bg-accent'}`}
                         >
                           <span className="mr-3 font-semibold shrink-0">{label}.</span>
                           <span className="flex-1 break-words">{opt}</span>
@@ -243,7 +243,7 @@ export default function TakeExamPage() {
                         {selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? 'Correct!' : `Incorrect. Answer: ${q?.correctAnswer}`}
                       </div>
                       {q?.explanation && (
-                        <div className="text-sm text-slate-700 leading-relaxed">Explanation: {q.explanation}</div>
+                        <div className="text-sm text-foreground leading-relaxed">Explanation: {q.explanation}</div>
                       )}
                       <div className="flex justify-end">
                         <Button onClick={next}>Next</Button>

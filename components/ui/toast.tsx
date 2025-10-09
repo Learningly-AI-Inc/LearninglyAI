@@ -16,14 +16,14 @@ const Toast: React.FC<ToastProps> = ({ message, type, isVisible, onClose }) => {
   const getIcon = () => {
     switch (type) {
       case "success":
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-green-500 dark:text-green-400" />;
       case "error":
-        return <X className="h-5 w-5 text-red-500" />;
+        return <X className="h-5 w-5 text-red-500 dark:text-red-400" />;
       case "warning":
-        return <AlertCircle className="h-5 w-5 text-yellow-500" />;
+        return <AlertCircle className="h-5 w-5 text-yellow-500 dark:text-yellow-400" />;
       case "info":
       default:
-        return <Info className="h-5 w-5 text-blue-500" />;
+        return <Info className="h-5 w-5 text-blue-500 dark:text-blue-400" />;
     }
   };
 
@@ -49,7 +49,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, isVisible, onClose }) => {
           <p className="flex-1 text-sm font-medium">{message}</p>
           <button
             onClick={onClose}
-            className="ml-2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="ml-2 text-muted-foreground hover:text-foreground transition-colors"
           >
             <X className="h-4 w-4" />
           </button>

@@ -132,15 +132,15 @@ export function AdminSystemHealth() {
     switch (status) {
       case 'healthy':
       case 'online':
-        return 'text-green-600 bg-green-100'
+        return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/20'
       case 'warning':
       case 'degraded':
-        return 'text-yellow-600 bg-yellow-100'
+        return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/20'
       case 'critical':
       case 'offline':
-        return 'text-red-600 bg-red-100'
+        return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/20'
       default:
-        return 'text-gray-600 bg-gray-100'
+        return 'text-muted-foreground bg-muted'
     }
   }
 
