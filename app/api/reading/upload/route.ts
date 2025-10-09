@@ -239,12 +239,28 @@ export async function POST(req: NextRequest) {
     // Helper: Extract text using pdfjs-dist (OPTIMIZED - only first 50 pages for speed)
     async function extractWithPdfJs(buffer: Buffer): Promise<{ text: string; pages: number }> {
       try {
+        // Use pdf-parse as a more reliable alternative to pdfjs-dist in Node environment
+        const pdfParse = await import('pdf-parse').catch(() => null)
+
+        if (pdfParse?.default) {
+          console.log(`📄 Using pdf-parse for extraction (buffer size: ${buffer.length} bytes)`)
+          const data = await pdfParse.default(buffer)
+          const text = String(data.text || '').trim()
+          const numPages = data.numpages || 1
+          console.log(`📄 Extracted with pdf-parse: ${text.length} chars from ${numPages} pages`)
+          console.log(`📄 First 300 chars: ${text.substring(0, 300)}`)
+          return { text, pages: numPages }
+        }
+
+        // Fallback to pdfjs-dist if pdf-parse is not available
+        console.log('📄 Falling back to pdfjs-dist...')
         const pdfjsLib: any = await import('pdfjs-dist')
         // In Node, set worker to null per pdfjs-dist docs
         if (pdfjsLib.GlobalWorkerOptions) {
           pdfjsLib.GlobalWorkerOptions.workerSrc = null
         }
         const uint8 = new Uint8Array(buffer)
+        console.log(`📄 Loading PDF document... (buffer size: ${buffer.length} bytes)`)
         const doc = await pdfjsLib.getDocument({ data: uint8 }).promise
         let out = ''
         const numPages = doc.numPages || 1
@@ -252,24 +268,36 @@ export async function POST(req: NextRequest) {
         // OPTIMIZATION: Only extract first 50 pages for upload speed
         // Full extraction will happen on-demand if needed
         const pagesToExtract = Math.min(numPages, 50);
-        console.log(`📄 Extracting ${pagesToExtract}/${numPages} pages for fast upload`);
+        console.log(`📄 PDF loaded: ${numPages} pages, extracting ${pagesToExtract} pages`);
 
         for (let i = 1; i <= pagesToExtract; i++) {
           const page = await doc.getPage(i)
           const content = await page.getTextContent()
+          const itemCount = (content.items || []).length
           const strings = (content.items || []).map((it: any) => it.str || '')
-          out += strings.join(' ') + '\n\n'
+          const pageText = strings.join(' ')
+          console.log(`📄 Page ${i}: ${itemCount} items, ${pageText.length} chars`)
+          out += pageText + '\n\n'
         }
 
-        const text = String(out || '').replace(/\s+/g, ' ').trim()
+        // Don't over-normalize the text - preserve the content
+        let text = String(out || '').trim()
 
         // Add note if we didn't extract all pages
         if (pagesToExtract < numPages) {
-          out += `\n\n[Note: This is a ${numPages}-page document. First ${pagesToExtract} pages extracted for quick processing. Full text available on-demand.]`;
+          text += `\n\n[Note: This is a ${numPages}-page document. First ${pagesToExtract} pages extracted for quick processing. Full text available on-demand.]`;
         }
 
+        console.log(`📄 Extracted text length: ${text.length} chars from ${pagesToExtract} pages`)
+        console.log(`📄 First 300 chars: ${text.substring(0, 300)}`)
+
         return { text, pages: numPages }
-      } catch (e) {
+      } catch (e: any) {
+        console.error('❌ PDF extraction error:', {
+          message: e?.message,
+          name: e?.name,
+          stack: e?.stack?.substring(0, 500)
+        })
         return { text: '', pages: 1 }
       }
     }

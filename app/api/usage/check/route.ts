@@ -36,19 +36,33 @@ export async function POST(request: NextRequest) {
     // Use provided userId or fall back to authenticated user
     const targetUserId = userId || user.id
 
-    // Check usage limit
-    const canProceed = await subscriptionService.checkUsageLimit(targetUserId, action, amount)
-    
-    // Get current usage and limits
+    // Get current usage and subscription
     const currentUsage = await subscriptionService.getCurrentUsage(targetUserId)
     const subscription = await subscriptionService.getUserSubscriptionWithPlan(targetUserId)
-    
-    const limit = subscription?.subscription_plans?.limits[action] || 0
+
+    // Get plan name - default to 'Free' if no subscription
+    const planName = subscription?.subscription_plans?.name || 'Free'
+
+    // Get limits using the service method
+    const limits = subscriptionService.getPlanLimits(planName)
+    const limit = limits[action] || 0
     const current = (currentUsage as any)[action] || 0
-    const percentage = limit > 0 ? (current / limit) * 100 : 0
-    
+
+    // Check if user can proceed
+    // -1 means unlimited
+    let canProceed = false
+    if (limit === -1) {
+      canProceed = true
+    } else if (limit === 0) {
+      canProceed = false
+    } else {
+      canProceed = (current + amount) <= limit
+    }
+
+    const percentage = limit > 0 ? (current / limit) * 100 : (limit === -1 ? 0 : 100)
+
     // Determine if user needs upgrade
-    const needsUpgrade = !canProceed && subscription?.subscription_plans?.name?.toLowerCase().includes('free')
+    const needsUpgrade = !canProceed && planName.toLowerCase().includes('free')
     
     // Generate appropriate message
     let message = ''

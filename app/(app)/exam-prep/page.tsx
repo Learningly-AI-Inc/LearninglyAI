@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,13 @@ import { DocumentProvider } from "@/components/reading/document-context";
 import { FileUploaderComponent } from "@/components/reading/file-uploader";
 import { OptimizedFileUploader } from "@/components/reading/optimized-file-uploader";
 import { StudyMaterialsUploader } from "@/components/exam-prep/study-materials-uploader";
+import { UpgradeModal } from "@/components/ui/upgrade-modal";
 import { useUsageLimits } from "@/hooks/use-usage-limits";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Loader2 } from "lucide-react";
 
 interface GeneratedExam {
   examTitle: string
@@ -38,16 +40,36 @@ export default function ExamPrepPage() {
   const [sampleQuestions, setSampleQuestions] = useState<Array<{ documentId?: string; name?: string }>>([])
   const [showSampleUploader, setShowSampleUploader] = useState(false)
   const [showStudyMaterialsUploader, setShowStudyMaterialsUploader] = useState(false)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [upgradeModalConfig, setUpgradeModalConfig] = useState<{
+    title?: string;
+    message?: string;
+    limitType?: 'documents_uploaded' | 'exam_sessions';
+  }>({})
 
   async function generate() {
     try {
       setIsGenerating(true)
+
+      // Check usage limit before generating
+      const limitCheck = await checkUsageLimit('exam_sessions', 1)
+      if (!limitCheck.canProceed) {
+        setUpgradeModalConfig({
+          title: 'Exam Session Limit Reached',
+          message: limitCheck.message || 'You\'ve reached your monthly exam generation limit. Upgrade to Premium to generate unlimited exams.',
+          limitType: 'exam_sessions'
+        })
+        setShowUpgradeModal(true)
+        setIsGenerating(false)
+        return
+      }
+
       const documentIds = uploadedDocs.map(d => d.documentId!).filter(Boolean)
       console.log('uploadedDocs', uploadedDocs)
       console.log('documentIds', documentIds)
-      
+
       const sampleQuestionIds = sampleQuestions.map(d => d.documentId!).filter(Boolean)
-      
+
       if (mode === 'pdf') {
         // Route to full-length PDF builder page for richer PDF generation flows
         router.push('/exam-prep/full-length')
@@ -57,19 +79,33 @@ export default function ExamPrepPage() {
       const res = await fetch('/api/exam-prep/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          documentIds, 
+        body: JSON.stringify({
+          documentIds,
           sampleQuestionIds,
-          count, 
-          durationMinutes: duration, 
-          title, 
-          difficulty, 
+          count,
+          durationMinutes: duration,
+          title,
+          difficulty,
           instructions,
           quizMode
         })
       })
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
+
+        // Handle limit errors specifically
+        if (res.status === 429 && err.needsUpgrade) {
+          setUpgradeModalConfig({
+            title: err.error || 'Limit Reached',
+            message: err.message || 'You\'ve reached your plan limit.',
+            limitType: err.limitType || 'exam_sessions'
+          })
+          setShowUpgradeModal(true)
+          setIsGenerating(false)
+          return
+        }
+
         throw new Error(err?.error || res.statusText)
       }
       const data = await res.json() as { success: boolean; exam: GeneratedExam }
@@ -80,6 +116,21 @@ export default function ExamPrepPage() {
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  // Check upload limit before opening uploader
+  const handleOpenUploader = async () => {
+    const limitCheck = await checkUsageLimit('documents_uploaded', 1)
+    if (!limitCheck.canProceed) {
+      setUpgradeModalConfig({
+        title: 'Upload Limit Reached',
+        message: limitCheck.message || 'You\'ve reached your monthly document upload limit. Upgrade to Premium to upload more documents.',
+        limitType: 'documents_uploaded'
+      })
+      setShowUpgradeModal(true)
+      return
+    }
+    setShowStudyMaterialsUploader(true)
   }
 
   return (
@@ -109,10 +160,10 @@ export default function ExamPrepPage() {
                 <p className="text-sm text-slate-700">Upload single or multiple files (up to 10 files, 100MB each).</p>
                 <p className="text-xs text-slate-500 mt-1">Drag & drop multiple files for faster uploads, or click to browse.</p>
               </div>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={() => setShowStudyMaterialsUploader(true)}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleOpenUploader}
               >
                 Upload Files
               </Button>
@@ -339,8 +390,13 @@ export default function ExamPrepPage() {
           <CardFooter className="p-6 pt-0 flex items-center justify-between">
             <p className="text-xs text-slate-500">You can adjust settings anytime before generating.</p>
             <Button onClick={generate} disabled={uploadedDocs.length === 0 || isGenerating}>
-              {isGenerating ? 'Generating…' : (
-                mode === 'pdf' 
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                mode === 'pdf'
                   ? 'Open PDF Builder' 
                   : `Generate ${quizMode === 'rapid-fire' ? 'Rapid Fire' : 'Scheduled'} Quiz`
               )}
@@ -372,6 +428,14 @@ export default function ExamPrepPage() {
           maxFiles={10}
         />
       )}
+
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        title={upgradeModalConfig.title}
+        message={upgradeModalConfig.message}
+        limitType={upgradeModalConfig.limitType}
+      />
     </div>
   );
 }
