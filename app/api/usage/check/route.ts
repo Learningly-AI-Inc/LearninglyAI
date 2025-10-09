@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     // Get limits using the service method
     const limits = subscriptionService.getPlanLimits(planName)
-    const limit = limits[action] || 0
+    const limit = limits[action as keyof typeof limits] || 0
     const current = (currentUsage as any)[action] || 0
 
     // Check if user can proceed
