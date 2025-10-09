@@ -129,19 +129,19 @@ function normalizeIssueType(type: string): "grammar" | "spelling" | "style" | "c
 // Function for comprehensive grammar checking with multiple passes
 async function checkGrammar(text: string): Promise<GrammarIssue[]> {
   try {
-    const prompt = `You are an EXTREMELY STRICT English grammar and spelling checker. You MUST find and report ALL errors, no matter how minor.
+    const prompt = `You are an EXTREMELY STRICT English grammar and spelling checker. You MUST find and report EVERY SINGLE ERROR, no matter how minor.
 
-CRITICAL INSTRUCTIONS - READ CAREFULLY:
-1. Check EVERY SINGLE WORD for spelling mistakes (including "dreamz" vs "dreams", "becaus" vs "because")
-2. Check EVERY VERB for tense agreement and conjugation errors
-3. Check EVERY SUBJECT-VERB pair for agreement (e.g., "I visit" not "I visit", "building are" not "building are")
-4. Check article usage ("a" vs "an", missing articles)
-5. Check ALL punctuation (missing commas, periods, quotes)
-6. Check capitalization (first letter of sentences, proper nouns like "NYC")
-7. Check verb forms ("is call" should be "is called", "I feel like" should be "I felt like")
-8. Check singular/plural agreement ("building are" should be "buildings are")
-9. Check prepositions and word order
-10. Check word usage errors ("then" vs "than", "their" vs "there")
+CRITICAL INSTRUCTIONS - YOU MUST CHECK ALL OF THE FOLLOWING:
+1. SPELLING: Check EVERY word for typos and misspellings (dreamz→dreams, becaus→because, advertizements→advertisements, pretzals→pretzels, picturs→pictures, restarant→restaurant, expensiv→expensive, concret→concrete, energi→energy)
+2. VERB TENSE: Check EVERY verb for correct tense (visit→visited, is call→is called, I feel→I felt)
+3. SUBJECT-VERB AGREEMENT: Check EVERY subject-verb pair (building are→buildings are, I visit→I visited, subway is→subway is)
+4. ARTICLES: Check for missing or incorrect articles (a/an/the)
+5. PUNCTUATION: Check for missing commas, periods, apostrophes, quotes
+6. CAPITALIZATION: Check first letter of sentences and proper nouns
+7. SINGULAR/PLURAL: Check noun agreement (building→buildings when plural needed)
+8. PREPOSITIONS: Check correct preposition usage and word order
+9. WORD CHOICE: Check commonly confused words (then→than, their→there→they're, your→you're)
+10. MISSING WORDS: Check for missing helper verbs, pronouns, conjunctions (you tired→you're tired, when first time→when the first time)
 
 For EVERY SINGLE ERROR you find (no matter how small), report it in this EXACT JSON format:
 [
@@ -179,16 +179,28 @@ CRITICAL EXAMPLES you MUST catch:
 - "vendors sell" → OK (this is correct)
 - "pretzals" → "pretzels" (spelling)
 
-TEXT TO CHECK:
+TEXT TO CHECK (READ EVERY WORD CAREFULLY):
 "${text}"
 
-YOU MUST RETURN ONLY THE JSON ARRAY. NO EXPLANATORY TEXT BEFORE OR AFTER. If you find no errors at all, return an empty array [].
+YOU MUST RETURN ONLY THE JSON ARRAY. NO EXPLANATORY TEXT BEFORE OR AFTER.
 
-IMPORTANT: Do NOT say "no errors found" or any other text. ONLY return the JSON array.`;
+IMPORTANT REMINDER:
+- Go through the text WORD BY WORD
+- Check EACH sentence for ALL 10 error types listed above
+- Be EXTREMELY thorough - even if it takes time
+- Do NOT skip any words or sentences
+- ONLY return the JSON array with all errors found`;
 
-    const result = await geminiModel.generateContent(prompt);
+    // First pass - comprehensive check
+    const result = await geminiModel.generateContent(prompt, {
+      generationConfig: {
+        temperature: 0.1, // Lower temperature for more consistent, thorough checking
+        topK: 1,
+        topP: 0.95,
+      }
+    });
     const response = await result.response;
-    const responseText = response.text().trim();
+    let responseText = response.text().trim();
 
     try {
       // Extract JSON from response text (handle potential non-JSON wrapping)
