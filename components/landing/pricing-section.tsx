@@ -89,7 +89,7 @@ export const PricingSection: React.FC = () => {
 
   const handleUpgrade = async (planId: string) => {
     console.log('Landing page button clicked!', { planId, user: !!user });
-    
+
     if (planId === 'free') {
       console.log('Free plan selected, redirecting to signup');
       window.location.href = '/account/signup';
@@ -99,10 +99,10 @@ export const PricingSection: React.FC = () => {
     // Set loading state for this specific plan
     setLoadingPlanId(planId);
     console.log('Creating Stripe checkout session for:', planId);
-    
+
     try {
-      // Map UI plan ids to server plan ids
-      const selectedPlan = planId === 'pro' || planId === 'freemium' ? 'freemium' : planId === 'elite' || planId === 'premium' ? 'premium_yearly' : planId;
+      // Map UI plan ids to server plan ids (same logic as /pricing page)
+      const selectedPlan = planId === 'premium' ? 'premium' : planId === 'premium-elite' ? 'premium_yearly' : planId;
       // For landing page, create checkout session directly without requiring auth
       const response = await fetch('/api/subscriptions/create-checkout-guest', {
         method: 'POST',
