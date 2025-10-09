@@ -74,7 +74,7 @@ const FloatingFormatWidget: React.FC<FloatingFormatWidgetProps> = ({
   
   return (
     <div 
-      className="fixed z-[9999] bg-white border-2 border-gray-200 shadow-xl rounded-lg py-2 px-3 flex items-center gap-2 animate-in fade-in-0 zoom-in-95 duration-200"
+      className="fixed z-[9999] bg-background border-2 border-border shadow-xl rounded-lg py-2 px-3 flex items-center gap-2 animate-in fade-in-0 zoom-in-95 duration-200"
       style={{ 
         top: `${Math.max(10, position.top)}px`, 
         left: `${position.left}px`,
@@ -84,14 +84,14 @@ const FloatingFormatWidget: React.FC<FloatingFormatWidgetProps> = ({
     >
       <button
         onClick={onParaphrase}
-        className="p-2 hover:bg-gray-200 rounded-md text-gray-700 transition-colors"
+        className="p-2 hover:bg-accent rounded-md text-foreground transition-colors"
         title="Paraphrase"
       >
         <Wand2 className="h-4 w-4" />
       </button>
       
       <DropdownMenu>
-        <DropdownMenuTrigger className="p-2 hover:bg-blue-50 rounded-md text-blue-600 flex items-center gap-1 transition-colors">
+        <DropdownMenuTrigger className="p-2 hover:bg-primary/10 rounded-md text-primary flex items-center gap-1 transition-colors">
           <Book className="h-4 w-4" />
           <ChevronDown className="h-3 w-3" />
         </DropdownMenuTrigger>
@@ -103,7 +103,7 @@ const FloatingFormatWidget: React.FC<FloatingFormatWidgetProps> = ({
               className="text-sm flex items-center"
             >
               {tone === selectedTone && (
-                <CheckCircle className="h-3 w-3 mr-1 text-green-500" />
+                <CheckCircle className="h-3 w-3 mr-1 text-green-500 dark:text-green-400" />
               )}
               {tone}
             </DropdownMenuItem>
@@ -113,7 +113,7 @@ const FloatingFormatWidget: React.FC<FloatingFormatWidgetProps> = ({
       
       <button
         onClick={onShorten}
-        className="p-2 hover:bg-orange-50 rounded-md text-orange-600 transition-colors"
+        className="p-2 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-md text-orange-600 dark:text-orange-400 transition-colors"
         title="Shorten Text"
       >
         <ShrinkIcon className="h-4 w-4" />
@@ -121,7 +121,7 @@ const FloatingFormatWidget: React.FC<FloatingFormatWidgetProps> = ({
       
       <button
         onClick={onExpand}
-        className="p-2 hover:bg-green-50 rounded-md text-green-600 transition-colors"
+        className="p-2 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-md text-green-600 dark:text-green-400 transition-colors"
         title="Expand Text"
       >
         <ExpandIcon className="h-4 w-4" />

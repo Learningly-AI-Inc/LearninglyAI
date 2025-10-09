@@ -1,10 +1,10 @@
 .rdw-editor-toolbar {
   padding: 6px 5px 0;
   border-radius: 2px;
-  border: 1px solid #F1F1F1;
+  border: 1px solid hsl(var(--border));
   display: flex;
   justify-content: flex-start;
-  background: white;
+  background: hsl(var(--background));
   flex-wrap: wrap;
   font-size: 15px;
   margin-bottom: 5px;
@@ -58,7 +58,8 @@
 }
 
 .editor-class {
-  background-color: white;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
   padding: 1rem;
   min-height: 300px !important;
   direction: ltr;
@@ -84,7 +85,7 @@
 /* Fix for empty editor cursor */
 .public-DraftEditor-content:empty::before {
   content: attr(placeholder);
-  color: #9ca3af;
+  color: hsl(var(--muted-foreground));
   pointer-events: none;
   position: absolute;
 }
@@ -108,7 +109,7 @@
 }
 
 .toolbar-class {
-  border-bottom: 1px solid #E2E8F0;
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .editor-wrapper {
@@ -156,11 +157,11 @@
 
 /* Make toolbar buttons more visible on hover */
 .rdw-option-wrapper:hover {
-  box-shadow: 1px 1px 0px #bfbdbd !important;
-  background-color: #f1f1f1 !important;
+  box-shadow: 1px 1px 0px hsl(var(--border)) !important;
+  background-color: hsl(var(--accent)) !important;
 }
 
 .rdw-option-active {
-  box-shadow: 1px 1px 0px #bfbdbd !important;
-  background-color: #f1f1f1 !important;
+  box-shadow: 1px 1px 0px hsl(var(--border)) !important;
+  background-color: hsl(var(--accent)) !important;
 }
