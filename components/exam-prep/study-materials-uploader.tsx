@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { useUsageLimits } from "@/hooks/use-usage-limits";
 import { X, Upload } from "lucide-react";
 
 interface StudyMaterialsUploaderProps {
@@ -28,20 +27,20 @@ const SUPPORTED_TYPES = {
   'docx': { mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', label: 'DOCX' }
 };
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB as per requirements
+// IMPORTANT: This must match your Supabase Storage bucket limit
+// To increase: Go to Supabase Dashboard → Storage → exam-files bucket → Settings
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB - matches Supabase bucket limit
 const MAX_FILES = 10; // Allow up to 10 files as per requirements
 
 export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FILES }: StudyMaterialsUploaderProps) {
-  const { checkUsageLimit } = useUsageLimits();
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [dragActive, setDragActive] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateFile = (file: File): string | null => {
-    // Check file size (100MB limit)
+    // Check file size (matches Supabase bucket limit)
     if (file.size > MAX_FILE_SIZE) {
-      return `File "${file.name}" is too large (${Math.round(file.size / 1024 / 1024)}MB). Maximum size is 100MB.`;
+      return `File "${file.name}" is too large (${Math.round(file.size / 1024 / 1024)}MB). Maximum size is ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB.`;
     }
     
     // Check file extension
@@ -64,7 +63,7 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
         errors.push(error);
       } else {
         newFiles.push({
-          id: Math.random().toString(36).substr(2, 9),
+          id: Math.random().toString(36).substring(2, 11),
           file,
           status: 'pending'
         });
@@ -155,22 +154,10 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
     const filesToProcess = filesToUpload || files;
     if (filesToProcess.length === 0) return;
 
-    // Check usage limits before starting upload
-    const usageResult = await checkUsageLimit('documents_uploaded', filesToProcess.length);
-    if (!usageResult.canProceed) {
-      toast({
-        title: "Upload limit exceeded",
-        description: usageResult.message || 'Upload limit exceeded',
-        variant: "destructive"
-      });
-      if (usageResult.needsUpgrade) {
-        // Could redirect to pricing page here
-        console.log('User needs to upgrade');
-      }
-      return;
-    }
+    // Remove frontend limit checking - let the backend handle it
+    // This prevents race conditions and "please log in" errors
+    // Backend will return proper error messages if limits are exceeded
 
-    setIsUploading(true);
     const results: Array<{ documentId: string; title: string }> = [];
     
     for (let i = 0; i < filesToProcess.length; i++) {
@@ -198,13 +185,21 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
         results.push(result);
       } catch (error: any) {
         console.error('Upload failed for file:', file.file.name, error);
-        
+
+        // Show user-friendly error message
+        const errorMessage = error.message || 'Upload failed';
+        toast({
+          title: "Upload failed",
+          description: errorMessage,
+          variant: "destructive"
+        });
+
         // Update status to error
-        setFiles(prev => prev.map(f => 
-          f.id === file.id ? { 
-            ...f, 
-            status: 'error', 
-            error: error.message || 'Upload failed'
+        setFiles(prev => prev.map(f =>
+          f.id === file.id ? {
+            ...f,
+            status: 'error',
+            error: errorMessage
           } : f
         ));
       }
@@ -219,8 +214,6 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
       onUploaded(results);
       onClose();
     }
-
-    setIsUploading(false);
   };
 
 
@@ -238,39 +231,111 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
         </div>
         
         {/* Upload Area */}
-        <div 
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-            dragActive 
-              ? 'border-blue-500 bg-blue-50' 
-              : 'border-gray-300 hover:border-gray-400'
-          }`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
-              <Upload className="h-8 w-8 text-blue-600" />
+        {files.length === 0 ? (
+          <div
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              dragActive
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-300 hover:border-gray-400'
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+                <Upload className="h-8 w-8 text-blue-600" />
+              </div>
             </div>
+            <p className="text-gray-600 mb-4">
+              Drag & drop your document here or click to browse
+            </p>
+            <p className="text-gray-500 text-sm mb-4">
+              Supports PDF, TXT, DOCX • Max 50MB per file
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.txt,.docx"
+              onChange={handleChange}
+              className="hidden"
+            />
+            <Button onClick={() => fileInputRef.current?.click()}>
+              Browse Files
+            </Button>
           </div>
-          <p className="text-gray-600 mb-4">
-            Drag & drop your document here or click to browse
-          </p>
-          <p className="text-gray-500 text-sm mb-4">
-            Supports PDF, TXT, DOCX • Max 100MB
-          </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".pdf,.txt,.docx"
-            onChange={handleChange}
-            className="hidden"
-          />
-          <Button onClick={() => fileInputRef.current?.click()}>
-            Browse Files
-          </Button>
-        </div>
+        ) : (
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {files.map((file) => (
+              <div key={file.id} className="border rounded-lg p-4 bg-white">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {file.file.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {(file.file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <div>
+                    {file.status === 'pending' && (
+                      <span className="text-xs text-gray-500">Pending</span>
+                    )}
+                    {file.status === 'uploading' && (
+                      <span className="text-xs text-blue-600 font-medium">Uploading...</span>
+                    )}
+                    {file.status === 'processing' && (
+                      <span className="text-xs text-yellow-600 font-medium">Processing...</span>
+                    )}
+                    {file.status === 'completed' && (
+                      <span className="text-xs text-green-600 font-medium">✓ Completed</span>
+                    )}
+                    {file.status === 'error' && (
+                      <span className="text-xs text-red-600 font-medium">✗ Failed</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                {(file.status === 'uploading' || file.status === 'processing') && (
+                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-2 transition-all duration-300 animate-pulse"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                )}
+
+                {/* Error message */}
+                {file.status === 'error' && file.error && (
+                  <p className="text-xs text-red-600 mt-2">{file.error}</p>
+                )}
+              </div>
+            ))}
+
+            {/* Add more files button */}
+            {files.length < maxFiles && !files.some(f => f.status === 'uploading' || f.status === 'processing') && (
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Add More Files ({files.length}/{maxFiles})
+              </Button>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.txt,.docx"
+              onChange={handleChange}
+              className="hidden"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

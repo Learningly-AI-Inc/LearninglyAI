@@ -46,7 +46,7 @@ export function useUsageLimits() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch usage data and limits
+  // Fetch usage data and limits using the combined endpoint
   const fetchUsageData = async () => {
     if (!user) {
       setIsLoading(false);
@@ -57,34 +57,53 @@ export function useUsageLimits() {
       setIsLoading(true);
       setError(null);
 
-      // Fetch current usage
-      const usageResponse = await fetch('/api/usage/summary', {
+      // Use the new combined endpoint - single API call!
+      const response = await fetch('/api/user/status', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
       });
 
-      if (!usageResponse.ok) {
-        throw new Error('Failed to fetch usage data');
+      if (!response.ok) {
+        throw new Error('Failed to fetch user status');
       }
 
-      const usageData = await usageResponse.json();
-      console.log('📊 Usage API Response:', usageData);
-      setUsage(usageData.summary?.usage || usageData.usage || usage);
+      const data = await response.json();
 
-      // Fetch subscription and limits
-      const subscriptionResponse = await fetch('/api/subscriptions/status', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      // Update state from combined response
+      setUsage(data.usage || usage);
+      setLimits(data.plan?.limits || {});
+      setPlanName(data.plan?.name || 'Free');
 
-      if (!subscriptionResponse.ok) {
-        throw new Error('Failed to fetch subscription data');
-      }
-
-      const subscriptionData = await subscriptionResponse.json();
-      console.log('📊 Subscription API Response:', subscriptionData);
-      setLimits(subscriptionData.plan?.limits || {});
-      setPlanName(subscriptionData.plan?.name || 'Free');
+      // Log detailed user limits for all sections
+      console.group('🔒 USER LIMITS BREAKDOWN');
+      console.log('Plan:', data.plan?.name || 'Free');
+      console.log('');
+      console.log('📝 WRITING LIMITS:');
+      console.log('  - Current Usage:', data.usage?.writing_words || 0, 'words');
+      console.log('  - Limit:', data.plan?.limits?.writing_words || 0, 'words');
+      console.log('  - Percentage:', ((data.usage?.writing_words || 0) / (data.plan?.limits?.writing_words || 1) * 100).toFixed(1) + '%');
+      console.log('');
+      console.log('📄 DOCUMENT UPLOAD LIMITS:');
+      console.log('  - Current Usage:', data.usage?.documents_uploaded || 0, 'docs');
+      console.log('  - Limit:', data.plan?.limits?.documents_uploaded || 0, 'docs');
+      console.log('  - Percentage:', ((data.usage?.documents_uploaded || 0) / (data.plan?.limits?.documents_uploaded || 1) * 100).toFixed(1) + '%');
+      console.log('');
+      console.log('🔍 SEARCH LIMITS:');
+      console.log('  - Current Usage:', data.usage?.search_queries || 0, 'searches');
+      console.log('  - Limit:', data.plan?.limits?.search_queries || 0, 'searches');
+      console.log('  - Percentage:', ((data.usage?.search_queries || 0) / (data.plan?.limits?.search_queries || 1) * 100).toFixed(1) + '%');
+      console.log('');
+      console.log('📚 EXAM SESSION LIMITS:');
+      console.log('  - Current Usage:', data.usage?.exam_sessions || 0, 'sessions');
+      console.log('  - Limit:', data.plan?.limits?.exam_sessions || 0, 'sessions');
+      console.log('  - Percentage:', ((data.usage?.exam_sessions || 0) / (data.plan?.limits?.exam_sessions || 1) * 100).toFixed(1) + '%');
+      console.log('');
+      console.log('💾 STORAGE LIMITS:');
+      console.log('  - Current Usage:', ((data.usage?.storage_used_bytes || 0) / (1024 * 1024)).toFixed(2), 'MB');
+      console.log('  - Limit:', ((data.plan?.limits?.storage_used_bytes || 0) / (1024 * 1024)).toFixed(2), 'MB');
+      console.log('  - Percentage:', ((data.usage?.storage_used_bytes || 0) / (data.plan?.limits?.storage_used_bytes || 1) * 100).toFixed(1) + '%');
+      console.groupEnd();
 
     } catch (err) {
       console.error('Error fetching usage data:', err);

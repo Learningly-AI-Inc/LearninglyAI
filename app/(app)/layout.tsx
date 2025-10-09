@@ -19,6 +19,7 @@ import AppSidebar from "@/components/app-sidebar"
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { useDeviceSize } from "@/hooks/use-device-size"
 import { AuthProvider } from "@/components/auth/auth-provider"
+import { UserStatusProvider } from "@/contexts/user-status-context"
 import { OnboardingTour } from "@/components/onboarding-tour"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -107,49 +108,51 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthProvider>
-      <Suspense fallback={null}>
-        <div className="min-h-screen bg-white">
-          <AppSidebar
-            sidebarCollapsed={sidebarCollapsed}
-            setSidebarCollapsed={setSidebarCollapsed}
-            navigationItems={navigationItems}
-            workspaceItems={workspaceItems}
-          />
-          
-          <main 
-            className={`
-              ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-[220px] lg:ml-[260px]'}
-              px-3 md:px-4
-              transition-all duration-300 ease-out
-            `}
-          >
-            {children}
-          </main>
+      <UserStatusProvider>
+        <Suspense fallback={null}>
+          <div className="min-h-screen bg-white">
+            <AppSidebar
+              sidebarCollapsed={sidebarCollapsed}
+              setSidebarCollapsed={setSidebarCollapsed}
+              navigationItems={navigationItems}
+              workspaceItems={workspaceItems}
+            />
 
-          {/* Global interactive tour (available on all app pages) */}
-          <OnboardingTour isOpen={openTour} onClose={handleTourClose} />
+            <main
+              className={`
+                ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-[220px] lg:ml-[260px]'}
+                px-3 md:px-4
+                transition-all duration-300 ease-out
+              `}
+            >
+              {children}
+            </main>
 
-          {/* Mobile Sidebar */}
-          <div className="md:hidden">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50 bg-white border border-border/50 hover:bg-slate-50 shadow-lg">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[280px] bg-white/95 backdrop-blur-xl p-0 border-r border-border/50">
-                <AppSidebar
-                  sidebarCollapsed={false}
-                  setSidebarCollapsed={() => {}}
-                  navigationItems={navigationItems}
-                  workspaceItems={workspaceItems}
-                  isMobile
-                />
-              </SheetContent>
-            </Sheet>
+            {/* Global interactive tour (available on all app pages) */}
+            <OnboardingTour isOpen={openTour} onClose={handleTourClose} />
+
+            {/* Mobile Sidebar */}
+            <div className="md:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50 bg-white border border-border/50 hover:bg-slate-50 shadow-lg">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[280px] bg-white/95 backdrop-blur-xl p-0 border-r border-border/50">
+                  <AppSidebar
+                    sidebarCollapsed={false}
+                    setSidebarCollapsed={() => {}}
+                    navigationItems={navigationItems}
+                    workspaceItems={workspaceItems}
+                    isMobile
+                  />
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
-        </div>
-      </Suspense>
+        </Suspense>
+      </UserStatusProvider>
     </AuthProvider>
   )
 }

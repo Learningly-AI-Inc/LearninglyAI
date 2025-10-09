@@ -144,51 +144,58 @@ export const PricingSection: React.FC = () => {
   const currentPlan = getCurrentPlan();
 
   return (
-    <section id="pricing" className="py-24 bg-white">
-      <div className="container mx-auto px-6">
+    <section id="pricing" className="relative py-24 bg-black overflow-hidden">
+      <div className="container mx-auto px-4 md:px-6 relative z-10">
         {isTestMode && (
-          <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 text-yellow-800 px-4 py-3 text-sm">
-            Test Mode: Payments use Stripe test environment. Replace keys to go live.
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 rounded-xl border border-yellow-500/30 bg-yellow-500/10 text-yellow-200 px-6 py-3 text-sm"
+          >
+            <span className="font-medium">Test Mode:</span> Payments use Stripe test environment
+          </motion.div>
         )}
-        <div className="text-center max-w-4xl mx-auto mb-16">
+        <div className="text-center max-w-3xl mx-auto mb-20">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Choose Your Perfect Learning Plan
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              <span className="text-white">Choose your </span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">
+                plan
+              </span>
             </h2>
-            <p className="text-lg text-gray-600 leading-relaxed mb-8">
-              Unlock the full potential of AI-powered learning with our flexible subscription plans
+            <p className="text-lg text-gray-400">
+              Simple pricing for powerful learning tools
             </p>
           </motion.div>
         </div>
 
 
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
           {plans.map((plan, index) => (
             <motion.div
               key={plan.name}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
+              whileHover={{ y: -4 }}
               className={cn(
-                "relative flex flex-col rounded-2xl p-8 border-2 transition-all duration-300 h-full",
+                "relative flex flex-col rounded-2xl p-6 md:p-8 border transition-all duration-300 h-full",
                 plan.isPopular
-                  ? "bg-blue-600 border-blue-600 shadow-xl hover:shadow-2xl"
-                  : (plan.id === 'pro' && currentPlan === 'freemium') || (plan.id === 'elite' && currentPlan === 'premium')
-                    ? "bg-green-50 border-green-500 shadow-lg hover:shadow-xl"
-                    : "bg-white border-gray-200 shadow-lg hover:shadow-xl"
+                  ? "bg-gradient-to-b from-blue-600 to-blue-700 border-blue-500 shadow-xl shadow-blue-900/50"
+                  : "bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/[0.07]"
               )}
             >
               {/* Popular Badge */}
               {plan.isPopular && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-sm font-semibold">
-                    Most Popular
+                  <span className="bg-white text-blue-600 px-3 py-1 rounded-full text-xs font-semibold">
+                    Popular
                   </span>
                 </div>
               )}
@@ -196,29 +203,29 @@ export const PricingSection: React.FC = () => {
               {/* Current Plan Badge */}
               {plan.name.toLowerCase() === currentPlan && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                    Current Plan
+                  <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                    Current
                   </span>
                 </div>
               )}
 
-              <div className="mb-8 text-center">
+              <div className="mb-6 text-center">
                 <div className="flex justify-center mb-4">
                   <plan.icon className={cn(
                     "h-8 w-8",
-                    plan.isPopular ? "text-white" : "text-blue-600"
+                    plan.isPopular ? "text-white" : "text-blue-400"
                   )} />
                 </div>
                 <h3 className={cn(
-                  "text-2xl font-bold mb-2",
-                  plan.isPopular ? "text-white" : "text-gray-900"
+                  "text-xl font-bold mb-1",
+                  plan.isPopular ? "text-white" : "text-white"
                 )}>
                   {plan.name}
                 </h3>
                 {plan.description && (
                   <p className={cn(
                     "text-sm",
-                    plan.isPopular ? "text-blue-100" : "text-gray-600"
+                    plan.isPopular ? "text-blue-100" : "text-gray-400"
                   )}>
                     {plan.description}
                   </p>
@@ -227,15 +234,15 @@ export const PricingSection: React.FC = () => {
 
               <div className="mb-8 text-center">
                 {plan.monthlyPrice === 0 && plan.yearlyPrice === 0 ? (
-                  <div className={cn("text-4xl font-bold", plan.isPopular ? "text-white" : "text-gray-900")}>
+                  <div className={cn("text-4xl font-bold", plan.isPopular ? "text-white" : "text-white")}>
                     Free
                   </div>
                 ) : (
                   <div className="flex items-baseline justify-center">
-                    <span className={cn("text-4xl font-bold", plan.isPopular ? "text-white" : "text-gray-900")}>
+                    <span className={cn("text-4xl font-bold", plan.isPopular ? "text-white" : "text-white")}>
                       ${plan.yearlyPrice ? plan.yearlyPrice : plan.monthlyPrice}
                     </span>
-                    <span className={cn("ml-2 text-sm", plan.isPopular ? "text-blue-100" : "text-gray-600")}>
+                    <span className={cn("ml-2 text-sm", plan.isPopular ? "text-blue-100" : "text-gray-400")}>
                       / {plan.yearlyPrice ? 'year' : 'month'}
                     </span>
                   </div>
@@ -244,31 +251,31 @@ export const PricingSection: React.FC = () => {
 
               <ul className="space-y-3 flex-1 mb-8">
                 {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start">
-                    <Check className={cn("h-4 w-4 mr-3 mt-0.5 flex-shrink-0", plan.isPopular ? "text-white" : "text-green-500")} />
-                    <span className={cn("text-sm leading-relaxed", plan.isPopular ? "text-white" : "text-gray-700")}>
+                  <li key={feature} className="flex items-start gap-3">
+                    <Check className={cn("h-5 w-5 flex-shrink-0 mt-0.5", plan.isPopular ? "text-white" : "text-blue-400")} />
+                    <span className={cn("text-sm", plan.isPopular ? "text-white/90" : "text-gray-300")}>
                       {feature}
                     </span>
                   </li>
                 ))}
               </ul>
               
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 onClick={() => handleUpgrade(plan.id)}
                 disabled={subscriptionLoading || loadingPlanId === plan.id || (plan.id === 'pro' && currentPlan === 'freemium') || (plan.id === 'elite' && currentPlan === 'premium')}
                 className={cn(
-                  "w-full font-semibold py-3 transition-all duration-300",
+                  "w-full font-medium py-3 text-sm rounded-xl transition-all duration-200",
                   plan.isPopular
-                    ? "bg-white text-blue-600 hover:bg-gray-50"
+                    ? "bg-white text-blue-600 hover:bg-gray-100"
                     : (plan.id === 'pro' && currentPlan === 'freemium') || (plan.id === 'elite' && currentPlan === 'premium')
-                      ? "bg-green-500 text-white cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
+                      ? "bg-green-600 text-white cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700 border border-blue-500"
                 )}
               >
                 {loadingPlanId === plan.id ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="h-4 w-4 mr-2 inline animate-spin" />
                     Processing...
                   </>
                 ) : subscriptionLoading ? (
@@ -278,76 +285,23 @@ export const PricingSection: React.FC = () => {
                 ) : plan.id === "free" ? (
                   user ? "Get Started" : "Sign Up Free"
                 ) : (
-                  <>
-                    {user ? "Upgrade Now" : "Get Started"}
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </>
+                  user ? "Upgrade Now" : "Get Started"
                 )}
               </Button>
             </motion.div>
           ))}
         </div>
         
-        <div className="text-center mt-16">
+        <div className="text-center mt-16 max-w-3xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            <div className="bg-gray-50 rounded-2xl p-8 max-w-4xl mx-auto">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                Ready to Get Started?
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Join thousands of students and professionals who are already using Learningly AI to enhance their learning experience.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                {!user ? (
-                  <>
-                    <Link href="/account/signup">
-                      <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-                        Start Free Trial
-                        <ArrowRight className="h-4 w-4 ml-2" />
-                      </Button>
-                    </Link>
-                    <Link href="/account">
-                      <Button size="lg" variant="outline">
-                        Sign In
-                      </Button>
-                    </Link>
-                  </>
-                ) : (
-                  <Link href="/dashboard">
-                    <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-                      Go to Dashboard
-                      <ArrowRight className="h-4 w-4 ml-2" />
-                    </Button>
-                  </Link>
-                )}
-                
-                <Link href="/pricing">
-                  <Button size="lg" variant="ghost">
-                    View Detailed Pricing
-                  </Button>
-                </Link>
-              </div>
-              
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                  Need a custom plan?
-                </h4>
-                <p className="text-gray-600 mb-4">
-                  Contact us for enterprise solutions, volume discounts, or custom integrations.
-                </p>
-                <a 
-                  href="mailto:contact@learningly.ai" 
-                  className="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium rounded-lg transition-colors duration-300"
-                >
-                  contact@learningly.ai
-                </a>
-              </div>
-            </div>
+            <p className="text-sm text-gray-400 mb-6">
+              Need a custom plan? <a href="mailto:contact@learningly.ai" className="text-blue-400 hover:text-blue-300 hover:underline transition-colors">Get in touch</a>
+            </p>
           </motion.div>
         </div>
       </div>

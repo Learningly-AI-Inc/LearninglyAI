@@ -8,8 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuthContext } from "@/components/auth/auth-provider"
 import { useRouter } from "next/navigation"
-import { useSubscription } from "@/hooks/use-subscription"
-import { useUsageLimits } from "@/hooks/use-usage-limits"
+import { useUserStatus } from "@/contexts/user-status-context"
 import { Progress } from "@/components/ui/progress"
 
 interface NavigationItem {
@@ -112,8 +111,7 @@ export default function AppSidebar({
 }: AppSidebarProps) {
   const { signOut, user } = useAuthContext()
   const router = useRouter()
-  const { subscription, loading: subscriptionLoading } = useSubscription()
-  const { getCurrentUsage, getCurrentLimit, isLoading: usageLoading } = useUsageLimits()
+  const { status, loading, getCurrentUsage, getCurrentLimit, isFreePlan } = useUserStatus()
 
   // Show/hide Upgrade card (dismiss for current page only; resets on refresh)
   // Only show for Free plan users
@@ -122,11 +120,11 @@ export default function AppSidebar({
     setShowUpgradeCard(false)
   }
 
-  // Only show upgrade card if user is on Free plan AND subscription data is loaded
-  const shouldShowUpgradeCard = showUpgradeCard && 
-    !subscriptionLoading && 
-    subscription && 
-    subscription.plan.name === 'Free'
+  // Only show upgrade card if user is on Free plan AND status data is loaded
+  const shouldShowUpgradeCard = showUpgradeCard &&
+    !loading &&
+    status &&
+    isFreePlan
 
   const handleLogout = async () => {
     try {
@@ -177,7 +175,7 @@ export default function AppSidebar({
 
   // Calculate average usage percentage across key metrics
   const getAverageUsage = () => {
-    if (usageLoading) return 0;
+    if (loading) return 0;
 
     const metrics = [
       { current: getCurrentUsage('documents_uploaded'), limit: getCurrentLimit('documents_uploaded') },
@@ -275,7 +273,7 @@ export default function AppSidebar({
 
       <div className="p-4 border-t border-border/50 space-y-4">
         {/* Average Usage Display */}
-        {!usageLoading && (
+        {!loading && (
           <div className={`${sidebarCollapsed ? "px-1" : "px-3 py-3"} bg-gray-50 rounded-xl border border-gray-200`}>
             {sidebarCollapsed ? (
               <div className="flex flex-col items-center gap-1 py-2">
