@@ -47,6 +47,7 @@ export async function logAIModelCall(
       requestPayload,
       responsePayload
     });
+    console.log(responsePayload.grammarIssues);
     return true;
   } catch (error) {
     console.error('Error logging AI model call:', error);
@@ -129,29 +130,44 @@ function normalizeIssueType(type: string): "grammar" | "spelling" | "style" | "c
 // Function for comprehensive grammar checking with multiple passes
 async function checkGrammar(text: string): Promise<GrammarIssue[]> {
   try {
-    const prompt = `You are an EXTREMELY STRICT English grammar and spelling checker. You MUST find and report EVERY SINGLE ERROR, no matter how minor.
+    const prompt = `You are an EXTREMELY STRICT English grammar and spelling checker. Find and report ALL errors by analyzing SENTENCE BY SENTENCE.
 
-CRITICAL INSTRUCTIONS - YOU MUST CHECK ALL OF THE FOLLOWING:
-1. SPELLING: Check EVERY word for typos and misspellings (dreamz→dreams, becaus→because, advertizements→advertisements, pretzals→pretzels, picturs→pictures, restarant→restaurant, expensiv→expensive, concret→concrete, energi→energy)
-2. VERB TENSE: Check EVERY verb for correct tense (visit→visited, is call→is called, I feel→I felt)
-3. SUBJECT-VERB AGREEMENT: Check EVERY subject-verb pair (building are→buildings are, I visit→I visited, subway is→subway is)
+CRITICAL INSTRUCTIONS:
+1. SPELLING: Check every word for typos and misspellings
+2. VERB TENSE: Check every verb for correct tense
+3. SUBJECT-VERB AGREEMENT: Check every subject-verb pair
 4. ARTICLES: Check for missing or incorrect articles (a/an/the)
 5. PUNCTUATION: Check for missing commas, periods, apostrophes, quotes
 6. CAPITALIZATION: Check first letter of sentences and proper nouns
-7. SINGULAR/PLURAL: Check noun agreement (building→buildings when plural needed)
+7. SINGULAR/PLURAL: Check noun agreement
 8. PREPOSITIONS: Check correct preposition usage and word order
-9. WORD CHOICE: Check commonly confused words (then→than, their→there→they're, your→you're)
-10. MISSING WORDS: Check for missing helper verbs, pronouns, conjunctions (you tired→you're tired, when first time→when the first time)
+9. WORD CHOICE: Check commonly confused words
+10. MISSING WORDS: Check for missing helper verbs, pronouns, conjunctions
 
-For EVERY SINGLE ERROR you find (no matter how small), report it in this EXACT JSON format:
+IMPORTANT: Report errors SENTENCE BY SENTENCE. Group related errors in the same phrase together.
+
+For EVERY ERROR, report it in this EXACT JSON format:
 [
   {
-    "original": "exact wrong text from the original",
+    "original": "exact wrong text from the original (can be 1-5 words)",
     "suggestion": "corrected version",
     "type": "spelling" or "grammar" or "style" or "clarity",
     "description": "clear explanation of what's wrong"
   }
 ]
+
+GROUPING RULES:
+- If multiple errors are in the SAME phrase (adjacent or very close words), combine them into ONE item
+- If errors are in DIFFERENT parts of the sentence, report them separately
+
+EXAMPLES:
+✓ CORRECT: {"original": "me and my cousin was", "suggestion": "my cousin and I were"} ← Multiple related errors in one phrase
+✓ CORRECT: {"original": "yesterday i goes", "suggestion": "Yesterday I went"} ← Multiple errors at start of sentence
+✓ CORRECT: {"original": "runned", "suggestion": "ran"} ← Single word error later in sentence
+✓ CORRECT: {"original": "dont", "suggestion": "don't"} ← Single spelling error
+
+✗ WRONG: Report the entire sentence as one item (unless it's a very short sentence)
+✗ WRONG: Report every single word separately even when they're adjacent
 
 CRITICAL EXAMPLES you MUST catch:
 - "dreamz" → "dreams" (spelling)
@@ -185,11 +201,14 @@ TEXT TO CHECK (READ EVERY WORD CAREFULLY):
 YOU MUST RETURN ONLY THE JSON ARRAY. NO EXPLANATORY TEXT BEFORE OR AFTER.
 
 IMPORTANT REMINDER:
-- Go through the text WORD BY WORD
+- Go through the text SENTENCE BY SENTENCE
 - Check EACH sentence for ALL 10 error types listed above
-- Be EXTREMELY thorough - even if it takes time
-- Do NOT skip any words or sentences
-- ONLY return the JSON array with all errors found`;
+- Group adjacent/related errors in the same phrase, but report separate phrases separately
+- Be EXTREMELY thorough - catch ALL errors
+- Do NOT skip any sentences
+- ONLY return the JSON array with all errors found
+
+FINAL CHECK: Make sure you found all spelling errors, verb tense errors, and grammar errors. If the text is obviously poorly written but you only found 2-3 items, you missed errors!`;
 
     // First pass - comprehensive check
     const result = await geminiModel.generateContent(prompt, {
@@ -258,86 +277,6 @@ IMPORTANT REMINDER:
   }
 }
 
-// Trinka provider integration with safe fallback to Gemini
-async function checkGrammarWithTrinka(text: string): Promise<GrammarIssue[]> {
-  const trinkaApiKey = process.env.TRINKA_API_KEY || process.env.NEXT_PUBLIC_TRINKA_API_KEY || '';
-  const trinkaEndpoint = process.env.TRINKA_API_URL_GRAMMAR || '';
-
-  if (!trinkaApiKey || !trinkaEndpoint) {
-    // Missing configuration; fall back to existing Gemini-based checker
-    return await checkGrammar(text);
-  }
-
-  try {
-    console.log('Trinka API Debug:', {
-      endpoint: trinkaEndpoint,
-      hasApiKey: !!trinkaApiKey,
-      apiKeyLength: trinkaApiKey?.length,
-      textLength: text.length
-    });
-    
-    const response = await fetch(trinkaEndpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${trinkaApiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ text })
-    });
-
-    console.log('Trinka grammar API response:', response);
-    if (!response.ok) {
-      try {
-        const errText = await response.text();
-        console.error('Trinka grammar API error:', response.status, errText);
-      } catch {
-        console.error('Trinka grammar API error status:', response.status);
-      }
-      return await checkGrammar(text);
-    }
-
-    const data: any = await response.json();
-
-    // Try to locate an issues array across common shapes
-    const rawIssues: any[] = Array.isArray(data?.issues) ? data.issues
-      : Array.isArray(data?.data?.issues) ? data.data.issues
-      : Array.isArray(data?.results) ? data.results
-      : Array.isArray(data) ? data
-      : [];
-
-    const mapped: GrammarIssue[] = rawIssues.map((issue: any) => {
-      const originalCandidate = issue?.original ?? issue?.error ?? issue?.error_text ?? issue?.context ?? issue?.text ?? issue?.source ?? '';
-      const suggestionCandidate = issue?.suggestion ?? issue?.replacement ?? issue?.fix ?? issue?.correction ?? issue?.target ?? '';
-      const typeCandidate = String((issue?.type ?? issue?.category ?? issue?.issue_type ?? 'grammar')).toLowerCase();
-      const descriptionCandidate = issue?.description ?? issue?.message ?? issue?.explanation ?? issue?.reason ?? '';
-
-      const normalizedType = normalizeIssueType(typeCandidate);
-
-      const originalStr = String(originalCandidate || '').trim();
-      const suggestionStr = String((suggestionCandidate || originalCandidate || '')).trim();
-
-      return {
-        id: uuidv4(),
-        original: originalStr,
-        suggestion: suggestionStr,
-        type: normalizedType,
-        description: String(descriptionCandidate || '').trim()
-      } as GrammarIssue;
-    }).filter((gi: GrammarIssue) => {
-      // Ensure we have both original and suggestion text, and they're different
-      return gi.original && 
-             gi.suggestion && 
-             gi.original.trim() !== '' && 
-             gi.suggestion.trim() !== '' && 
-             gi.original !== gi.suggestion;
-    });
-
-    return mapped;
-  } catch (error) {
-    console.error('Error calling Trinka grammar API:', error);
-    return await checkGrammar(text);
-  }
-}
 
 // Function for shortening text
 async function shortenText(text: string, percentage: number = 50): Promise<string> {
@@ -398,11 +337,7 @@ export async function processWithAI(request: AIRequest): Promise<AIResponse> {
         result = await paraphraseText(text, tone);
         break;
       case 'grammar':
-        if ((process.env.TRINKA_API_KEY || process.env.NEXT_PUBLIC_TRINKA_API_KEY) && process.env.TRINKA_API_URL_GRAMMAR) {
-          grammarIssues = await checkGrammarWithTrinka(text);
-        } else {
-          grammarIssues = await checkGrammar(text);
-        }
+        grammarIssues = await checkGrammar(text);
         result = text; // Return original text
         break;
       case 'shorten':
@@ -420,8 +355,8 @@ export async function processWithAI(request: AIRequest): Promise<AIResponse> {
       let modelName: 'gemini' | 'openai' | 'gpt-5' | 'trinka' = 'gemini';
       if (action === 'paraphrase') {
         modelName = 'openai';
-      } else if (action === 'grammar' && ((process.env.TRINKA_API_KEY || process.env.NEXT_PUBLIC_TRINKA_API_KEY) && process.env.TRINKA_API_URL_GRAMMAR)) {
-        modelName = 'trinka';
+      } else if (action === 'grammar') {
+        modelName = 'gemini'; // Using LanguageTool + Gemini fallback
       }
       await logAIModelCall(
         userId,

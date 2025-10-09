@@ -21,6 +21,7 @@ interface GrammarIssue {
   suggestion: string;
   type: "grammar" | "spelling" | "style" | "clarity";
   description: string;
+  position?: number; // Position in plain text where this issue was found
 }
 
 const WritingPageClient = () => {
@@ -118,6 +119,12 @@ const WritingPageClient = () => {
     // Store current editor content to prevent it from being cleared
     const currentContent = editorContent;
 
+    // Validate editor content before proceeding
+    if (!currentContent || typeof currentContent !== 'string') {
+      toast.warning("Editor content is not available. Please refresh and try again.");
+      return;
+    }
+
     // Try to get current selection first
     let textToCheck = selectedText;
     if (!textToCheck.trim()) {
@@ -184,6 +191,9 @@ const WritingPageClient = () => {
     }, 10);
 
     try {
+      console.log('Grammar check - text to check:', textToCheck.substring(0, 100));
+      console.log('Grammar check - editor content:', editorContent.substring(0, 100));
+
       // Call our API for grammar checking
       const response = await fetch('/api/writing/grammar', {
         method: 'POST',
@@ -202,32 +212,49 @@ const WritingPageClient = () => {
 
       // IMPORTANT: Don't modify editor content - just update grammar issues
       if (data.grammarIssues && data.grammarIssues.length > 0) {
-        setGrammarIssues(data.grammarIssues);
+        console.log('Received', data.grammarIssues.length, 'grammar issues from API');
+
+        // Store positions for each issue to help with replacement later
+        const editorText = editorRef?.getText() || '';
+        console.log('Editor text length:', editorText.length);
+
+        const issuesWithPositions = data.grammarIssues.map((issue: GrammarIssue, index: number) => {
+          // Find position in text
+          const position = editorText.indexOf(issue.original);
+          console.log(`Issue ${index}: "${issue.original}" -> position: ${position}`);
+          return { ...issue, position };
+        });
+
+        console.log('Issues with positions:', issuesWithPositions.length);
+        console.log('Sample issue:', issuesWithPositions[0]);
+
+        setGrammarIssues(issuesWithPositions);
         setLastProcessedFeature("Grammar Check");
         setLastGrammarCheckHash(currentContentHash);
         setLastGrammarCheckResult('had-issues');
         setHighlightedContent("");
 
-        // Highlight grammar issues in the editor
-        if (editorRef && editorRef.clearGrammarHighlights) {
-          editorRef.clearGrammarHighlights(); // Clear old highlights first
+        // Show results immediately
+        toast.info(`Found ${issuesWithPositions.length} grammar issue${issuesWithPositions.length > 1 ? 's' : ''} to review.`);
 
-          // Apply new highlights
-          const editorText = editorRef.getText();
-          data.grammarIssues.forEach((issue: any) => {
-            const index = editorText.indexOf(issue.original);
-            if (index !== -1 && editorRef.highlightGrammarIssue) {
-              editorRef.highlightGrammarIssue(
-                index + 1, // +1 because Tiptap positions start at 1
-                index + 1 + issue.original.length,
-                issue.id,
-                issue.type
-              );
-            }
-          });
-        }
+        // Highlight grammar issues in the editor asynchronously (don't block UI)
+        setTimeout(() => {
+          if (editorRef && editorRef.clearGrammarHighlights) {
+            editorRef.clearGrammarHighlights(); // Clear old highlights first
 
-        toast.info(`Found ${data.grammarIssues.length} grammar issue${data.grammarIssues.length > 1 ? 's' : ''} to review.`);
+            // Apply new highlights using stored positions
+            issuesWithPositions.forEach((issue: GrammarIssue) => {
+              if (issue.position !== undefined && issue.position !== -1 && editorRef.highlightGrammarIssue) {
+                editorRef.highlightGrammarIssue(
+                  issue.position + 1, // +1 because Tiptap positions start at 1
+                  issue.position + 1 + issue.original.length,
+                  issue.id,
+                  issue.type
+                );
+              }
+            });
+          }
+        }, 0);
       } else {
         setGrammarIssues([]);
         setHighlightedContent("");
@@ -431,71 +458,145 @@ const WritingPageClient = () => {
     const issue = issueId ? grammarIssues.find(issue => issue.id === issueId) : grammarIssues.find(issue => issue.suggestion === newText);
     const isParaphrase = !issue && newText === suggestedText;
     const textToReplace = issue?.original || selectedText;
-    
+
     // For grammar issues, we must have a valid issue with original text
     if (issueId && (!issue || !issue.original || !issue.original.trim())) {
       toast.error("Invalid grammar issue. Please try checking grammar again.");
       return;
     }
-    
-    if (editorContent && textToReplace && textToReplace.trim()) {
-      try {
-        // Try multiple replacement strategies for better accuracy
-        let updatedContent = editorContent;
-        
-        // Strategy 1: Direct replacement in HTML
-        if (editorContent.includes(textToReplace)) {
-          updatedContent = editorContent.replace(
-            new RegExp(textToReplace.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), 
-            newText
-          );
-        } else {
-          // Strategy 2: Check if we need to find the text in plain text and replace in HTML
-          const plainTextContent = stripHtmlTags(editorContent);
-          if (plainTextContent.includes(textToReplace)) {
-            // Create a more flexible regex that accounts for HTML tags
-            const flexiblePattern = textToReplace
-              .split(' ')
-              .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-              .join('\\s+(?:<[^>]*>\\s*)*');
-            
-            updatedContent = editorContent.replace(
-              new RegExp(flexiblePattern, 'gi'),
-              newText
-            );
-          } else {
-            // Strategy 3: Try case-insensitive matching
-            const caseInsensitivePattern = textToReplace.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const caseInsensitiveRegex = new RegExp(caseInsensitivePattern, 'gi');
-            if (caseInsensitiveRegex.test(editorContent)) {
-              updatedContent = editorContent.replace(caseInsensitiveRegex, newText);
+
+    // Try to use the editor's native functionality first
+    if (editorRef && issue) {
+      const editor = editorRef.getEditor?.();
+      if (editor) {
+        try {
+          // Get plain text from editor
+          const editorText = editor.getText();
+
+          // For words that appear multiple times, we need to find the correct occurrence
+          // We'll search for all occurrences and find which one matches the context
+          let textIndex = -1;
+          let searchStart = 0;
+          const allOccurrences: number[] = [];
+
+          // Find all occurrences of the text
+          while (searchStart < editorText.length) {
+            const foundIndex = editorText.indexOf(textToReplace, searchStart);
+            if (foundIndex === -1) break;
+            allOccurrences.push(foundIndex);
+            searchStart = foundIndex + 1;
+          }
+
+          console.log('Found', allOccurrences.length, 'occurrences of:', textToReplace, 'at positions:', allOccurrences);
+
+          // First, try to use the stored position if available
+          if (issue.position !== undefined && issue.position !== -1) {
+            // Verify the text at that position still matches
+            if (editorText.substring(issue.position, issue.position + textToReplace.length) === textToReplace) {
+              textIndex = issue.position;
+              console.log('Using stored position:', textIndex);
             } else {
-              // Strategy 4: Robust fallback that tolerates tags and typography across characters
-              const safeNewText = normalizeSuggestion(newText);
-              const replaced = replaceHtmlTolerantOnce(editorContent, textToReplace, safeNewText);
-              if (replaced !== editorContent) {
-                updatedContent = replaced;
-              } else {
-                // Final fallback: try to find and replace with fuzzy matching
-                const words = textToReplace.split(/\s+/);
-                if (words.length > 1) {
-                  // Try to find the first word and replace the whole phrase
-                  const firstWord = words[0];
-                  const firstWordRegex = new RegExp(firstWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-                  if (firstWordRegex.test(editorContent)) {
-                    // Find the position and replace with the full phrase
-                    const match = editorContent.match(firstWordRegex);
-                    if (match) {
-                      const startIndex = editorContent.indexOf(match[0]);
-                      const endIndex = startIndex + textToReplace.length;
-                      const before = editorContent.substring(0, startIndex);
-                      const after = editorContent.substring(endIndex);
-                      updatedContent = before + newText + after;
-                    }
-                  }
-                }
+              console.log('Stored position', issue.position, 'no longer valid, text changed');
+            }
+          }
+
+          // Fallback to finding occurrences
+          if (textIndex === -1) {
+            if (allOccurrences.length === 1) {
+              // Only one occurrence, use it
+              textIndex = allOccurrences[0];
+            } else if (allOccurrences.length > 1) {
+              // Multiple occurrences - use the first one
+              // This works because after each fix, positions shift, so the first remaining occurrence is likely the next one to fix
+              textIndex = allOccurrences[0];
+              console.log('Using first occurrence for multiple matches');
+            }
+          }
+
+          if (textIndex !== -1) {
+            console.log('Using occurrence at position:', textIndex, 'replacing:', textToReplace, 'with:', newText);
+
+            // Use Tiptap's chain commands to replace text at the exact position
+            // Positions in Tiptap are 1-indexed
+            const from = textIndex + 1;
+            const to = from + textToReplace.length;
+
+            console.log('Editor selection from:', from, 'to:', to, 'text:', editorText.substring(textIndex, textIndex + textToReplace.length));
+
+            editor
+              .chain()
+              .focus()
+              .setTextSelection({ from, to })
+              .insertContent(newText)
+              .run();
+
+            // Update our state
+            const updatedHtml = editor.getHTML();
+            setEditorContent(updatedHtml);
+
+            // Remove the grammar highlight
+            if (editorRef.removeGrammarHighlight) {
+              editorRef.removeGrammarHighlight(issue.id);
+            }
+
+            // Remove the specific grammar issue
+            const updatedGrammarIssues = grammarIssues.filter(gi => gi.id !== issue.id);
+            setGrammarIssues(updatedGrammarIssues);
+            setSelectedText("");
+            setHighlightedContent("");
+            setCurrentIssueIndex(-1);
+
+            // If no more issues, reset tracking and clear all highlights
+            if (updatedGrammarIssues.length === 0) {
+              setLastGrammarCheckHash("");
+              setLastGrammarCheckResult(null);
+              if (editorRef.clearGrammarHighlights) {
+                editorRef.clearGrammarHighlights();
               }
             }
+
+            // Success message
+            const remainingCount = updatedGrammarIssues.length;
+            if (remainingCount > 0) {
+              toast.success(`Grammar issue fixed! ${remainingCount} remaining.`);
+            } else {
+              toast.success("Grammar issue fixed! All issues resolved.");
+              setLastSelectedText("");
+            }
+
+            return;
+          } else {
+            console.log('Text not found in editor:', textToReplace);
+          }
+        } catch (error) {
+          console.error('Error using editor API:', error);
+        }
+      }
+    }
+
+    // Fallback to HTML manipulation (for paraphrases or if editor API fails)
+    if (editorContent && textToReplace && textToReplace.trim()) {
+      try {
+        const plainTextContent = stripHtmlTags(editorContent);
+        let updatedContent = editorContent;
+
+        // Try direct replacement in HTML
+        if (editorContent.includes(textToReplace)) {
+          const escapedText = textToReplace.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          updatedContent = editorContent.replace(
+            new RegExp(escapedText),
+            newText
+          );
+        } else if (plainTextContent.includes(textToReplace)) {
+          // Try flexible pattern matching for HTML
+          const flexiblePattern = textToReplace
+            .split(' ')
+            .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+            .join('\\s*(?:<[^>]*>\\s*)*');
+
+          const flexibleRegex = new RegExp(flexiblePattern, 'i');
+          if (flexibleRegex.test(editorContent)) {
+            updatedContent = editorContent.replace(flexibleRegex, newText);
           }
         }
         
@@ -513,6 +614,9 @@ const WritingPageClient = () => {
             setEditorRawContent(updatedRawContent);
           }
 
+          // Find the position where the change was made
+          const changePosition = updatedContent.indexOf(newText);
+
           // Then update the editor with a slight delay
           setTimeout(() => {
             if (editorRef && (editorRef as any).replaceHtmlContent) {
@@ -521,9 +625,38 @@ const WritingPageClient = () => {
               setEditorKey(prev => prev + 1);
             }
 
-            // Ensure editor maintains focus
+            // Scroll to the changed position and set cursor there
             setTimeout(() => {
-              ensureEditorFocus();
+              if (editorRef && changePosition !== -1) {
+                // Get the editor instance
+                const editor = editorRef.getEditor?.();
+                if (editor) {
+                  // Set cursor position to the changed text
+                  editor.commands.focus();
+                  editor.commands.setTextSelection({
+                    from: changePosition + 1,
+                    to: changePosition + 1 + newText.length
+                  });
+
+                  // Scroll to the selection
+                  setTimeout(() => {
+                    const editorElement = editor.view.dom;
+                    const selection = window.getSelection();
+                    if (selection && selection.rangeCount > 0) {
+                      const range = selection.getRangeAt(0);
+                      const rect = range.getBoundingClientRect();
+                      const editorRect = editorElement.getBoundingClientRect();
+
+                      // Scroll to make the selection visible with some padding
+                      if (rect.top < editorRect.top || rect.bottom > editorRect.bottom) {
+                        editorElement.scrollTop = editorElement.scrollTop + rect.top - editorRect.top - 100;
+                      }
+                    }
+                  }, 50);
+                }
+              } else {
+                ensureEditorFocus();
+              }
             }, 100);
           }, 50);
           
@@ -569,27 +702,9 @@ const WritingPageClient = () => {
             }
           }
         } else {
-          // Try one more approach: find the text in the original issue
-          if (issue && issue.original) {
-            const originalText = issue.original;
-            if (editorContent.includes(originalText)) {
-              updatedContent = editorContent.replace(
-                new RegExp(originalText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
-                newText
-              );
-              setEditorContent(updatedContent);
-              setEditorKey(prev => prev + 1);
-              
-              // Remove the specific grammar issue
-              const updatedGrammarIssues = grammarIssues.filter(gi => gi.id !== issue.id);
-              setGrammarIssues(updatedGrammarIssues);
-              setSelectedText("");
-              
-              toast.success("Grammar issue fixed using original text!");
-              return;
-            }
-          }
+          console.error('Failed to replace text:', { textToReplace, newText, editorContent: editorContent.substring(0, 200) });
           toast.warning("Could not find the exact text to replace. The text may have been modified. Please try checking grammar again.");
+          return; // Return early to prevent any state changes
         }
         
       } catch (error) {
