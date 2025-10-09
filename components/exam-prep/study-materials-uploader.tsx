@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { useUsageLimits } from "@/hooks/use-usage-limits";
 import { X, Upload } from "lucide-react";
 
 interface StudyMaterialsUploaderProps {
@@ -28,20 +27,20 @@ const SUPPORTED_TYPES = {
   'docx': { mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', label: 'DOCX' }
 };
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB as per requirements
+// IMPORTANT: This must match your Supabase Storage bucket limit
+// To increase: Go to Supabase Dashboard → Storage → exam-files bucket → Settings
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB - matches Supabase bucket limit
 const MAX_FILES = 10; // Allow up to 10 files as per requirements
 
 export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FILES }: StudyMaterialsUploaderProps) {
-  const { checkUsageLimit } = useUsageLimits();
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [dragActive, setDragActive] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateFile = (file: File): string | null => {
-    // Check file size (100MB limit)
+    // Check file size (matches Supabase bucket limit)
     if (file.size > MAX_FILE_SIZE) {
-      return `File "${file.name}" is too large (${Math.round(file.size / 1024 / 1024)}MB). Maximum size is 100MB.`;
+      return `File "${file.name}" is too large (${Math.round(file.size / 1024 / 1024)}MB). Maximum size is ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB.`;
     }
     
     // Check file extension
@@ -64,7 +63,7 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
         errors.push(error);
       } else {
         newFiles.push({
-          id: Math.random().toString(36).substr(2, 9),
+          id: Math.random().toString(36).substring(2, 11),
           file,
           status: 'pending'
         });
@@ -155,22 +154,10 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
     const filesToProcess = filesToUpload || files;
     if (filesToProcess.length === 0) return;
 
-    // Check usage limits before starting upload
-    const usageResult = await checkUsageLimit('documents_uploaded', filesToProcess.length);
-    if (!usageResult.canProceed) {
-      toast({
-        title: "Upload limit exceeded",
-        description: usageResult.message || 'Upload limit exceeded',
-        variant: "destructive"
-      });
-      if (usageResult.needsUpgrade) {
-        // Could redirect to pricing page here
-        console.log('User needs to upgrade');
-      }
-      return;
-    }
+    // Remove frontend limit checking - let the backend handle it
+    // This prevents race conditions and "please log in" errors
+    // Backend will return proper error messages if limits are exceeded
 
-    setIsUploading(true);
     const results: Array<{ documentId: string; title: string }> = [];
     
     for (let i = 0; i < filesToProcess.length; i++) {
@@ -198,13 +185,21 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
         results.push(result);
       } catch (error: any) {
         console.error('Upload failed for file:', file.file.name, error);
-        
+
+        // Show user-friendly error message
+        const errorMessage = error.message || 'Upload failed';
+        toast({
+          title: "Upload failed",
+          description: errorMessage,
+          variant: "destructive"
+        });
+
         // Update status to error
-        setFiles(prev => prev.map(f => 
-          f.id === file.id ? { 
-            ...f, 
-            status: 'error', 
-            error: error.message || 'Upload failed'
+        setFiles(prev => prev.map(f =>
+          f.id === file.id ? {
+            ...f,
+            status: 'error',
+            error: errorMessage
           } : f
         ));
       }
@@ -219,8 +214,6 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
       onUploaded(results);
       onClose();
     }
-
-    setIsUploading(false);
   };
 
 
@@ -257,7 +250,7 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
             Drag & drop your document here or click to browse
           </p>
           <p className="text-gray-500 text-sm mb-4">
-            Supports PDF, TXT, DOCX • Max 100MB
+            Supports PDF, TXT, DOCX • Max 50MB per file
           </p>
           <input
             ref={fileInputRef}

@@ -43,6 +43,9 @@ export default function ExamPrepPage() {
     try {
       setIsGenerating(true)
       const documentIds = uploadedDocs.map(d => d.documentId!).filter(Boolean)
+      console.log('uploadedDocs', uploadedDocs)
+      console.log('documentIds', documentIds)
+      
       const sampleQuestionIds = sampleQuestions.map(d => d.documentId!).filter(Boolean)
       
       if (mode === 'pdf') {

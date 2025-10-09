@@ -129,44 +129,62 @@ function normalizeIssueType(type: string): "grammar" | "spelling" | "style" | "c
 // Function for comprehensive grammar checking with multiple passes
 async function checkGrammar(text: string): Promise<GrammarIssue[]> {
   try {
-    const prompt = `You are an expert English grammar and spelling checker. Analyze the text below and find EVERY SINGLE error.
+    const prompt = `You are an EXTREMELY STRICT English grammar and spelling checker. You MUST find and report ALL errors, no matter how minor.
 
-INSTRUCTIONS:
-1. Check EVERY WORD for spelling mistakes
+CRITICAL INSTRUCTIONS - READ CAREFULLY:
+1. Check EVERY SINGLE WORD for spelling mistakes (including "dreamz" vs "dreams", "becaus" vs "because")
 2. Check EVERY VERB for tense agreement and conjugation errors
-3. Check EVERY SUBJECT-VERB pair for agreement
-4. Check word usage (e.g., "goes" vs "go", "was" vs "were", "seen" vs "saw")
-5. Check adverb forms (e.g., "fastly" should be "fast" or "quickly")
-6. Check article usage ("a" vs "an")
-7. Check punctuation and capitalization
-8. Check word order and sentence structure
+3. Check EVERY SUBJECT-VERB pair for agreement (e.g., "I visit" not "I visit", "building are" not "building are")
+4. Check article usage ("a" vs "an", missing articles)
+5. Check ALL punctuation (missing commas, periods, quotes)
+6. Check capitalization (first letter of sentences, proper nouns like "NYC")
+7. Check verb forms ("is call" should be "is called", "I feel like" should be "I felt like")
+8. Check singular/plural agreement ("building are" should be "buildings are")
+9. Check prepositions and word order
+10. Check word usage errors ("then" vs "than", "their" vs "there")
 
-For EACH error you find, you MUST report it in this exact JSON format:
+For EVERY SINGLE ERROR you find (no matter how small), report it in this EXACT JSON format:
 [
   {
     "original": "exact wrong text from the original",
     "suggestion": "corrected version",
     "type": "spelling" or "grammar" or "style" or "clarity",
-    "description": "what's wrong"
+    "description": "clear explanation of what's wrong"
   }
 ]
 
-EXAMPLES of what to catch:
-- "i goes" → should be "I go" (grammar: subject-verb agreement + capitalization)
-- "we seen" → should be "we saw" (grammar: wrong verb form)
-- "was run" → should be "was running" (grammar: verb tense)
-- "very fastly" → should be "very fast" or "very quickly" (grammar: adverb form)
-- "we buyed" → should be "we bought" (spelling/grammar: irregular verb)
-- "some apple and banana" → should be "some apples and bananas" (grammar: plural)
-- "dont" → should be "don't" (spelling: missing apostrophe)
-- "we was" → should be "we were" (grammar: subject-verb agreement)
-- "maked" → should be "made" (spelling: irregular verb)
-- "it taste" → should be "it tasted" (grammar: verb tense)
+CRITICAL EXAMPLES you MUST catch:
+- "dreamz" → "dreams" (spelling)
+- "becaus light is" → "because lights are" (spelling + grammar)
+- "I visit NYC" → "I visited NYC" (grammar: wrong tense)
+- "building are touching" → "buildings are touching" (grammar: plural agreement)
+- "is call" → "is called" (grammar: passive voice)
+- "first time I visit" → "first time I visited" (grammar: past tense)
+- "I feel like" → "I felt like" (grammar: past tense consistency)
+- "advertizements" → "advertisements" (spelling)
+- "then sun sometime" → "than sun sometimes" (spelling + word choice)
+- "picturs" → "pictures" (spelling)
+- "characters" → "characters" (spelling)
+- "energi" → "energy" (spelling)
+- "make you feel alive even when you tired" → "make you feel alive even when you're tired" (grammar: missing verb)
+- "concret" → "concrete" (spelling)
+- "jog, sit on benches" → OK (this is correct)
+- "lay down" → "lie down" (grammar: lay vs lie)
+- "cover the trees" → "covers the trees" (grammar: subject-verb agreement)
+- "kids sliding" → OK (this is correct)
+- "concerts happen" → OK (this is correct)
+- "expensiv" → "expensive" (spelling)
+- "restarant" → "restaurant" (spelling)
+- "then rent" → "than rent" (word choice: then vs than)
+- "vendors sell" → OK (this is correct)
+- "pretzals" → "pretzels" (spelling)
 
 TEXT TO CHECK:
 "${text}"
 
-Return ONLY the JSON array. No other text. If there are no errors, return [].`;
+YOU MUST RETURN ONLY THE JSON ARRAY. NO EXPLANATORY TEXT BEFORE OR AFTER. If you find no errors at all, return an empty array [].
+
+IMPORTANT: Do NOT say "no errors found" or any other text. ONLY return the JSON array.`;
 
     const result = await geminiModel.generateContent(prompt);
     const response = await result.response;

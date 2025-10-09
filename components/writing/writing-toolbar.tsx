@@ -135,7 +135,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
           className="text-gray-700 border-gray-300 h-9"
         >
           <Scan className="h-4 w-4 mr-2" />
-          AI Detector
+          Humanizer
         </Button>
         {/* AI Checker */}
         <Button
