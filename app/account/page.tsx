@@ -95,11 +95,13 @@ function AccountContent() {
             <FadeContent delay={0.1}>
               <div className="space-y-4 lg:space-y-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <BookOpen className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
-                  </div>
-                  <ShinyText 
-                    text="Learningly AI" 
+                  <img
+                    src="/learningly_logo.jpg"
+                    alt="Learningly"
+                    className="h-10 w-10 lg:h-12 lg:w-12 rounded-lg"
+                  />
+                  <ShinyText
+                    text="Learningly"
                     className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900"
                     speed={4}
                   />
