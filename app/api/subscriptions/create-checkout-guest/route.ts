@@ -29,11 +29,12 @@ export async function POST(request: NextRequest) {
     const normalizedPlan = plan.toLowerCase()
 
     // Resolve Stripe price ID directly from env per plan
+    // Note: premium_yearly maps to STRIPE_PREMIUM_PRICE_ID (the yearly $100 plan)
     const getPriceIdByPlan = (p: string): string => {
       const map: Record<string, string | undefined> = {
         freemium: process.env.STRIPE_FREEMIUM_PRICE_ID,
-        premium: process.env.STRIPE_PREMIUM_PRICE_ID,
-        premium_yearly: process.env.STRIPE_PREMIUM_YEARLY_PRICE_ID,
+        premium: process.env.STRIPE_FREEMIUM_PRICE_ID, // $15/month
+        premium_yearly: process.env.STRIPE_PREMIUM_PRICE_ID, // $100/year
       }
       const id = map[p]
       if (!id) throw new Error(`Missing price id for plan: ${p}`)
