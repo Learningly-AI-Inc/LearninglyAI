@@ -26,37 +26,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Resolve plan; per requirement, premium_yearly maps to premium price id
     const normalizedPlan = plan.toLowerCase()
-    const resolvedPlan = normalizedPlan === 'premium_yearly' ? 'premium' : normalizedPlan
 
     // Resolve Stripe price ID directly from env per plan
     const getPriceIdByPlan = (p: string): string => {
       const map: Record<string, string | undefined> = {
         freemium: process.env.STRIPE_FREEMIUM_PRICE_ID,
         premium: process.env.STRIPE_PREMIUM_PRICE_ID,
+        premium_yearly: process.env.STRIPE_PREMIUM_YEARLY_PRICE_ID,
       }
       const id = map[p]
       if (!id) throw new Error(`Missing price id for plan: ${p}`)
       return id
     }
 
-    // Get price ID for the resolved plan with explicit validation
+    // Get price ID for the plan with explicit validation
     let priceId: string
     try {
-      priceId = getPriceIdByPlan(resolvedPlan)
+      priceId = getPriceIdByPlan(normalizedPlan)
     } catch (e: any) {
       console.error('Price ID resolution failed:', e?.message || e)
       return NextResponse.json(
-        { 
-          error: `Stripe price ID not configured for plan: ${resolvedPlan}. Please set the corresponding env var (e.g., STRIPE_FREEMIUM_PRICE_ID, STRIPE_PREMIUM_PRICE_ID, or STRIPE_PREMIUM_YEARLY_PRICE_ID).` 
+        {
+          error: `Stripe price ID not configured for plan: ${normalizedPlan}. Please set the corresponding env var (e.g., STRIPE_FREEMIUM_PRICE_ID, STRIPE_PREMIUM_PRICE_ID, or STRIPE_PREMIUM_YEARLY_PRICE_ID).`
         },
         { status: 400 }
       )
     }
 
     if (!priceId || typeof priceId !== 'string' || !priceId.trim()) {
-      console.error('Empty or invalid price ID for plan:', resolvedPlan)
+      console.error('Empty or invalid price ID for plan:', normalizedPlan)
       return NextResponse.json(
         { error: 'Invalid Stripe price ID. Please verify your environment variables.' },
         { status: 400 }
@@ -114,7 +113,7 @@ export async function POST(request: NextRequest) {
       // Customer will be created automatically by Stripe
       // We'll handle user creation in the webhook
       metadata: {
-        plan: resolvedPlan,
+        plan: normalizedPlan,
         source: 'landing_page',
         price_type: price.type,
         billing_interval: price.recurring.interval
