@@ -47,6 +47,21 @@ async function fetchTextsForExamFiles(supabase: any, fileIds: string[], userId: 
     .in('id', fileIds)
     .eq('user_id', userId)
     .eq('document_type', 'exam-prep')
+
+  console.log('🔍 fetchTextsForExamFiles query:', {
+    fileIds,
+    userId,
+    foundDocuments: data?.length || 0,
+    error: error?.message,
+    documents: data?.map((d: any) => ({
+      id: d.id,
+      filename: d.original_filename,
+      hasText: !!d.extracted_text,
+      textLength: d.extracted_text?.length || 0,
+      processingStatus: d.processing_status
+    }))
+  })
+
   if (error) throw error
 
   const results: string[] = []
@@ -97,16 +112,22 @@ async function attemptOnDemandExtraction(supabase: any, document: any, userId: s
     let extractedText = ''
 
     if (ext.includes('pdf')) {
-      // Try pdf-parse first
+      // Try pdf-parse first (EXACT pattern from working reading upload)
       try {
-        const pdfParse = await import('pdf-parse')
-        const data = await pdfParse.default(buffer)
-        extractedText = String(data.text || '').trim()
-        console.log(`✅ Extracted ${extractedText.length} chars with pdf-parse`)
+        const pdfParse = await import('pdf-parse').catch(() => null)
+        if (pdfParse?.default) {
+          const data = await pdfParse.default(buffer)
+          extractedText = String(data.text || '').trim()
+          console.log(`✅ Extracted ${extractedText.length} chars with pdf-parse`)
+        } else {
+          console.warn('⚠️ pdf-parse not available, trying Adobe fallback')
+        }
       } catch (pdfError) {
         console.error('❌ pdf-parse failed:', pdfError)
+      }
 
-        // Fallback to Adobe PDF Services if available
+      // If pdf-parse didn't extract text, try Adobe fallback
+      if (!extractedText || extractedText.trim().length === 0) {
         try {
           const text = await adobeExportPdfToDocxExtractText(buffer)
           if (text) {
@@ -299,10 +320,28 @@ export async function POST(req: NextRequest) {
     const examPrepIds = (Array.isArray(body?.documentIds) && body.documentIds.length > 0)
       ? body.documentIds
       : (body.fileIds || [])
+
+    console.log('📚 Fetching documents:', {
+      examPrepIds,
+      documentIds: body.documentIds,
+      fileIds: body.fileIds,
+      sampleQuestionIds: body.sampleQuestionIds
+    })
+
     let textsA = await fetchTextsForExamFiles(supabase, examPrepIds, user.id)
     let textsB = await fetchTextsForReadingDocuments(supabase, body.documentIds || [], user.id)
     let sampleTexts = await fetchSampleQuestions(supabase, body.sampleQuestionIds || [], user.id)
     let texts = [...textsA, ...textsB].filter(Boolean)
+
+    console.log('📄 Text extraction results:', {
+      textsACount: textsA.length,
+      textsBCount: textsB.length,
+      sampleTextsCount: sampleTexts.length,
+      totalTexts: texts.length,
+      textsALengths: textsA.map(t => t?.length || 0),
+      textsBLengths: textsB.map(t => t?.length || 0)
+    })
+
     if (texts.length === 0) {
       // Attempt on-demand re-extraction for reading documents (Adobe Services -> DOCX -> mammoth)
       async function bufferToReadable(buf: Buffer): Promise<any> {

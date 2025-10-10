@@ -29,7 +29,7 @@ const SUPPORTED_TYPES = {
 
 // IMPORTANT: This must match your Supabase Storage bucket limit
 // To increase: Go to Supabase Dashboard → Storage → exam-files bucket → Settings
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB - matches Supabase bucket limit
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB - matches Supabase bucket limit
 const MAX_FILES = 10; // Allow up to 10 files as per requirements
 
 export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FILES }: StudyMaterialsUploaderProps) {
@@ -251,7 +251,7 @@ export function StudyMaterialsUploader({ onClose, onUploaded, maxFiles = MAX_FIL
               Drag & drop your document here or click to browse
             </p>
             <p className="text-gray-500 text-sm mb-4">
-              Supports PDF, TXT, DOCX • Max 50MB per file
+              Supports PDF, TXT, DOCX • Max 100MB per file
             </p>
             <input
               ref={fileInputRef}

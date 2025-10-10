@@ -11,7 +11,7 @@ interface ChatMessageProps {
 export const ChatMessage: React.FC<ChatMessageProps> = ({ content, role }) => {
   if (role === "user") {
     return (
-      <div className="max-w-[90%] rounded-2xl px-4 py-3 shadow-sm bg-gradient-to-r from-blue-600 to-blue-700 text-white ml-auto">
+      <div className="max-w-[90%] rounded-2xl px-4 py-3 pr-8 shadow-sm bg-gradient-to-r from-blue-600 to-blue-700 text-white ml-auto">
         <p className="text-sm font-medium leading-relaxed">{content}</p>
       </div>
     );
