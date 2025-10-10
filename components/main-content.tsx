@@ -144,15 +144,7 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
         </div>
 
         {/* Usage Overview */}
-        {!usageLoading && (
-          <div className="max-w-4xl">
-            <UsageDisplay
-              usage={usage}
-              limits={limits}
-              planName={planName}
-            />
-          </div>
-        )}
+       
 
         {/* Modern Bento Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

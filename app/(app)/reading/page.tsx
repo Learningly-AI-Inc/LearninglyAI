@@ -25,13 +25,20 @@ import { FileUploaderComponent } from "@/components/reading/file-uploader"
 import { OptimizedFileUploader } from "@/components/reading/optimized-file-uploader"
 import { DocumentListModal } from "@/components/reading/document-list-modal"
 import { UsageProgressBar } from "@/components/ui/usage-progress-bar"
+import { UpgradeModal } from "@/components/ui/upgrade-modal"
 import { useUsageLimits } from "@/hooks/use-usage-limits"
 
 const ReadingPage = () => {
   const router = useRouter()
   const [showUploadModal, setShowUploadModal] = React.useState(false)
   const [showDocumentListModal, setShowDocumentListModal] = React.useState(false)
-  const { getCurrentUsage, getCurrentLimit, isLoading: usageLoading, usage, limits } = useUsageLimits()
+  const [showUpgradeModal, setShowUpgradeModal] = React.useState(false)
+  const [upgradeModalConfig, setUpgradeModalConfig] = React.useState<{
+    title?: string;
+    message?: string;
+    limitType?: 'documents_uploaded' | 'exam_sessions';
+  }>({})
+  const { getCurrentUsage, getCurrentLimit, isLoading: usageLoading, usage, limits, checkUsageLimit } = useUsageLimits()
 
   // Debug: Log usage data
   React.useEffect(() => {
@@ -44,13 +51,28 @@ const ReadingPage = () => {
     });
   }, [usage, limits, usageLoading])
 
+  // Check upload limit before opening uploader
+  const handleOpenUploader = async () => {
+    const limitCheck = await checkUsageLimit('documents_uploaded', 1)
+    if (!limitCheck.canProceed) {
+      setUpgradeModalConfig({
+        title: 'Upload Limit Reached',
+        message: limitCheck.message || 'You\'ve reached your monthly document upload limit. Upgrade to Premium to upload more documents.',
+        limitType: 'documents_uploaded'
+      })
+      setShowUpgradeModal(true)
+      return
+    }
+    setShowUploadModal(true)
+  }
+
   const uploadOptions = [
     {
       icon: Upload,
       title: "Upload Documents",
       description: "PDF, DOCX, images, and text files",
       gradient: "from-blue-600 to-blue-600",
-      action: () => setShowUploadModal(true)
+      action: handleOpenUploader
     },
     {
       icon: BookOpen,
@@ -179,6 +201,15 @@ const ReadingPage = () => {
       {showDocumentListModal && (
         <DocumentListModal onClose={() => setShowDocumentListModal(false)} />
       )}
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        title={upgradeModalConfig.title}
+        message={upgradeModalConfig.message}
+        limitType={upgradeModalConfig.limitType}
+      />
     </DocumentProvider>
   )
 }

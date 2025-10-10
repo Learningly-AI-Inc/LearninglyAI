@@ -1,7 +1,7 @@
 # How to Increase Supabase Storage Bucket Size Limit
 
 ## Problem
-Your application is currently configured to allow uploads up to 50MB, but you're hitting the Supabase Storage bucket limit which is also set to 50MB. If you need to upload larger files, you'll need to increase the bucket size limit.
+Your application is currently configured to allow uploads up to 100MB, but you may hit the Supabase Storage bucket limit if it's not set to 100MB. If you need to upload larger files, you'll need to increase the bucket size limit.
 
 ## Error You're Seeing
 ```

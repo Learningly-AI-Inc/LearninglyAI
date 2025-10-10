@@ -185,7 +185,7 @@ export function FileUploaderComponent({ onClose, onUploaded, enableClientSideExt
               Drag & drop your document here or click to browse
             </p>
             <p className="text-gray-500 text-sm mb-4">
-              Supports PDF, TXT, DOCX • Max 30MB
+              Supports PDF, TXT, DOCX • Max 100MB
             </p>
             <input
               ref={fileInputRef}

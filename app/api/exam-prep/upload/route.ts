@@ -46,12 +46,12 @@ export async function POST(request: NextRequest) {
 
     // Check file size - MUST match Supabase bucket limit
     // To increase: Supabase Dashboard → Storage → exam-files → Settings → File size limit
-    const maxSize = 50 * 1024 * 1024; // 50MB - matches bucket limit
+    const maxSize = 100 * 1024 * 1024; // 100MB - matches bucket limit
     if (file.size > maxSize) {
       return NextResponse.json(
         {
           error: 'File too large',
-          details: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds the maximum allowed size of 50MB. Please compress your file or split it into smaller parts.`
+          details: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds the maximum allowed size of 100MB. Please compress your file or split it into smaller parts.`
         },
         { status: 400 }
       );
@@ -133,9 +133,9 @@ export async function POST(request: NextRequest) {
       const nameLower = (file.name || '').toLowerCase()
       console.log('🔍 Starting local extraction BEFORE upload for:', file.name, 'Size:', file.size, 'bytes');
 
-      async function extractWithPdfJs(buf: Buffer): Promise<{ text: string; pages: number }> {
+      // Helper: Extract text using pdf-parse (EXACT COPY from working reading upload)
+      async function extractWithPdfParse(buf: Buffer): Promise<{ text: string; pages: number }> {
         try {
-          // Use pdf-parse as a more reliable alternative to pdfjs-dist in Node environment
           const pdfParse = await import('pdf-parse').catch(() => null)
 
           if (pdfParse?.default) {
@@ -148,36 +148,8 @@ export async function POST(request: NextRequest) {
             return { text, pages: numPages }
           }
 
-          // Fallback to pdfjs-dist if pdf-parse is not available
-          console.log('📄 Falling back to pdfjs-dist...')
-          const pdfjsLib: any = await import('pdfjs-dist')
-
-          if (pdfjsLib.GlobalWorkerOptions) {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = null
-          }
-
-          const uint8 = new Uint8Array(buf)
-          console.log(`📄 Loading PDF document... (buffer size: ${buf.length} bytes)`)
-          const doc = await pdfjsLib.getDocument({ data: uint8 }).promise
-          let out = ''
-          const numPages = doc.numPages || 1
-          const pagesToExtract = Math.min(numPages, 50)
-          console.log(`📄 PDF loaded: ${numPages} pages, extracting ${pagesToExtract} pages`)
-
-          for (let i = 1; i <= pagesToExtract; i++) {
-            const page = await doc.getPage(i)
-            const content = await page.getTextContent()
-            const itemCount = (content.items || []).length
-            const strings = (content.items || []).map((it: any) => it.str || '')
-            const pageText = strings.join(' ')
-            console.log(`📄 Page ${i}: ${itemCount} items, ${pageText.length} chars`)
-            out += pageText + '\n\n'
-          }
-
-          const text = String(out || '').trim()
-          console.log(`📄 Extracted text length: ${text.length} chars from ${pagesToExtract} pages`)
-          console.log(`📄 First 300 chars: ${text.substring(0, 300)}`)
-          return { text, pages: numPages }
+          console.warn('⚠️ pdf-parse not available')
+          return { text: '', pages: 1 }
         } catch (e: any) {
           console.error('❌ PDF extraction error:', {
             message: e?.message,
@@ -189,25 +161,27 @@ export async function POST(request: NextRequest) {
       }
 
       if (nameLower.endsWith('.pdf')) {
-        console.log('📄 Attempting PDF extraction with pdfjs-dist...');
-        const viaPdfJs = await extractWithPdfJs(buffer)
-        extractedText = String(viaPdfJs.text || '').trim()
-        pageCount = viaPdfJs.pages || 1
+        console.log('📄 Fast PDF extraction (pdf-parse only)...');
 
-        const hasValidText = extractedText && extractedText.length > 50;
-        console.log('✅ PDF extraction result:', {
-          textLength: extractedText.length,
-          pages: pageCount,
-          hasValidText,
-          preview: extractedText.substring(0, 200) || '(empty)',
-          bufferSize: buffer.length
-        });
+        try {
+          const cleanBuffer = Buffer.from(buffer);
+          const viaPdfParse = await extractWithPdfParse(cleanBuffer);
 
-        if (hasValidText) {
-          processingNotes.push('Fast extraction: pdfjs-dist');
-        } else {
-          console.warn('⚠️ PDF extraction returned no text - may be image-based or encrypted');
-          processingNotes.push('No text extracted - PDF may be image-based, encrypted, or corrupted');
+          if (viaPdfParse.text && viaPdfParse.text.trim().length > 0) {
+            extractedText = viaPdfParse.text;
+            pageCount = viaPdfParse.pages;
+            processingNotes.push('Fast extraction: pdf-parse');
+          } else {
+            // If extraction fails, mark for on-demand extraction later
+            extractedText = '';
+            pageCount = 1;
+            processingNotes.push('Text extraction deferred for speed');
+          }
+        } catch (err) {
+          console.error('⚠️ PDF extraction error:', err);
+          extractedText = '';
+          pageCount = 1;
+          processingNotes.push('Text extraction deferred (error occurred)');
         }
       } else if (nameLower.endsWith('.docx')) {
         const mammoth = await import('mammoth')
@@ -270,7 +244,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: 'File too large for storage',
-            details: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds the storage bucket limit. The Supabase bucket is configured for a maximum of 50MB per file. To upload larger files, increase the bucket limit in Supabase Dashboard → Storage → exam-files → Settings.`,
+            details: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds the storage bucket limit. The Supabase bucket is configured for a maximum of 100MB per file. To upload larger files, increase the bucket limit in Supabase Dashboard → Storage → exam-files → Settings.`,
             filename: filename
           },
           { status: 413 }

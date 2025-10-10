@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
+import jsPDF from 'jspdf';
 
 interface GeneratedExam {
   examTitle: string
@@ -46,6 +47,36 @@ export default function ExamPrepPage() {
     message?: string;
     limitType?: 'documents_uploaded' | 'exam_sessions';
   }>({})
+  const [loadingFact, setLoadingFact] = useState('')
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null)
+  const [showPdfModal, setShowPdfModal] = useState(false)
+  const [generatedExamData, setGeneratedExamData] = useState<GeneratedExam | null>(null)
+
+  const loadingFacts = [
+    "💡 Did you know? The average person forgets 50% of what they learn within an hour!",
+    "🧠 Studies show that testing yourself is more effective than re-reading notes.",
+    "📚 The spacing effect: Learning over time beats cramming every time!",
+    "✨ Practice exams can boost your retention by up to 30%!",
+    "🎯 Active recall is proven to strengthen memory connections in your brain.",
+    "⏰ Taking breaks during study sessions improves long-term retention.",
+    "🌟 Self-testing helps identify knowledge gaps you didn't know existed.",
+    "💪 Regular practice with varied questions builds exam confidence.",
+    "🔄 Reviewing mistakes is the fastest path to improvement.",
+    "🎓 Spaced repetition can help you remember information for years!",
+    "🚀 The testing effect: Retrieving info makes it stick better than reviewing.",
+    "💯 Students who practice with exams score 10-20% higher on average.",
+  ]
+
+  // Rotate loading facts while generating
+  useEffect(() => {
+    if (isGenerating) {
+      setLoadingFact(loadingFacts[Math.floor(Math.random() * loadingFacts.length)])
+      const interval = setInterval(() => {
+        setLoadingFact(loadingFacts[Math.floor(Math.random() * loadingFacts.length)])
+      }, 4000) // Change fact every 4 seconds
+      return () => clearInterval(interval)
+    }
+  }, [isGenerating])
 
   async function generate() {
     try {
@@ -69,12 +100,6 @@ export default function ExamPrepPage() {
       console.log('documentIds', documentIds)
 
       const sampleQuestionIds = sampleQuestions.map(d => d.documentId!).filter(Boolean)
-
-      if (mode === 'pdf') {
-        // Route to full-length PDF builder page for richer PDF generation flows
-        router.push('/exam-prep/full-length')
-        return
-      }
 
       const res = await fetch('/api/exam-prep/generate', {
         method: 'POST',
@@ -109,8 +134,18 @@ export default function ExamPrepPage() {
         throw new Error(err?.error || res.statusText)
       }
       const data = await res.json() as { success: boolean; exam: GeneratedExam }
-      localStorage.setItem('generatedExam', JSON.stringify(data.exam))
-      router.push('/exam-prep/take')
+
+      if (mode === 'pdf') {
+        // Generate PDF and show in modal with preview
+        const blob = await generatePDF(data.exam)
+        setPdfBlob(blob)
+        setGeneratedExamData(data.exam)
+        setShowPdfModal(true)
+      } else {
+        // Online quiz mode - save to localStorage and redirect
+        localStorage.setItem('generatedExam', JSON.stringify(data.exam))
+        router.push('/exam-prep/take')
+      }
     } catch (e: any) {
       alert(`Generation failed: ${e?.message || e}`)
     } finally {
@@ -133,22 +168,148 @@ export default function ExamPrepPage() {
     setShowStudyMaterialsUploader(true)
   }
 
+  // PDF Generation Function
+  const generatePDF = async (examData: GeneratedExam): Promise<Blob> => {
+    const doc = new jsPDF()
+
+    doc.setProperties({
+      title: examData.examTitle || 'Generated Exam',
+      subject: 'AI-Generated Exam',
+      author: 'Learningly AI',
+      creator: 'Learningly AI Exam Generator'
+    })
+
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.text(examData.examTitle || 'Generated Exam', 20, 30)
+
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Duration: ${examData.duration} minutes`, 20, 45)
+    doc.text(`Questions: ${examData.questions.length}`, 20, 55)
+
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Instructions:', 20, 75)
+    doc.setFont('helvetica', 'normal')
+
+    const instructions = examData.instructions || 'Please read each question carefully and select the best answer.'
+    const instructionLines = doc.splitTextToSize(instructions, 170)
+    doc.text(instructionLines, 20, 85)
+
+    let yPosition = 105
+    const questions = examData.questions || []
+
+    for (let i = 0; i < questions.length; i++) {
+      const question = questions[i]
+
+      if (yPosition > 250) {
+        doc.addPage()
+        yPosition = 20
+      }
+
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Question ${i + 1}:`, 20, yPosition)
+      yPosition += 10
+
+      doc.setFont('helvetica', 'normal')
+      const questionLines = doc.splitTextToSize(question.question, 170)
+      doc.text(questionLines, 20, yPosition)
+      yPosition += questionLines.length * 5 + 5
+
+      if (question.options && Array.isArray(question.options)) {
+        question.options.forEach((option: string, optIndex: number) => {
+          if (yPosition > 250) {
+            doc.addPage()
+            yPosition = 20
+          }
+          const cleanOption = option.replace(/^[A-D][).]\s*/i, '').trim()
+          doc.text(`${String.fromCharCode(65 + optIndex)}. ${cleanOption}`, 30, yPosition)
+          yPosition += 6
+        })
+      }
+
+      yPosition += 10
+    }
+
+    // Add Answer Key
+    doc.addPage()
+    yPosition = 20
+
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.text('ANSWER KEY', 20, yPosition)
+    yPosition += 20
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Correct answers and explanations:', 20, yPosition)
+    yPosition += 15
+
+    for (let i = 0; i < questions.length; i++) {
+      const question = questions[i]
+
+      if (yPosition > 250) {
+        doc.addPage()
+        yPosition = 20
+      }
+
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Question ${i + 1}:`, 20, yPosition)
+      yPosition += 10
+
+      doc.setFont('helvetica', 'normal')
+      const answerText = `Answer: ${question.correctAnswer}`
+      const answerLines = doc.splitTextToSize(answerText, 170)
+      doc.text(answerLines, 30, yPosition)
+      yPosition += answerLines.length * 5 + 5
+
+      if (question.explanation) {
+        doc.setFont('helvetica', 'bold')
+        doc.text('Explanation:', 30, yPosition)
+        yPosition += 8
+
+        doc.setFont('helvetica', 'normal')
+        const explanationLines = doc.splitTextToSize(question.explanation, 160)
+        doc.text(explanationLines, 30, yPosition)
+        yPosition += explanationLines.length * 5 + 10
+      } else {
+        yPosition += 5
+      }
+    }
+
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Generated by Learningly AI', 20, 290)
+      doc.text(`Page ${i} of ${pageCount}`, 170, 290)
+    }
+
+    return doc.output('blob')
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-slate-100">
-      <div className="container mx-auto px-4 py-10 max-w-3xl">
-        <header className="mb-6">
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Exam Prep</h1>
-          <p className="text-sm text-slate-600 mt-1">Generate full-length PDF exams or online quizzes from your study materials.</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+      <div className="container mx-auto px-4 py-10 max-w-4xl">
+        <header className="mb-8 text-center">
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+            📚 Exam Prep
+          </h1>
+          <p className="text-slate-600">Generate full-length PDF exams or online quizzes from your study materials.</p>
         </header>
 
-        <Card className="mb-6">
-          <CardHeader className="p-6 pb-3">
+        <Card className="mb-6 shadow-lg border-l-4 border-blue-500">
+          <CardHeader className="p-6 pb-3 bg-gradient-to-r from-blue-50 to-indigo-50">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base">Study Materials</CardTitle>
+                <CardTitle className="text-base text-blue-700">📄 Study Materials</CardTitle>
                 <CardDescription>Upload PDF, DOCX, or TXT files. Drag & drop multiple files or click to browse.</CardDescription>
               </div>
-              <Badge variant={uploadedDocs.length > 0 ? "secondary" : "outline"}>
+              <Badge variant={uploadedDocs.length > 0 ? "secondary" : "outline"} className={uploadedDocs.length > 0 ? "bg-blue-100 text-blue-700" : ""}>
                 {uploadedDocs.length > 0 ? `${uploadedDocs.length} file${uploadedDocs.length > 1 ? 's' : ''}` : 'No files'}
               </Badge>
             </div>
@@ -162,10 +323,10 @@ export default function ExamPrepPage() {
               </div>
               <Button
                 size="sm"
-                variant="outline"
                 onClick={handleOpenUploader}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
               >
-                Upload Files
+                📤 Upload Files
               </Button>
             </div>
             <div className="text-sm text-slate-600">
@@ -194,14 +355,14 @@ export default function ExamPrepPage() {
           </CardContent>
         </Card>
 
-        <Card className="mb-6">
-          <CardHeader className="p-6 pb-3">
+        <Card className="mb-6 shadow-lg border-l-4 border-purple-500">
+          <CardHeader className="p-6 pb-3 bg-gradient-to-r from-purple-50 to-pink-50">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base">Exam Settings</CardTitle>
+                <CardTitle className="text-base text-purple-700">⚙️ Exam Settings</CardTitle>
                 <CardDescription>Adjust to fit your study session.</CardDescription>
               </div>
-              <Badge variant="outline">Simple</Badge>
+              <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">Simple</Badge>
             </div>
           </CardHeader>
           <Separator />
@@ -224,183 +385,197 @@ export default function ExamPrepPage() {
             <div className="space-y-2 sm:col-span-3">
               <Label>Exam Type</Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div 
-                  className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                    mode === 'online' 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'border-gray-200 hover:border-gray-300'
+                <div
+                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    mode === 'online'
+                      ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md'
+                      : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
                   }`}
                   onClick={() => setMode('online')}
                 >
                   <div className="flex items-center space-x-3">
-                    <div className={`w-4 h-4 rounded-full border-2 ${
-                      mode === 'online' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      mode === 'online' ? 'border-purple-500 bg-purple-500' : 'border-gray-300'
                     }`}>
-                      {mode === 'online' && <div className="w-2 h-2 bg-white rounded-full m-0.5" />}
+                      {mode === 'online' && <div className="w-2 h-2 bg-white rounded-full" />}
                     </div>
                     <div>
-                      <h3 className="font-medium text-slate-900">Online Quiz</h3>
+                      <h3 className="font-medium text-slate-900">💻 Online Quiz</h3>
                       <p className="text-sm text-slate-600">Interactive quiz with real-time feedback</p>
                     </div>
                   </div>
                 </div>
-                <div 
-                  className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                    mode === 'pdf' 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'border-gray-200 hover:border-gray-300'
+                <div
+                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    mode === 'pdf'
+                      ? 'border-pink-500 bg-gradient-to-br from-pink-50 to-orange-50 shadow-md'
+                      : 'border-gray-200 hover:border-pink-300 hover:bg-gray-50'
                   }`}
                   onClick={() => setMode('pdf')}
                 >
                   <div className="flex items-center space-x-3">
-                    <div className={`w-4 h-4 rounded-full border-2 ${
-                      mode === 'pdf' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      mode === 'pdf' ? 'border-pink-500 bg-pink-500' : 'border-gray-300'
                     }`}>
-                      {mode === 'pdf' && <div className="w-2 h-2 bg-white rounded-full m-0.5" />}
+                      {mode === 'pdf' && <div className="w-2 h-2 bg-white rounded-full" />}
                     </div>
                     <div>
-                      <h3 className="font-medium text-slate-900">PDF Exam</h3>
+                      <h3 className="font-medium text-slate-900">📄 PDF Exam</h3>
                       <p className="text-sm text-slate-600">Downloadable exam for offline practice</p>
                     </div>
                   </div>
                 </div>
               </div>
               <p className="text-xs text-slate-500 mt-2">
-                {mode === 'online' 
-                  ? 'Choose between rapid-fire questions or scheduled format below.' 
-                  : 'Opens the advanced PDF builder for comprehensive exam generation.'
+                {mode === 'online'
+                  ? 'Choose between rapid-fire questions or scheduled format below.'
+                  : 'Generates and downloads a PDF exam with questions and answer key.'
                 }
               </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Difficulty</Label>
+              <Select value={difficulty} onValueChange={(v)=>setDifficulty(v as any)}>
+                <SelectTrigger><SelectValue placeholder="Select difficulty" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="easy">Easy</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="hard">Hard</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Specific instructions (optional)</Label>
+              <Textarea value={instructions} onChange={(e)=>setInstructions(e.target.value)} rows={3} placeholder="Any topics to emphasize, style preferences, or special constraints" />
+            </div>
+            <div className="space-y-2 sm:col-span-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Sample questions (optional)</Label>
+                  <p className="text-xs text-slate-500 mt-1">Upload up to 5 sample questions from your professor for better exam generation</p>
+                </div>
+                <Badge variant={sampleQuestions.length > 0 ? "secondary" : "outline"}>
+                  {sampleQuestions.length > 0 ? `${sampleQuestions.length}/5 files` : 'No files'}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between p-3 border border-dashed border-slate-300 rounded-lg bg-slate-50/50">
+                <div className="text-sm text-slate-600">
+                  {sampleQuestions.length === 0 ? 'No sample questions uploaded yet.' : `${sampleQuestions.length} sample question file(s) ready.`}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowSampleUploader(true)}
+                  disabled={sampleQuestions.length >= 5}
+                >
+                  {sampleQuestions.length >= 5 ? 'Max 5 files' : 'Upload Sample'}
+                </Button>
+              </div>
+              {sampleQuestions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-500">Uploaded sample questions:</p>
+                  <div className="space-y-1">
+                    {sampleQuestions.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-white border rounded text-sm">
+                        <span className="text-slate-700">{file.name || `Sample Question ${index + 1}`}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setSampleQuestions(prev => prev.filter((_, i) => i !== index))}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             {mode === 'online' && (
               <>
                 <div className="space-y-2 sm:col-span-3">
                   <Label>Quiz Mode</Label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div 
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                        quizMode === 'rapid-fire' 
-                          ? 'border-green-500 bg-green-50' 
-                          : 'border-gray-200 hover:border-gray-300'
+                    <div
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        quizMode === 'rapid-fire'
+                          ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-md'
+                          : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'
                       }`}
                       onClick={() => setQuizMode('rapid-fire')}
                     >
                       <div className="flex items-center space-x-3">
-                        <div className={`w-4 h-4 rounded-full border-2 ${
-                          quizMode === 'rapid-fire' ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          quizMode === 'rapid-fire' ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'
                         }`}>
-                          {quizMode === 'rapid-fire' && <div className="w-2 h-2 bg-white rounded-full m-0.5" />}
+                          {quizMode === 'rapid-fire' && <div className="w-2 h-2 bg-white rounded-full" />}
                         </div>
                         <div>
-                          <h3 className="font-medium text-slate-900">Rapid Fire Round</h3>
+                          <h3 className="font-medium text-slate-900">⚡ Rapid Fire</h3>
                           <p className="text-sm text-slate-600">Questions appear one by one</p>
                         </div>
                       </div>
                     </div>
-                    <div 
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                        quizMode === 'scheduled' 
-                          ? 'border-green-500 bg-green-50' 
-                          : 'border-gray-200 hover:border-gray-300'
+                    <div
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        quizMode === 'scheduled'
+                          ? 'border-cyan-500 bg-gradient-to-br from-cyan-50 to-blue-50 shadow-md'
+                          : 'border-gray-200 hover:border-cyan-300 hover:bg-gray-50'
                       }`}
                       onClick={() => setQuizMode('scheduled')}
                     >
                       <div className="flex items-center space-x-3">
-                        <div className={`w-4 h-4 rounded-full border-2 ${
-                          quizMode === 'scheduled' ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          quizMode === 'scheduled' ? 'border-cyan-500 bg-cyan-500' : 'border-gray-300'
                         }`}>
-                          {quizMode === 'scheduled' && <div className="w-2 h-2 bg-white rounded-full m-0.5" />}
+                          {quizMode === 'scheduled' && <div className="w-2 h-2 bg-white rounded-full" />}
                         </div>
                         <div>
-                          <h3 className="font-medium text-slate-900">Scheduled Quiz</h3>
-                          <p className="text-sm text-slate-600">All questions visible from top to bottom</p>
+                          <h3 className="font-medium text-slate-900">📋 Scheduled</h3>
+                          <p className="text-sm text-slate-600">All questions visible top to bottom</p>
                         </div>
                       </div>
                     </div>
                   </div>
                   <p className="text-xs text-slate-500 mt-2">
-                    {quizMode === 'rapid-fire' 
-                      ? 'Perfect for quick practice sessions with immediate feedback.' 
-                      : 'Ideal for comprehensive review with ability to navigate between questions.'
+                    {quizMode === 'rapid-fire'
+                      ? 'Perfect for quick practice sessions with immediate feedback.'
+                      : 'Ideal for comprehensive review with ability to scroll through all questions.'
                     }
                   </p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Difficulty</Label>
-                  <Select value={difficulty} onValueChange={(v)=>setDifficulty(v as any)}>
-                    <SelectTrigger><SelectValue placeholder="Select difficulty" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="easy">Easy</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="hard">Hard</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Specific instructions (optional)</Label>
-                  <Textarea value={instructions} onChange={(e)=>setInstructions(e.target.value)} rows={3} placeholder="Any topics to emphasize, style preferences, or special constraints" />
-                </div>
-                <div className="space-y-2 sm:col-span-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Sample questions (optional)</Label>
-                      <p className="text-xs text-slate-500 mt-1">Upload up to 5 sample questions from your professor for better exam generation</p>
-                    </div>
-                    <Badge variant={sampleQuestions.length > 0 ? "secondary" : "outline"}>
-                      {sampleQuestions.length > 0 ? `${sampleQuestions.length}/5 files` : 'No files'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 border border-dashed border-slate-300 rounded-lg bg-slate-50/50">
-                    <div className="text-sm text-slate-600">
-                      {sampleQuestions.length === 0 ? 'No sample questions uploaded yet.' : `${sampleQuestions.length} sample question file(s) ready.`}
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={() => setShowSampleUploader(true)}
-                      disabled={sampleQuestions.length >= 5}
-                    >
-                      {sampleQuestions.length >= 5 ? 'Max 5 files' : 'Upload Sample'}
-                    </Button>
-                  </div>
-                  {sampleQuestions.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs text-slate-500">Uploaded sample questions:</p>
-                      <div className="space-y-1">
-                        {sampleQuestions.map((file, index) => (
-                          <div key={index} className="flex items-center justify-between p-2 bg-white border rounded text-sm">
-                            <span className="text-slate-700">{file.name || `Sample Question ${index + 1}`}</span>
-                            <Button 
-                              size="sm" 
-                              variant="ghost" 
-                              onClick={() => setSampleQuestions(prev => prev.filter((_, i) => i !== index))}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              Remove
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </>
             )}
           </CardContent>
-          <CardFooter className="p-6 pt-0 flex items-center justify-between">
-            <p className="text-xs text-slate-500">You can adjust settings anytime before generating.</p>
-            <Button onClick={generate} disabled={uploadedDocs.length === 0 || isGenerating}>
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                mode === 'pdf'
-                  ? 'Open PDF Builder' 
-                  : `Generate ${quizMode === 'rapid-fire' ? 'Rapid Fire' : 'Scheduled'} Quiz`
-              )}
-            </Button>
+          <CardFooter className="p-6 pt-0">
+            <div className="flex items-center justify-between w-full">
+              <p className="text-xs text-slate-500">You can adjust settings anytime before generating.</p>
+              <Button
+                onClick={generate}
+                disabled={uploadedDocs.length === 0 || isGenerating}
+                className={`${
+                  mode === 'pdf'
+                    ? 'bg-gradient-to-r from-pink-600 to-orange-600 hover:from-pink-700 hover:to-orange-700'
+                    : quizMode === 'rapid-fire'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700'
+                    : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700'
+                } text-white shadow-md`}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  mode === 'pdf'
+                    ? '✨ Generate PDF Exam'
+                    : quizMode === 'rapid-fire'
+                    ? '⚡ Generate Rapid Fire Quiz'
+                    : '📋 Generate Scheduled Quiz'
+                )}
+              </Button>
+            </div>
           </CardFooter>
         </Card>
       </div>
@@ -436,6 +611,111 @@ export default function ExamPrepPage() {
         message={upgradeModalConfig.message}
         limitType={upgradeModalConfig.limitType}
       />
+
+      {/* Loading Modal with Random Facts */}
+      {isGenerating && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-8 animate-in fade-in duration-300">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mb-4">
+                <Loader2 className="w-10 h-10 text-white animate-spin" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">Generating Your {mode === 'pdf' ? 'PDF Exam' : 'Quiz'}...</h3>
+              <p className="text-gray-600">This may take a moment. Hang tight!</p>
+            </div>
+
+            {loadingFact && (
+              <div className="bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 border-2 border-blue-200 rounded-xl p-6 shadow-inner">
+                <div className="flex items-start gap-4">
+                  <div className="text-4xl animate-pulse">💭</div>
+                  <div className="flex-1">
+                    <p className="text-lg font-medium text-gray-800 leading-relaxed">{loadingFact}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-center">
+              <div className="flex gap-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-3 h-3 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PDF Preview Modal - Larger Size */}
+      {showPdfModal && pdfBlob && generatedExamData && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowPdfModal(false)}>
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-7xl h-[95vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-6 border-b bg-gradient-to-r from-pink-600 to-orange-600 rounded-t-xl flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">🎉 Your Exam is Ready!</h2>
+                  <p className="text-pink-100 text-sm mt-1">{generatedExamData.examTitle}</p>
+                </div>
+                <button
+                  onClick={() => setShowPdfModal(false)}
+                  className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* PDF Preview - Much Larger */}
+            <div className="flex-1 overflow-hidden bg-gray-100 p-6">
+              <iframe
+                src={URL.createObjectURL(pdfBlob)}
+                className="w-full h-full rounded-lg border-2 border-gray-300 shadow-lg"
+                title="PDF Preview"
+              />
+            </div>
+
+            {/* Footer with actions */}
+            <div className="p-6 border-t bg-gray-50 rounded-b-xl flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-600">
+                  <p className="font-medium">{generatedExamData.questions.length} questions • {generatedExamData.duration} minutes</p>
+                  <p className="text-xs mt-1">Preview the exam above, then download when ready</p>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowPdfModal(false)}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      const url = URL.createObjectURL(pdfBlob)
+                      const link = document.createElement('a')
+                      link.href = url
+                      link.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'exam'}.pdf`
+                      document.body.appendChild(link)
+                      link.click()
+                      document.body.removeChild(link)
+                      URL.revokeObjectURL(url)
+                      setShowPdfModal(false)
+                    }}
+                    className="bg-gradient-to-r from-pink-600 to-orange-600 hover:from-pink-700 hover:to-orange-700 text-white shadow-lg"
+                  >
+                    📥 Download PDF
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

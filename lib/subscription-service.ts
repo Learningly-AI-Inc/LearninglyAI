@@ -686,40 +686,48 @@ export class SubscriptionService {
    * Get plan limits based on plan name
    */
   getPlanLimits(planName: string): PlanLimits {
-    switch (planName) {
-      case 'Free':
-        return {
-          documents_uploaded: 12, // 3 per week = ~12 per month
-          writing_words: 5000, // 5,000 words/month
-          search_queries: 40, // 10 per week = ~40 per month
-          exam_sessions: 1, // 1 per month
-          storage_used_bytes: 250 * 1024 * 1024, // 250MB
-        }
-      case 'Premium (Monthly)':
-        return {
-          documents_uploaded: 3000, // 100 per day = ~3000 per month
-          writing_words: 750000, // 25,000 per day = ~750,000 per month
-          search_queries: 15000, // 500 per day = ~15,000 per month
-          exam_sessions: 200, // 50 per week = ~200 per month
-          storage_used_bytes: 10 * 1024 * 1024 * 1024, // 10GB
-        }
-      case 'Premium (Yearly)':
-      case 'Premium Elite':
-        return {
-          documents_uploaded: -1, // Unlimited
-          writing_words: -1, // Unlimited
-          search_queries: -1, // Unlimited
-          exam_sessions: -1, // Unlimited
-          storage_used_bytes: 100 * 1024 * 1024 * 1024, // 100GB
-        }
-      default:
-        return {
-          documents_uploaded: 0,
-          writing_words: 0,
-          search_queries: 0,
-          exam_sessions: 0,
-          storage_used_bytes: 0,
-        }
+    const normalizedPlanName = (planName || '').toLowerCase();
+
+    // Check if it's a Free plan
+    if (normalizedPlanName === 'free' || normalizedPlanName === '') {
+      return {
+        documents_uploaded: 12, // 3 per week = ~12 per month
+        writing_words: 5000, // 5,000 words/month
+        search_queries: 40, // 10 per week = ~40 per month
+        exam_sessions: 1, // 1 per month
+        storage_used_bytes: 250 * 1024 * 1024, // 250MB
+      }
+    }
+
+    // Check if it's Premium Elite / Yearly (unlimited)
+    if (normalizedPlanName.includes('elite') || normalizedPlanName.includes('yearly')) {
+      return {
+        documents_uploaded: -1, // Unlimited
+        writing_words: -1, // Unlimited
+        search_queries: -1, // Unlimited
+        exam_sessions: -1, // Unlimited
+        storage_used_bytes: 100 * 1024 * 1024 * 1024, // 100GB
+      }
+    }
+
+    // Check if it's any Premium plan (monthly or otherwise)
+    if (normalizedPlanName.includes('premium')) {
+      return {
+        documents_uploaded: 3000, // 100 per day = ~3000 per month
+        writing_words: 750000, // 25,000 per day = ~750,000 per month
+        search_queries: 15000, // 500 per day = ~15,000 per month
+        exam_sessions: 200, // 50 per week = ~200 per month
+        storage_used_bytes: 10 * 1024 * 1024 * 1024, // 10GB
+      }
+    }
+
+    // Default fallback
+    return {
+      documents_uploaded: 0,
+      writing_words: 0,
+      search_queries: 0,
+      exam_sessions: 0,
+      storage_used_bytes: 0,
     }
   }
 
