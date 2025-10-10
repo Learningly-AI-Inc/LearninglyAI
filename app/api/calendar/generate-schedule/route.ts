@@ -6,6 +6,36 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+interface CalendarEvent {
+  title: string
+  description: string
+  start_time: string
+  end_time: string
+  all_day: boolean
+  color: string
+  location?: string
+  event_type: string
+  course_code: string
+  recurring_pattern?: {
+    type: string
+    interval: number
+    days_of_week: number[]
+    end_date: string
+  }
+}
+
+interface Course {
+  name: string
+  code: string
+  schedule: Array<{
+    day_of_week: number
+    start_time: string
+    end_time: string
+    type: string
+    location?: string
+  }>
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { syllabus_document_id, semester_name, courses } = await request.json()
@@ -22,7 +52,7 @@ export async function POST(request: NextRequest) {
     const semesterEndDate = new Date('2024-12-13') // Fall semester end
 
     // Generate events for each course
-    const events = []
+    const events: CalendarEvent[] = []
     const holidays = [
       { name: "Labor Day", date: "2024-09-02", type: "national" },
       { name: "Thanksgiving Break", date: "2024-11-28", type: "academic" },
@@ -30,8 +60,8 @@ export async function POST(request: NextRequest) {
     ]
 
     // Generate class events
-    courses.forEach((course: any) => {
-      course.schedule.forEach((schedule: any) => {
+    courses.forEach((course: Course) => {
+      course.schedule.forEach((schedule) => {
         const startDate = new Date(semesterStartDate)
         const endDate = new Date(semesterEndDate)
         
@@ -81,7 +111,7 @@ export async function POST(request: NextRequest) {
     const finalWeek = new Date(semesterEndDate)
     finalWeek.setDate(finalWeek.getDate() - 7) // Week before finals
 
-    courses.forEach((course: any) => {
+    courses.forEach((course: Course) => {
       // Midterm exam
       const midtermDate = new Date(midtermWeek)
       midtermDate.setDate(midtermDate.getDate() + (course.schedule[0]?.day_of_week || 1))
@@ -116,7 +146,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Add assignment due dates (example)
-    courses.forEach((course: any) => {
+    courses.forEach((course: Course) => {
       for (let i = 1; i <= 5; i++) {
         const assignmentDate = new Date(semesterStartDate)
         assignmentDate.setDate(assignmentDate.getDate() + (i * 14)) // Every 2 weeks
