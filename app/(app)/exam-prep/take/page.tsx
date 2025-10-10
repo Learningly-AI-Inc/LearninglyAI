@@ -88,7 +88,9 @@ export default function TakeExamPage() {
   }
 
   const total = Math.max(0, exam.questions.length || 0)
-  const pct = total > 0 ? Math.round((index / total) * 100) : 0
+  const pct = exam?.quizMode === 'scheduled'
+    ? total > 0 ? Math.round((Object.keys(answers).length / total) * 100) : 0
+    : total > 0 ? Math.round((index / total) * 100) : 0
 
   function submit() {
     if (!q || !selected) return
@@ -133,120 +135,125 @@ export default function TakeExamPage() {
   const finished = timeUp || (exam?.quizMode === 'scheduled' ? showResult : (index + 1 >= total && showResult))
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-slate-100">
-      <div className="container mx-auto px-4 py-8 max-w-3xl">
-        <Card>
-          <CardHeader>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <Card className="shadow-xl border-t-4 border-blue-500">
+          <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
               <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="tracking-tight">{exam.examTitle}</CardTitle>
-                <div className="text-sm text-slate-600">Duration: {exam.duration} minutes</div>
+                <CardTitle className="tracking-tight text-white">{exam.examTitle}</CardTitle>
+                <div className="text-sm text-blue-100">Duration: {exam.duration} minutes</div>
               </div>
                 <div className="flex items-center gap-4">
                   {secondsLeft !== null && (
-                    <div className="text-sm font-mono tabular-nums text-slate-700">
+                    <div className="text-lg font-mono tabular-nums bg-white/20 px-3 py-1 rounded-lg">
                       {Math.max(0, Math.floor(secondsLeft / 60)).toString().padStart(2, '0')}
                       :
                       {Math.max(0, secondsLeft % 60).toString().padStart(2, '0')}
                     </div>
                   )}
-                  <Button variant="outline" onClick={() => router.push('/exam-prep')}>Exit</Button>
+                  <Button variant="secondary" onClick={() => router.push('/exam-prep')}>Exit</Button>
                 </div>
             </div>
             <div className="mt-4">
-              <Progress value={pct} />
+              <Progress value={pct} className="h-2 bg-blue-200" />
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {!finished ? (
               exam?.quizMode === 'scheduled' ? (
-                // Scheduled Mode: Show all questions
+                // Scheduled Mode: Show all questions vertically
                 <>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center sticky top-0 bg-white z-10 pb-4 border-b">
                     <div className="text-sm text-slate-600">
                       {Object.keys(answers).length} of {total} questions answered
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={submitAll}>
-                        Submit All
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {/* Question Navigation */}
-                  <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-                    {exam.questions.map((_, i) => (
-                      <Button
-                        key={i}
-                        variant={i === index ? "default" : answers[i] ? "secondary" : "outline"}
-                        size="sm"
-                        onClick={() => goToQuestion(i)}
-                        className="aspect-square"
-                      >
-                        {i + 1}
-                      </Button>
-                    ))}
+                    <Button onClick={submitAll} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                      Submit All
+                    </Button>
                   </div>
 
-                  <div className="border-t pt-6">
-                    <div className="text-sm text-slate-600 mb-4">Question {index + 1} of {total}</div>
-                    <div className="text-base leading-relaxed mb-6">{q?.question}</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {q?.options?.map((opt, i) => {
-                        const label = ['A', 'B', 'C', 'D'][i] || String(i + 1)
-                        const value = `${label}`
-                        return (
-                          <Button
-                            key={i}
-                            variant={selected === value ? 'default' : 'outline'}
-                            onClick={() => setSelected(value)}
-                            className={`w-full h-auto min-h-[3rem] py-3 justify-start items-start text-left whitespace-normal break-words text-wrap leading-snug ${selected === value ? '' : 'hover:bg-slate-50'}`}
-                          >
-                            <span className="mr-3 font-semibold shrink-0">{label}.</span>
-                            <span className="flex-1 break-words">{opt}</span>
-                          </Button>
-                        )
-                      })}
-                    </div>
+                  {/* All Questions Displayed Vertically */}
+                  <div className="space-y-8 pt-4">
+                    {exam.questions.map((question, questionIndex) => (
+                      <div key={questionIndex} className="border-l-4 border-blue-500 pl-4 py-2">
+                        <div className="text-sm font-semibold text-blue-600 mb-3">
+                          Question {questionIndex + 1} of {total}
+                        </div>
+                        <div className="text-lg font-medium leading-relaxed mb-4">{question.question}</div>
+                        <div className="grid grid-cols-1 gap-3">
+                          {question.options?.map((opt, optIndex) => {
+                            const label = ['A', 'B', 'C', 'D'][optIndex] || String(optIndex + 1)
+                            const value = `${label}`
+                            const isSelected = answers[questionIndex] === value
+                            return (
+                              <button
+                                key={optIndex}
+                                onClick={() => setAnswers(prev => ({ ...prev, [questionIndex]: value }))}
+                                className={`w-full h-auto min-h-[3rem] py-3 px-4 rounded-lg border-2 text-left transition-all ${
+                                  isSelected
+                                    ? 'border-blue-600 bg-blue-50 shadow-md'
+                                    : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                                }`}
+                              >
+                                <span className="font-semibold text-blue-600 mr-3">{label}.</span>
+                                <span>{opt}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </>
               ) : (
                 // Rapid Fire Mode: One question at a time
                 <>
-                  <div className="text-sm text-slate-600">Question {index + 1} of {total}</div>
-                  <div className="text-base leading-relaxed">{q?.question}</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-lg text-sm font-semibold mb-4">
+                    Question {index + 1} of {total}
+                  </div>
+                  <div className="text-lg font-medium leading-relaxed mb-6">{q?.question}</div>
+                  <div className="grid grid-cols-1 gap-3">
                     {q?.options?.map((opt, i) => {
                       const label = ['A', 'B', 'C', 'D'][i] || String(i + 1)
                       const value = `${label}`
                       return (
-                        <Button
+                        <button
                           key={i}
-                          variant={selected === value ? 'default' : 'outline'}
                           onClick={() => setSelected(value)}
-                          className={`w-full h-auto min-h-[3rem] py-3 justify-start items-start text-left whitespace-normal break-words text-wrap leading-snug ${selected === value ? '' : 'hover:bg-slate-50'}`}
+                          className={`w-full h-auto min-h-[3rem] py-3 px-4 rounded-lg border-2 text-left transition-all ${
+                            selected === value
+                              ? 'border-purple-600 bg-purple-50 shadow-md'
+                              : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                          }`}
                         >
-                          <span className="mr-3 font-semibold shrink-0">{label}.</span>
-                          <span className="flex-1 break-words">{opt}</span>
-                        </Button>
+                          <span className="font-semibold text-purple-600 mr-3">{label}.</span>
+                          <span>{opt}</span>
+                        </button>
                       )
                     })}
                   </div>
 
                   {!showResult ? (
                     <div className="flex justify-end">
-                      <Button disabled={!selected} onClick={submit}>Submit</Button>
+                      <Button disabled={!selected} onClick={submit} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+                        Submit
+                      </Button>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <div className={selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? 'text-green-700' : 'text-red-700'}>
-                        {selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? 'Correct!' : `Incorrect. Answer: ${q?.correctAnswer}`}
+                      <div className={`p-4 rounded-lg ${selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                        <div className="font-semibold">
+                          {selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? '✓ Correct!' : `✗ Incorrect. Answer: ${q?.correctAnswer}`}
+                        </div>
+                        {q?.explanation && (
+                          <div className="text-sm mt-2 leading-relaxed">Explanation: {q.explanation}</div>
+                        )}
                       </div>
-                      {q?.explanation && (
-                        <div className="text-sm text-slate-700 leading-relaxed">Explanation: {q.explanation}</div>
-                      )}
                       <div className="flex justify-end">
-                        <Button onClick={next}>Next</Button>
+                        <Button onClick={next} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+                          Next
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -254,17 +261,24 @@ export default function TakeExamPage() {
               )
             ) : (
               <div className="text-center py-10">
-                <div className="text-2xl font-semibold mb-2">Finished!</div>
-                <div className="text-lg mb-6">Score: {score} / {total}</div>
+                <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white py-6 px-8 rounded-xl shadow-lg mb-6">
+                  <div className="text-3xl font-bold mb-2">🎉 Finished!</div>
+                  <div className="text-2xl">Score: {score} / {total}</div>
+                  <div className="text-lg mt-2 opacity-90">
+                    {Math.round((score / total) * 100)}% correct
+                  </div>
+                </div>
                 <div className="flex gap-3 justify-center">
-                  <Button variant="outline" onClick={() => { 
-                    setIndex(0); 
-                    setScore(0); 
-                    setShowResult(false); 
-                    setSelected(''); 
+                  <Button variant="outline" className="border-2" onClick={() => {
+                    setIndex(0);
+                    setScore(0);
+                    setShowResult(false);
+                    setSelected('');
                     setAnswers({});
                   }}>Retry</Button>
-                  <Button onClick={() => router.push('/exam-prep')}>Back to Exam Prep</Button>
+                  <Button onClick={() => router.push('/exam-prep')} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                    Back to Exam Prep
+                  </Button>
                 </div>
               </div>
             )}
