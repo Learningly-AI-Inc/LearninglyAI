@@ -2,8 +2,9 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
-  Search, Bell, BookOpen, PencilRuler, ScanSearch, GraduationCap, TrendingUp, 
+  Search, Bell, BookOpen, PencilRuler, ScanSearch, GraduationCap, TrendingUp,
   ArrowRight, Sparkles, Star, ChevronRight
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -74,12 +75,14 @@ interface MainContentProps {
 export default function MainContent({ sidebarCollapsed }: MainContentProps) {
   const { user } = useAuthContext()
   const { subscription } = useSubscription()
-  
+  const router = useRouter()
+  const [searchQuery, setSearchQuery] = React.useState("")
+
   // Extract user information
   const userMetadata = user ? getUserMetadata(user) : null
   const displayName = userMetadata?.full_name || userMetadata?.name || user?.email?.split('@')[0] || 'User'
   const firstName = userMetadata?.given_name || displayName.split(' ')[0] || 'User'
-  
+
   // Generate initials from display name
   const getInitials = (name: string) => {
     const nameParts = name.split(' ')
@@ -88,11 +91,29 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
     }
     return name.substring(0, 2)
   }
-  
+
   const initials = getInitials(displayName).toUpperCase()
-  
+
   // Get usage limits data
   const { usage, limits, planName, isFreePlan, isLoading: usageLoading } = useUsageLimits()
+
+  // Handle search submission
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+    }
+  }
+
+  // Handle search input key down
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (searchQuery.trim()) {
+        router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+      }
+    }
+  }
   
   return (
     <div className="min-h-screen bg-white">
@@ -106,14 +127,17 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
           </Badge>
         </div>
         <div className="flex items-center space-x-4">
-          <div className="relative hidden sm:block">
+          <form onSubmit={handleSearch} className="relative hidden sm:block">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
               placeholder="Search anything..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
               className="pl-10 w-[300px] bg-white/70 border-border/50 text-foreground focus:border-primary focus:ring-primary/30 rounded-full backdrop-blur-sm"
             />
-          </div>
+          </form>
           <Button variant="ghost" size="icon" className="relative text-foreground hover:bg-white/70">
             <Bell className="h-5 w-5" />
             <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-gradient-to-br from-red-400 to-red-600 rounded-full border-2 border-white animate-pulse"></span>

@@ -10,6 +10,7 @@ import { useAuthContext } from "@/components/auth/auth-provider"
 import { useRouter } from "next/navigation"
 import { useUserStatus } from "@/contexts/user-status-context"
 import { Progress } from "@/components/ui/progress"
+import { useAdmin } from "@/hooks/use-admin"
 
 interface NavigationItem {
   href: string;
@@ -112,6 +113,7 @@ export default function AppSidebar({
   const { signOut, user } = useAuthContext()
   const router = useRouter()
   const { status, loading, getCurrentUsage, getCurrentLimit, isFreePlan } = useUserStatus()
+  const { isAdmin, loading: adminLoading } = useAdmin()
 
   // Show/hide Upgrade card (dismiss for current page only; resets on refresh)
   // Only show for Free plan users
@@ -267,7 +269,9 @@ export default function AppSidebar({
             <SidebarItem collapsed={sidebarCollapsed} icon={<Bolt className="h-4 w-4"/>} label="Quick Guide" onClick={handleQuickGuide}/>
           )}
           <SidebarItem collapsed={sidebarCollapsed} icon={<Settings className="h-4 w-4"/>} label="Feedback" href="/feedback"/>
-          <SidebarItem collapsed={sidebarCollapsed} icon={<Shield className="h-4 w-4"/>} label="Admin Panel" href="/admin"/>
+          {isAdmin && (
+            <SidebarItem collapsed={sidebarCollapsed} icon={<Shield className="h-4 w-4"/>} label="Admin Panel" href="/admin"/>
+          )}
         </SidebarSection>
       </div>
 
@@ -342,11 +346,7 @@ export default function AppSidebar({
           </button>
         </div>
         )}
-        <div className="flex items-center justify-between">
-          <Link href="/settings" className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-primary transition-colors duration-200">
-            <Settings className="h-4 w-4"/>
-            {!sidebarCollapsed && "Settings"}
-          </Link>
+        <div className="flex justify-end">
           <button onClick={handleLogout} className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-red-600 transition-colors duration-200">
             <LogOut className="h-4 w-4"/>
             {!sidebarCollapsed && "Logout"}
