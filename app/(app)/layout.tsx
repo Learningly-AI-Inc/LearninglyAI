@@ -21,6 +21,7 @@ import { useDeviceSize } from "@/hooks/use-device-size"
 import { AuthProvider, useAuthContext } from "@/components/auth/auth-provider"
 import { UserStatusProvider } from "@/contexts/user-status-context"
 import { OnboardingTour } from "@/components/onboarding-tour"
+import { ToastProvider } from "@/hooks/use-toast"
 
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuthContext()
@@ -132,51 +133,53 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <UserStatusProvider>
-      <Suspense fallback={null}>
-        <div className="min-h-screen bg-white">
-          <AppSidebar
-            sidebarCollapsed={sidebarCollapsed}
-            setSidebarCollapsed={setSidebarCollapsed}
-            navigationItems={navigationItems}
-            workspaceItems={workspaceItems}
-          />
+    <ToastProvider>
+      <UserStatusProvider>
+        <Suspense fallback={null}>
+          <div className="min-h-screen bg-white">
+            <AppSidebar
+              sidebarCollapsed={sidebarCollapsed}
+              setSidebarCollapsed={setSidebarCollapsed}
+              navigationItems={navigationItems}
+              workspaceItems={workspaceItems}
+            />
 
-          <main
-            className={`
-              ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-[220px] lg:ml-[260px]'}
-              px-3 md:px-4
-              transition-all duration-300 ease-out
-            `}
-          >
-            {children}
-          </main>
+            <main
+              className={`
+                ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-[220px] lg:ml-[260px]'}
+                px-3 md:px-4
+                transition-all duration-300 ease-out
+              `}
+            >
+              {children}
+            </main>
 
-          {/* Global interactive tour (available on all app pages) */}
-          <OnboardingTour isOpen={openTour} onClose={handleTourClose} />
+            {/* Global interactive tour (available on all app pages) */}
+            <OnboardingTour isOpen={openTour} onClose={handleTourClose} />
 
-          {/* Mobile Sidebar */}
-          <div className="md:hidden">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50 bg-white border border-border/50 hover:bg-slate-50 shadow-lg">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[280px] bg-white/95 backdrop-blur-xl p-0 border-r border-border/50">
-                <AppSidebar
-                  sidebarCollapsed={false}
-                  setSidebarCollapsed={() => {}}
-                  navigationItems={navigationItems}
-                  workspaceItems={workspaceItems}
-                  isMobile
-                />
-              </SheetContent>
-            </Sheet>
+            {/* Mobile Sidebar */}
+            <div className="md:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50 bg-white border border-border/50 hover:bg-slate-50 shadow-lg">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[280px] bg-white/95 backdrop-blur-xl p-0 border-r border-border/50">
+                  <AppSidebar
+                    sidebarCollapsed={false}
+                    setSidebarCollapsed={() => {}}
+                    navigationItems={navigationItems}
+                    workspaceItems={workspaceItems}
+                    isMobile
+                  />
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
-        </div>
-      </Suspense>
-    </UserStatusProvider>
+        </Suspense>
+      </UserStatusProvider>
+    </ToastProvider>
   )
 }
 
