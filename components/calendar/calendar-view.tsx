@@ -79,24 +79,23 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
 
   const getEventColor = (color: string) => {
     const colorMap: { [key: string]: string } = {
-      '#3B82F6': 'bg-blue-500',
-      '#EF4444': 'bg-red-500',
-      '#10B981': 'bg-green-500',
-      '#F59E0B': 'bg-yellow-500',
-      '#8B5CF6': 'bg-purple-500',
-      '#EC4899': 'bg-pink-500',
-      '#6B7280': 'bg-gray-500',
+      '#3B82F6': 'bg-blue-500 hover:bg-blue-600',
+      '#1D4ED8': 'bg-blue-600 hover:bg-blue-700',
+      '#2563EB': 'bg-blue-600 hover:bg-blue-700',
+      '#1E40AF': 'bg-blue-700 hover:bg-blue-800',
+      '#EF4444': 'bg-red-500 hover:bg-red-600',
+      '#10B981': 'bg-green-500 hover:bg-green-600',
+      '#F59E0B': 'bg-yellow-500 hover:bg-yellow-600',
+      '#8B5CF6': 'bg-purple-500 hover:bg-purple-600',
+      '#EC4899': 'bg-pink-500 hover:bg-pink-600',
+      '#6B7280': 'bg-gray-500 hover:bg-gray-600',
     }
-    return colorMap[color] || 'bg-blue-500'
+    return colorMap[color] || 'bg-blue-500 hover:bg-blue-600'
   }
 
   if (loading) {
     return (
       <div className="p-6 space-y-6">
-        <Header 
-          title="Calendar" 
-          subtitle="Manage your academic schedule and deadlines."
-        />
         <div className="flex items-center justify-center h-96">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -105,14 +104,9 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <Header 
-        title="Calendar" 
-        subtitle="Manage your academic schedule and deadlines."
-      />
-
-      <Card className="border-border">
-        <CardHeader className="flex flex-row items-center justify-between">
+    <div className="space-y-6">
+      <Card className="border-border shadow-lg">
+        <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-b border-blue-200 dark:border-blue-800">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
               <Button 
@@ -123,7 +117,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <h2 className="text-xl font-semibold text-foreground min-w-[200px] text-center">
+              <h2 className="text-xl font-semibold text-blue-700 dark:text-blue-300 min-w-[200px] text-center">
                 {months[view.date.getMonth()]} {view.date.getFullYear()}
               </h2>
               <Button 
@@ -145,7 +139,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
           </div>
           
           <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-1 bg-muted/30 rounded-lg p-1">
+            <div className="flex items-center space-x-1 bg-blue-100 dark:bg-blue-900/30 rounded-lg p-1">
               <Button
                 variant={view.type === 'month' ? 'default' : 'ghost'}
                 size="sm"
@@ -184,7 +178,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
               </Button>
             </div>
             
-            <Button onClick={onCreateEvent}>
+            <Button onClick={onCreateEvent} className="bg-blue-600 hover:bg-blue-700 text-white shadow-md">
               <Plus className="mr-2 h-4 w-4" />
               Add Event
             </Button>
@@ -196,7 +190,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
             <div className="grid grid-cols-7 gap-px border-l border-t border-border">
               {/* Day headers */}
               {days.map((day) => (
-                <div key={day} className="py-3 text-center font-semibold text-muted-foreground border-r border-b border-border bg-muted/30">
+                <div key={day} className="py-3 text-center font-semibold text-blue-700 dark:text-blue-300 border-r border-b border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20">
                   {day}
                 </div>
               ))}
@@ -213,19 +207,19 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
                     className={cn(
                       "p-2 h-32 border-r border-b border-border relative",
                       !isCurrentMonthDay ? "bg-muted/20" : "bg-background",
-                      isCurrentDay && "bg-primary/10"
+                      isCurrentDay && "bg-blue-100 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-700"
                     )}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className={cn(
                         "font-semibold text-sm",
-                        isCurrentDay ? "text-primary font-bold" : "text-foreground",
+                        isCurrentDay ? "text-blue-700 dark:text-blue-300 font-bold" : "text-foreground",
                         !isCurrentMonthDay && "text-muted-foreground"
                       )}>
                         {date.getDate()}
                       </span>
                       {isCurrentDay && (
-                        <div className="w-2 h-2 bg-primary rounded-full"></div>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                       )}
                     </div>
                     

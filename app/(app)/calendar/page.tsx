@@ -92,13 +92,13 @@ const CalendarPage = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       <Header 
         title="Calendar" 
-        subtitle="Manage your academic schedule and deadlines."
+        subtitle="Manage your schedule and deadlines with Learningly."
       />
 
-      <Tabs defaultValue="calendar" className="space-y-6">
+      <Tabs defaultValue="calendar" className="space-y-4">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="syllabus">Syllabus Upload</TabsTrigger>
@@ -108,7 +108,7 @@ const CalendarPage = () => {
           <TabsTrigger value="debug">Debug</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="calendar" className="space-y-6">
+        <TabsContent value="calendar" className="space-y-4">
           <CalendarView 
             onEventClick={handleEventClick}
             onCreateEvent={handleCreateEvent}
