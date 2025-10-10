@@ -16,6 +16,19 @@ interface CalendarViewProps {
 }
 
 export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps) {
+  const calendarHook = useCalendar()
+  
+  // Defensive programming - ensure all functions exist
+  if (!calendarHook) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-center h-96">
+          <div className="text-muted-foreground">Loading calendar...</div>
+        </div>
+      </div>
+    )
+  }
+  
   const {
     events,
     loading,
@@ -24,7 +37,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
     changeView,
     goToToday,
     getEventsForDate
-  } = useCalendar()
+  } = calendarHook
 
   const [currentDate, setCurrentDate] = React.useState(new Date())
 
@@ -113,7 +126,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
                 variant="outline" 
                 size="icon" 
                 className="border-border"
-                onClick={() => navigateView('prev')}
+                onClick={() => navigateView?.('prev')}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -124,7 +137,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
                 variant="outline" 
                 size="icon" 
                 className="border-border"
-                onClick={() => navigateView('next')}
+                onClick={() => navigateView?.('next')}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -143,7 +156,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
               <Button
                 variant={view.type === 'month' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => changeView('month')}
+                onClick={() => changeView?.('month')}
                 className="h-8 px-3"
               >
                 <Grid3X3 className="h-4 w-4 mr-1" />
@@ -152,7 +165,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
               <Button
                 variant={view.type === 'week' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => changeView('week')}
+                onClick={() => changeView?.('week')}
                 className="h-8 px-3"
               >
                 <CalendarIcon className="h-4 w-4 mr-1" />
@@ -161,7 +174,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
               <Button
                 variant={view.type === 'day' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => changeView('day')}
+                onClick={() => changeView?.('day')}
                 className="h-8 px-3"
               >
                 <Clock className="h-4 w-4 mr-1" />
@@ -170,7 +183,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
               <Button
                 variant={view.type === 'agenda' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => changeView('agenda')}
+                onClick={() => changeView?.('agenda')}
                 className="h-8 px-3"
               >
                 <List className="h-4 w-4 mr-1" />
@@ -197,7 +210,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
               
               {/* Calendar dates */}
               {calendarDates.map((date, index) => {
-                const dayEvents = getEventsForDate(date)
+                const dayEvents = getEventsForDate?.(date) || []
                 const isCurrentDay = isToday(date)
                 const isCurrentMonthDay = isCurrentMonth(date)
                 
@@ -282,7 +295,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
                 {days.map((_, dayIndex) => {
                   const dayDate = new Date(view.date)
                   dayDate.setDate(dayDate.getDate() - dayDate.getDay() + dayIndex)
-                  const dayEvents = getEventsForDate(dayDate)
+                  const dayEvents = getEventsForDate?.(dayDate) || []
                   
                   return (
                     <div key={dayIndex} className="space-y-1">
@@ -331,7 +344,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
                 </div>
                 
                 <div className="col-span-10 space-y-1">
-                  {getEventsForDate(view.date).map((event, index) => (
+                  {(getEventsForDate?.(view.date) || []).map((event, index) => (
                     <div
                       key={index}
                       className={cn(

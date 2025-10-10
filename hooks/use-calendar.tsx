@@ -32,16 +32,35 @@ export function useCalendar() {
       const endDate = getViewEndDate(view)
 
       const { data, error } = await supabase
-        .from('calendar_events')
+        .from('generated_content')
         .select('*')
         .eq('user_id', user.id)
-        .gte('start_time', startDate.toISOString())
-        .lte('start_time', endDate.toISOString())
-        .order('start_time', { ascending: true })
+        .eq('content_type', 'calendar_event')
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString())
+        .order('created_at', { ascending: true })
 
       if (error) throw error
 
-      setEvents(data || [])
+      // Transform generated_content data to calendar events format
+      const calendarEvents = (data || []).map(item => ({
+        id: item.id,
+        user_id: item.user_id,
+        title: item.title,
+        description: item.content_data?.description || '',
+        start_time: item.content_data?.start_time || item.created_at,
+        end_time: item.content_data?.end_time || item.created_at,
+        all_day: item.content_data?.all_day || false,
+        color: item.content_data?.color || '#3B82F6',
+        location: item.content_data?.location || '',
+        event_type: item.content_data?.event_type || 'general',
+        course_code: item.content_data?.course_code || '',
+        recurring_pattern: item.content_data?.recurring_pattern || null,
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      }))
+
+      setEvents(calendarEvents)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch events')
       showError("Failed to load calendar events")
@@ -71,12 +90,22 @@ export function useCalendar() {
       console.log('User authenticated, creating event for user:', user.id)
 
       const { data, error } = await supabase
-        .from('calendar_events')
+        .from('generated_content')
         .insert([{
           user_id: user.id,
-          ...eventData,
-          start_time: eventData.start_time,
-          end_time: eventData.end_time,
+          content_type: 'calendar_event',
+          title: eventData.title,
+          content_data: {
+            description: eventData.description || '',
+            start_time: eventData.start_time,
+            end_time: eventData.end_time,
+            all_day: eventData.all_day || false,
+            color: eventData.color || '#3B82F6',
+            location: eventData.location || '',
+            event_type: eventData.event_type || 'general',
+            course_code: eventData.course_id || '',
+            recurring_pattern: eventData.recurring_pattern || null
+          }
         }])
         .select()
         .single()
@@ -106,8 +135,21 @@ export function useCalendar() {
       if (!user) throw new Error('User not authenticated')
 
       const { data, error } = await supabase
-        .from('calendar_events')
-        .update(eventData)
+        .from('generated_content')
+        .update({
+          title: eventData.title,
+          content_data: {
+            description: eventData.description || '',
+            start_time: eventData.start_time,
+            end_time: eventData.end_time,
+            all_day: eventData.all_day || false,
+            color: eventData.color || '#3B82F6',
+            location: eventData.location || '',
+            event_type: eventData.event_type || 'general',
+            course_code: eventData.course_id || '',
+            recurring_pattern: eventData.recurring_pattern || null
+          }
+        })
         .eq('id', eventId)
         .eq('user_id', user.id)
         .select()
@@ -133,7 +175,7 @@ export function useCalendar() {
       if (!user) throw new Error('User not authenticated')
 
       const { error } = await supabase
-        .from('calendar_events')
+        .from('generated_content')
         .delete()
         .eq('id', eventId)
         .eq('user_id', user.id)
@@ -181,7 +223,9 @@ export function useCalendar() {
 
   // Change view type
   const changeView = useCallback((type: CalendarView['type']) => {
-    setView(prev => ({ ...prev, type }))
+    // Handle agenda view as month view for now
+    const viewType = type === 'agenda' ? 'month' : type
+    setView(prev => ({ ...prev, type: viewType }))
   }, [])
 
   // Go to today

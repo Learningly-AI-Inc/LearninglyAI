@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createClient } from "@/lib/supabase"
 import { CalendarIntegration } from "@/types/calendar"
 
 interface CalendarIntegrationProps {
@@ -46,7 +46,7 @@ export function CalendarIntegrationComponent({ onIntegrationChange }: CalendarIn
   const [loading, setLoading] = React.useState(true)
   const [syncing, setSyncing] = React.useState<string | null>(null)
   
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
   const { showSuccess, showError } = useToast()
 
   // Fetch existing integrations

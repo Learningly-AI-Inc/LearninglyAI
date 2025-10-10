@@ -14,12 +14,32 @@ import { useCalendar } from "@/hooks/use-calendar"
 import { CalendarEvent, EventFormData, GeneratedSchedule } from "@/types/calendar"
 
 const CalendarPage = () => {
+  let calendarHook
+  try {
+    calendarHook = useCalendar()
+  } catch (error) {
+    console.error('Error initializing calendar hook:', error)
+    return (
+      <div className="p-4 space-y-4">
+        <Header 
+          subtitle="Manage your schedule and deadlines with Learningly."
+        />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-destructive mb-2">Calendar Error</h3>
+            <p className="text-muted-foreground">There was an error loading the calendar. Please refresh the page.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const {
     createEvent,
     updateEvent,
     deleteEvent,
     refreshEvents
-  } = useCalendar()
+  } = calendarHook
 
   const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null)
   const [isEventFormOpen, setIsEventFormOpen] = React.useState(false)
