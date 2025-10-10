@@ -47,17 +47,70 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Calculate semester dates (Fall 2024 example)
-    const semesterStartDate = new Date('2024-08-26') // Fall semester start
-    const semesterEndDate = new Date('2024-12-13') // Fall semester end
+    // Calculate semester dates based on semester name
+    const currentYear = new Date().getFullYear()
+    let semesterStartDate: Date
+    let semesterEndDate: Date
+    
+    if (semester_name.toLowerCase().includes('spring')) {
+      // Spring semester: January to May
+      const year = semester_name.includes('2025') ? 2025 : currentYear
+      semesterStartDate = new Date(`${year}-01-15`) // Spring semester start
+      semesterEndDate = new Date(`${year}-05-15`) // Spring semester end
+    } else if (semester_name.toLowerCase().includes('fall')) {
+      // Fall semester: August to December
+      const year = semester_name.includes('2024') ? 2024 : currentYear
+      semesterStartDate = new Date(`${year}-08-26`) // Fall semester start
+      semesterEndDate = new Date(`${year}-12-13`) // Fall semester end
+    } else if (semester_name.toLowerCase().includes('summer')) {
+      // Summer semester: May to August
+      const year = semester_name.includes('2025') ? 2025 : currentYear
+      semesterStartDate = new Date(`${year}-05-15`) // Summer semester start
+      semesterEndDate = new Date(`${year}-08-15`) // Summer semester end
+    } else {
+      // Default to current semester
+      const now = new Date()
+      const month = now.getMonth() + 1
+      if (month >= 1 && month <= 5) {
+        // Spring
+        semesterStartDate = new Date(`${currentYear}-01-15`)
+        semesterEndDate = new Date(`${currentYear}-05-15`)
+      } else if (month >= 8 && month <= 12) {
+        // Fall
+        semesterStartDate = new Date(`${currentYear}-08-26`)
+        semesterEndDate = new Date(`${currentYear}-12-13`)
+      } else {
+        // Summer
+        semesterStartDate = new Date(`${currentYear}-05-15`)
+        semesterEndDate = new Date(`${currentYear}-08-15`)
+      }
+    }
+    
+    console.log(`Generating schedule for ${semester_name}: ${semesterStartDate.toISOString().split('T')[0]} to ${semesterEndDate.toISOString().split('T')[0]}`)
 
     // Generate events for each course
     const events: CalendarEvent[] = []
-    const holidays = [
-      { name: "Labor Day", date: "2024-09-02", type: "national" },
-      { name: "Thanksgiving Break", date: "2024-11-28", type: "academic" },
-      { name: "Thanksgiving Break", date: "2024-11-29", type: "academic" }
-    ]
+    
+    // Generate holidays based on semester
+    const holidays = []
+    if (semester_name.toLowerCase().includes('spring')) {
+      // Spring holidays
+      const year = semester_name.includes('2025') ? 2025 : currentYear
+      holidays.push(
+        { name: "Martin Luther King Jr. Day", date: `${year}-01-20`, type: "national" },
+        { name: "Presidents' Day", date: `${year}-02-17`, type: "national" },
+        { name: "Spring Break", date: `${year}-03-17`, type: "academic" },
+        { name: "Memorial Day", date: `${year}-05-26`, type: "national" }
+      )
+    } else if (semester_name.toLowerCase().includes('fall')) {
+      // Fall holidays
+      const year = semester_name.includes('2024') ? 2024 : currentYear
+      holidays.push(
+        { name: "Labor Day", date: `${year}-09-02`, type: "national" },
+        { name: "Thanksgiving Break", date: `${year}-11-28`, type: "academic" },
+        { name: "Thanksgiving Break", date: `${year}-11-29`, type: "academic" }
+      )
+    }
 
     // Generate class events
     courses.forEach((course: Course) => {

@@ -36,14 +36,12 @@ export function useCalendar() {
         .select('*')
         .eq('user_id', user.id)
         .eq('content_type', 'calendar_event')
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString())
         .order('created_at', { ascending: true })
 
       if (error) throw error
 
       // Transform generated_content data to calendar events format
-      const calendarEvents = (data || []).map(item => ({
+      const allCalendarEvents = (data || []).map(item => ({
         id: item.id,
         user_id: item.user_id,
         title: item.title,
@@ -60,7 +58,17 @@ export function useCalendar() {
         updated_at: item.updated_at
       }))
 
-      setEvents(calendarEvents)
+      // Filter events by actual event dates (not creation dates)
+      const filteredEvents = allCalendarEvents.filter(event => {
+        const eventStart = new Date(event.start_time)
+        const eventEnd = new Date(event.end_time)
+        
+        // Check if event overlaps with the current view period
+        return (eventStart <= endDate && eventEnd >= startDate)
+      })
+
+      console.log(`Fetched ${allCalendarEvents.length} total events, ${filteredEvents.length} events in current view`)
+      setEvents(filteredEvents)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch events')
       showError("Failed to load calendar events")

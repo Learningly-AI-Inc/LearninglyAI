@@ -205,30 +205,14 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('User not authenticated')
 
-      // Save syllabus document
-      const { data: syllabusData, error: syllabusError } = await supabase
-        .from('syllabus_documents')
-        .insert([{
-          user_id: user.id,
-          file_name: uploadedFile?.name || 'syllabus',
-          file_url: uploadedFile ? URL.createObjectURL(uploadedFile) : '',
-          file_type: uploadedFile?.type || 'application/pdf',
-          semester_name: semesterName,
-          courses: extractedCourses,
-        }])
-        .select()
-        .single()
-
-      if (syllabusError) throw syllabusError
-
-      // Generate schedule
+      // Generate schedule using the API
       const response = await fetch('/api/calendar/generate-schedule', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          syllabus_document_id: syllabusData.id,
+          syllabus_document_id: 'temp-id', // Not used in the API
           semester_name: semesterName,
           courses: extractedCourses,
         }),
@@ -241,25 +225,49 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
 
       const scheduleData = await response.json()
       
-      // Save generated schedule
-      const { data: schedule, error: scheduleError } = await supabase
-        .from('generated_schedules')
-        .insert([{
-          user_id: user.id,
-          syllabus_document_id: syllabusData.id,
-          semester_start_date: scheduleData.semester_start_date,
-          semester_end_date: scheduleData.semester_end_date,
-          schedule_data: scheduleData,
-        }])
-        .select()
-        .single()
+      // Save calendar events to generated_content table
+      const eventsToInsert = scheduleData.events.map((event: any) => ({
+        user_id: user.id,
+        title: event.title,
+        content_type: 'calendar_event',
+        content_data: {
+          description: event.description,
+          start_time: event.start_time,
+          end_time: event.end_time,
+          all_day: event.all_day,
+          color: event.color,
+          location: event.location,
+          event_type: event.event_type,
+          course_id: event.course_code,
+          recurring_pattern: event.recurring_pattern
+        }
+      }))
 
-      if (scheduleError) throw scheduleError
+      const { data: events, error: eventsError } = await supabase
+        .from('generated_content')
+        .insert(eventsToInsert)
+        .select()
+
+      if (eventsError) {
+        console.error('Error saving calendar events:', eventsError)
+        throw new Error(`Failed to save calendar events: ${eventsError.message}`)
+      }
 
       setProcessingStatus('completed')
-      onScheduleGenerated?.(schedule)
+      
+      // Call the callback with the schedule data
+      onScheduleGenerated?.({
+        id: 'temp-id',
+        user_id: user.id,
+        syllabus_document_id: 'temp-id',
+        semester_start_date: scheduleData.semester_start_date,
+        semester_end_date: scheduleData.semester_end_date,
+        schedule_data: scheduleData,
+        is_active: true,
+        created_at: new Date().toISOString()
+      })
 
-      showSuccess(`Created schedule for ${semesterName} with ${extractedCourses.length} courses`)
+      showSuccess(`Created ${events?.length || 0} calendar events for ${semesterName} with ${extractedCourses.length} courses`)
 
     } catch (error) {
       console.error('Error generating schedule:', error)
