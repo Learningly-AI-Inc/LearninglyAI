@@ -46,12 +46,12 @@ export async function POST(request: NextRequest) {
 
     // Check file size - MUST match Supabase bucket limit
     // To increase: Supabase Dashboard → Storage → exam-files → Settings → File size limit
-    const maxSize = 50 * 1024 * 1024; // 50MB - matches bucket limit
+    const maxSize = 100 * 1024 * 1024; // 100MB - matches bucket limit
     if (file.size > maxSize) {
       return NextResponse.json(
         {
           error: 'File too large',
-          details: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds the maximum allowed size of 50MB. Please compress your file or split it into smaller parts.`
+          details: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds the maximum allowed size of 100MB. Please compress your file or split it into smaller parts.`
         },
         { status: 400 }
       );
@@ -270,7 +270,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: 'File too large for storage',
-            details: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds the storage bucket limit. The Supabase bucket is configured for a maximum of 50MB per file. To upload larger files, increase the bucket limit in Supabase Dashboard → Storage → exam-files → Settings.`,
+            details: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds the storage bucket limit. The Supabase bucket is configured for a maximum of 100MB per file. To upload larger files, increase the bucket limit in Supabase Dashboard → Storage → exam-files → Settings.`,
             filename: filename
           },
           { status: 413 }
