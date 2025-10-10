@@ -209,7 +209,7 @@ export default function TakeExamPage() {
               ) : (
                 // Rapid Fire Mode: One question at a time
                 <>
-                  <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-lg text-sm font-semibold mb-4">
+                  <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-lg text-sm font-semibold my-4">
                     Question {index + 1} of {total}
                   </div>
                   <div className="text-lg font-medium leading-relaxed mb-6">{q?.question}</div>

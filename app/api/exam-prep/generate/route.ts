@@ -112,16 +112,22 @@ async function attemptOnDemandExtraction(supabase: any, document: any, userId: s
     let extractedText = ''
 
     if (ext.includes('pdf')) {
-      // Try pdf-parse first
+      // Try pdf-parse first (EXACT pattern from working reading upload)
       try {
-        const pdfParse = await import('pdf-parse')
-        const data = await pdfParse.default(buffer)
-        extractedText = String(data.text || '').trim()
-        console.log(`✅ Extracted ${extractedText.length} chars with pdf-parse`)
+        const pdfParse = await import('pdf-parse').catch(() => null)
+        if (pdfParse?.default) {
+          const data = await pdfParse.default(buffer)
+          extractedText = String(data.text || '').trim()
+          console.log(`✅ Extracted ${extractedText.length} chars with pdf-parse`)
+        } else {
+          console.warn('⚠️ pdf-parse not available, trying Adobe fallback')
+        }
       } catch (pdfError) {
         console.error('❌ pdf-parse failed:', pdfError)
+      }
 
-        // Fallback to Adobe PDF Services if available
+      // If pdf-parse didn't extract text, try Adobe fallback
+      if (!extractedText || extractedText.trim().length === 0) {
         try {
           const text = await adobeExportPdfToDocxExtractText(buffer)
           if (text) {

@@ -133,10 +133,9 @@ export async function POST(request: NextRequest) {
       const nameLower = (file.name || '').toLowerCase()
       console.log('🔍 Starting local extraction BEFORE upload for:', file.name, 'Size:', file.size, 'bytes');
 
-      // Helper: Extract text using pdf-parse (EXACT COPY from reading upload)
-      async function extractWithPdfJs(buf: Buffer): Promise<{ text: string; pages: number }> {
+      // Helper: Extract text using pdf-parse (EXACT COPY from working reading upload)
+      async function extractWithPdfParse(buf: Buffer): Promise<{ text: string; pages: number }> {
         try {
-          // Use pdf-parse as a more reliable alternative to pdfjs-dist in Node environment
           const pdfParse = await import('pdf-parse').catch(() => null)
 
           if (pdfParse?.default) {
@@ -149,8 +148,7 @@ export async function POST(request: NextRequest) {
             return { text, pages: numPages }
           }
 
-          // If pdf-parse is not available, return empty (don't try pdfjs-dist which has webpack issues)
-          console.warn('⚠️ pdf-parse not available, deferring extraction')
+          console.warn('⚠️ pdf-parse not available')
           return { text: '', pages: 1 }
         } catch (e: any) {
           console.error('❌ PDF extraction error:', {
@@ -167,11 +165,11 @@ export async function POST(request: NextRequest) {
 
         try {
           const cleanBuffer = Buffer.from(buffer);
-          const viaPdfJs = await extractWithPdfJs(cleanBuffer);
+          const viaPdfParse = await extractWithPdfParse(cleanBuffer);
 
-          if (viaPdfJs.text && viaPdfJs.text.trim().length > 0) {
-            extractedText = viaPdfJs.text;
-            pageCount = viaPdfJs.pages;
+          if (viaPdfParse.text && viaPdfParse.text.trim().length > 0) {
+            extractedText = viaPdfParse.text;
+            pageCount = viaPdfParse.pages;
             processingNotes.push('Fast extraction: pdf-parse');
           } else {
             // If extraction fails, mark for on-demand extraction later
