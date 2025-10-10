@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
-  title: string;
+  title?: string;
   subtitle?: string;
   children?: React.ReactNode;
   className?: string;
@@ -15,9 +15,11 @@ export function Header({ title, subtitle, children, className }: HeaderProps) {
       className
     )}>
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          {title}
-        </h1>
+        {title && (
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            {title}
+          </h1>
+        )}
         {subtitle && (
           <p className="text-sm text-muted-foreground">
             {subtitle}

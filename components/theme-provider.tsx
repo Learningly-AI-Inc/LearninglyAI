@@ -91,11 +91,6 @@ export function ThemeProvider({
     [theme, resolvedTheme, storageKey]
   )
 
-  // Prevent flash of unstyled content
-  if (!mounted) {
-    return <>{children}</>
-  }
-
   return (
     <ThemeProviderContext.Provider {...props} value={value}>
       {children}
@@ -106,8 +101,14 @@ export function ThemeProvider({
 export const useTheme = () => {
   const context = React.useContext(ThemeProviderContext)
 
-  if (context === undefined)
-    throw new Error("useTheme must be used within a ThemeProvider")
+  if (context === undefined) {
+    console.warn("useTheme must be used within a ThemeProvider")
+    return {
+      theme: "system" as Theme,
+      setTheme: () => {},
+      resolvedTheme: "light" as const
+    }
+  }
 
   return context
 }
