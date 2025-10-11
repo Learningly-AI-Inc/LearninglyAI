@@ -92,9 +92,9 @@ const DraftsManager: React.FC<DraftsManagerProps> = ({ userId, onLoadDraft }) =>
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : error ? (
-          <div className="text-center py-8 text-red-500">{error}</div>
+          <div className="text-center py-8 text-destructive">{error}</div>
         ) : drafts.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             You don&apos;t have any saved drafts yet.
           </div>
         ) : (

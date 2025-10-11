@@ -16,28 +16,28 @@ const Toast: React.FC<ToastProps> = ({ message, type, isVisible, onClose }) => {
   const getIcon = () => {
     switch (type) {
       case "success":
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-green-500 dark:text-green-400" />;
       case "error":
-        return <X className="h-5 w-5 text-red-500" />;
+        return <X className="h-5 w-5 text-red-500 dark:text-red-400" />;
       case "warning":
-        return <AlertCircle className="h-5 w-5 text-yellow-500" />;
+        return <AlertCircle className="h-5 w-5 text-yellow-500 dark:text-yellow-400" />;
       case "info":
       default:
-        return <Info className="h-5 w-5 text-blue-500" />;
+        return <Info className="h-5 w-5 text-blue-500 dark:text-blue-400" />;
     }
   };
 
   const getBackgroundColor = () => {
     switch (type) {
       case "success":
-        return "bg-green-50 border-green-200 text-green-800";
+        return "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200";
       case "error":
-        return "bg-red-50 border-red-200 text-red-800";
+        return "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200";
       case "warning":
-        return "bg-yellow-50 border-yellow-200 text-yellow-800";
+        return "bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200";
       case "info":
       default:
-        return "bg-blue-50 border-blue-200 text-blue-800";
+        return "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200";
     }
   };
 
@@ -49,7 +49,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, isVisible, onClose }) => {
           <p className="flex-1 text-sm font-medium">{message}</p>
           <button
             onClick={onClose}
-            className="ml-2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="ml-2 text-muted-foreground hover:text-foreground transition-colors"
           >
             <X className="h-4 w-4" />
           </button>

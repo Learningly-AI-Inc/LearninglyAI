@@ -48,7 +48,7 @@ export function AdminStatsCards({ stats }: AdminStatsCardsProps) {
       description: `+${stats.newUsers30d} new users this month`,
       icon: Users,
       trend: stats.newUsers30d > 0 ? "up" : "neutral",
-      color: "text-blue-600"
+      color: "text-blue-600 dark:text-blue-400"
     },
     {
       title: "Active Users",
@@ -56,7 +56,7 @@ export function AdminStatsCards({ stats }: AdminStatsCardsProps) {
       description: `${stats.activeUsers30d} active in 30 days`,
       icon: Activity,
       trend: stats.activeUsers7d > 0 ? "up" : "neutral",
-      color: "text-green-600"
+      color: "text-green-600 dark:text-green-400"
     },
     {
       title: "Content Processed",
@@ -64,7 +64,7 @@ export function AdminStatsCards({ stats }: AdminStatsCardsProps) {
       description: `${stats.processingContent} processing`,
       icon: FileText,
       trend: stats.completedContent > 0 ? "up" : "neutral",
-      color: "text-purple-600"
+      color: "text-purple-600 dark:text-purple-400"
     },
     {
       title: "System Health",
@@ -72,7 +72,7 @@ export function AdminStatsCards({ stats }: AdminStatsCardsProps) {
       description: stats.failedContent === 0 ? "All systems operational" : `${stats.failedContent} failed processes`,
       icon: stats.failedContent === 0 ? CheckCircle : AlertCircle,
       trend: stats.failedContent === 0 ? "up" : "down",
-      color: stats.failedContent === 0 ? "text-green-600" : "text-red-600"
+      color: stats.failedContent === 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
     }
   ]
 
@@ -81,25 +81,25 @@ export function AdminStatsCards({ stats }: AdminStatsCardsProps) {
       title: "Students",
       value: stats.studentCount,
       icon: GraduationCap,
-      color: "text-blue-600"
+      color: "text-blue-600 dark:text-blue-400"
     },
     {
       title: "Self-Learners",
       value: stats.selfLearnerCount,
       icon: BookOpen,
-      color: "text-green-600"
+      color: "text-green-600 dark:text-green-400"
     },
     {
       title: "Educators",
       value: stats.educatorCount,
       icon: Users,
-      color: "text-purple-600"
+      color: "text-purple-600 dark:text-purple-400"
     },
     {
       title: "Admins",
       value: stats.adminCount,
       icon: Brain,
-      color: "text-orange-600"
+      color: "text-orange-600 dark:text-orange-400"
     }
   ]
 

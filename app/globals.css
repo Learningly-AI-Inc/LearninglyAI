@@ -4,8 +4,6 @@
 
 /* KaTeX math rendering styles */
 @import 'katex/dist/katex.min.css';
-/* highlight.js theme for syntax highlighting */
-@import "highlight.js/styles/github.css";
 
 @import './responsive.css';
 
@@ -119,49 +117,49 @@
   }
 
   .dark {
-    /* Modern professional dark theme */
-    --background: 222 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    /* Modern professional dark theme - enhanced for better aesthetics */
+    --background: 222 47% 11%;
+    --foreground: 213 31% 91%;
+    --card: 224 71% 4%;
+    --card-foreground: 213 31% 91%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 213 31% 91%;
     --primary: 210 40% 98%;
     --primary-foreground: 222 47% 11%;
-    --secondary: 217 32% 17%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 32% 17%;
+    --secondary: 222 47% 15%;
+    --secondary-foreground: 213 31% 91%;
+    --muted: 223 47% 15%;
     --muted-foreground: 215 20% 65%;
-    --accent: 217 32% 17%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62% 30%;
+    --accent: 216 34% 17%;
+    --accent-foreground: 213 31% 91%;
+    --destructive: 0 63% 50%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217 32% 17%;
-    --input: 217 32% 17%;
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
     --ring: 212 95% 68%;
 
     /* Sidebar variables for dark mode */
-    --sidebar-background: 222 84% 4.9%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-muted: 217 32% 17%;
+    --sidebar-background: 224 71% 4%;
+    --sidebar-foreground: 213 31% 91%;
+    --sidebar-muted: 223 47% 15%;
     --sidebar-muted-foreground: 215 20% 65%;
-    --sidebar-border: 217 32% 17%;
-    --sidebar-input: 217 32% 17%;
+    --sidebar-border: 216 34% 17%;
+    --sidebar-input: 216 34% 17%;
     --sidebar-primary: 210 40% 98%;
     --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 217 32% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-destructive: 0 62% 30%;
+    --sidebar-accent: 216 34% 17%;
+    --sidebar-accent-foreground: 213 31% 91%;
+    --sidebar-destructive: 0 63% 50%;
     --sidebar-destructive-foreground: 210 40% 98%;
     --sidebar-ring: 212 95% 68%;
     
     /* Professional brand colors for dark mode */
     --brand-primary: 210 40% 98%;
-    --brand-secondary: 217 32% 17%;
+    --brand-secondary: 222 47% 15%;
     --brand-accent: 268 95% 68%;
     --brand-gradient-from: 268 95% 68%;
     --brand-gradient-to: 210 40% 98%;
-    --success: 142 76% 36%;
+    --success: 142 71% 45%;
     --warning: 43 96% 56%;
     --info: 199 89% 48%;
   }
@@ -219,4 +217,82 @@
 
 .modern-shadow-lg {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Syntax highlighting for light mode */
+:root pre code.hljs {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+:root .hljs-comment,
+:root .hljs-quote {
+  color: #6a737d;
+}
+
+:root .hljs-keyword,
+:root .hljs-selector-tag,
+:root .hljs-subst {
+  color: #d73a49;
+}
+
+:root .hljs-string,
+:root .hljs-doctag {
+  color: #032f62;
+}
+
+:root .hljs-number,
+:root .hljs-literal,
+:root .hljs-variable,
+:root .hljs-template-variable {
+  color: #005cc5;
+}
+
+:root .hljs-title,
+:root .hljs-section {
+  color: #6f42c1;
+}
+
+:root .hljs-built_in,
+:root .hljs-builtin-name {
+  color: #e36209;
+}
+
+/* Syntax highlighting for dark mode */
+.dark pre code.hljs {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.dark .hljs-comment,
+.dark .hljs-quote {
+  color: #8b949e;
+}
+
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-subst {
+  color: #ff7b72;
+}
+
+.dark .hljs-string,
+.dark .hljs-doctag {
+  color: #a5d6ff;
+}
+
+.dark .hljs-number,
+.dark .hljs-literal,
+.dark .hljs-variable,
+.dark .hljs-template-variable {
+  color: #79c0ff;
+}
+
+.dark .hljs-title,
+.dark .hljs-section {
+  color: #d2a8ff;
+}
+
+.dark .hljs-built_in,
+.dark .hljs-builtin-name {
+  color: #ffa657;
 }

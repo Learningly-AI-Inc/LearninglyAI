@@ -31,11 +31,11 @@ interface Conversation {
 
 function QuickTip({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
-    <div className="flex items-start gap-2 p-2 rounded-xl bg-slate-50 border border-slate-100">
+    <div className="flex items-start gap-2 p-2 rounded-xl bg-muted border border-border">
       {icon}
       <div>
-        <div className="text-sm font-medium">{title}</div>
-        <div className="text-xs text-slate-600">{desc}</div>
+        <div className="text-sm font-medium text-foreground">{title}</div>
+        <div className="text-xs text-muted-foreground">{desc}</div>
       </div>
     </div>
   );
@@ -876,7 +876,7 @@ const SearchPage = () => {
 
 
   return (
-    <div className="h-screen w-full bg-gradient-to-b from-blue-50 to-white text-slate-900">
+    <div className="h-screen w-full bg-gradient-to-b from-background to-background dark:from-gray-900 dark:to-gray-900 text-foreground dark:text-gray-100">
       <div className="flex h-full w-full">
         {/* Conversation Sidebar - Disabled on desktop for single-column layout */}
         <aside className="hidden">
@@ -902,7 +902,7 @@ const SearchPage = () => {
             </Button>
             <button
               onClick={() => setConversationSidebarCollapsed(!conversationSidebarCollapsed)}
-              className="ml-auto rounded-lg p-1 hover:bg-slate-100"
+              className="ml-auto rounded-lg p-1 hover:bg-accent"
               aria-label="Toggle conversation sidebar"
             >
               <ChevronRight className={`h-4 w-4 ${conversationSidebarCollapsed ? 'rotate-180' : ''}`} />
@@ -923,14 +923,14 @@ const SearchPage = () => {
                     >
                       <div className={`group relative flex items-center gap-2 p-2 rounded-lg cursor-pointer transition ${
                         selectedConversationId === conversation.id 
-                          ? 'bg-slate-100' 
-                          : 'hover:bg-slate-50'
+                          ? 'bg-accent' 
+                          : 'hover:bg-accent/50'
                       }`}
                       onClick={() => handleConversationSelect(conversation.id)}
                       >
                         {conversationSidebarCollapsed ? (
                           <div className="w-full flex justify-center">
-                            <div className="w-2 h-2 rounded-full bg-slate-400"></div>
+                            <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
                           </div>
                         ) : (
                           <>
@@ -947,30 +947,30 @@ const SearchPage = () => {
                                         handleCancelEditConversation()
                                       }
                                     }}
-                                    className="text-sm bg-white border border-slate-300 rounded px-1 py-0.5 flex-1"
+                                    className="text-sm bg-background border border-border rounded px-1 py-0.5 flex-1"
                                     autoFocus
                                   />
                                   <button
                                     onClick={handleSaveConversationTitle}
-                                    className="p-0.5 rounded hover:bg-green-100 text-green-600"
+                                    className="p-0.5 rounded hover:bg-green-100 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
                                     title="Save"
                                   >
                                     <Check className="h-3 w-3" />
                                   </button>
                                   <button
                                     onClick={handleCancelEditConversation}
-                                    className="p-0.5 rounded hover:bg-red-100 text-red-600"
+                                    className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
                                     title="Cancel"
                                   >
                                     <XCircle className="h-3 w-3" />
                                   </button>
                                 </div>
                               ) : (
-                                <div className="text-sm text-slate-900 truncate">
+                                <div className="text-sm text-foreground truncate">
                                   {conversation.title}
                                 </div>
                               )}
-                              <div className="text-xs text-slate-500">
+                              <div className="text-xs text-muted-foreground">
                                 {formatDate(conversation.updated_at)}
                               </div>
                             </div>
@@ -981,10 +981,10 @@ const SearchPage = () => {
                                     e.stopPropagation()
                                     handleEditConversationTitle(conversation.id, conversation.title)
                                   }}
-                                  className="p-1 rounded hover:bg-slate-200 transition"
+                                  className="p-1 rounded hover:bg-accent transition"
                                   title="Edit title"
                                 >
-                                  <Edit2 className="h-3 w-3 text-slate-400" />
+                                  <Edit2 className="h-3 w-3 text-muted-foreground" />
                                 </button>
                               )}
                               <button
@@ -993,13 +993,13 @@ const SearchPage = () => {
                                   handleDeleteConversation(conversation.id)
                                 }}
                                 disabled={deletingConversationId === conversation.id}
-                                className="p-1 rounded hover:bg-slate-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="p-1 rounded hover:bg-accent transition disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Delete conversation"
                               >
                                 {deletingConversationId === conversation.id ? (
-                                  <div className="h-3 w-3 border border-slate-400 border-t-transparent rounded-full animate-spin" />
+                                  <div className="h-3 w-3 border border-muted-foreground border-t-transparent rounded-full animate-spin" />
                                 ) : (
-                                  <Trash2 className="h-3 w-3 text-slate-400" />
+                                  <Trash2 className="h-3 w-3 text-muted-foreground" />
                                 )}
                               </button>
                             </div>
@@ -1015,9 +1015,9 @@ const SearchPage = () => {
                     {/* Loading skeleton for conversations */}
                     {[1, 2, 3].map((i) => (
                       <div key={i} className="animate-pulse">
-                        <div className="bg-slate-200 rounded-lg p-3">
-                          <div className="h-4 bg-slate-300 rounded w-3/4 mb-2"></div>
-                          <div className="h-3 bg-slate-300 rounded w-1/2"></div>
+                        <div className="bg-muted rounded-lg p-3">
+                          <div className="h-4 bg-muted-foreground rounded w-3/4 mb-2"></div>
+                          <div className="h-3 bg-muted-foreground rounded w-1/2"></div>
                         </div>
                       </div>
                     ))}
@@ -1025,7 +1025,7 @@ const SearchPage = () => {
                 )}
                 
                 {filteredConversations.length === 0 && !loading && !conversationSidebarCollapsed && (
-                  <div className="text-center py-6 text-slate-500">
+                  <div className="text-center py-6 text-muted-foreground">
                     <p className="text-sm">
                       {searchQuery.trim() ? 'No conversations found' : 'No conversations yet'}
                     </p>
@@ -1045,7 +1045,7 @@ const SearchPage = () => {
               onClick={() => setSidebarOpen(false)}
             />
             {/* Sidebar */}
-            <aside className="absolute left-0 top-0 h-full w-[280px] bg-white border-r border-slate-200 shadow-xl transform transition-transform duration-200 ease-in-out">
+            <aside className="absolute left-0 top-0 h-full w-[280px] bg-card border-r border-border shadow-xl transform transition-transform duration-200 ease-in-out">
               <div className="flex items-center gap-2 px-3 h-12 border-b flex-shrink-0">
                 <div className="font-medium text-sm">Conversations</div>
                 <Button
@@ -1060,7 +1060,7 @@ const SearchPage = () => {
                 </Button>
                 <button
                   onClick={() => setSidebarOpen(false)}
-                  className="ml-2 rounded-lg p-1 hover:bg-slate-100"
+                  className="ml-2 rounded-lg p-1 hover:bg-accent"
                   aria-label="Close sidebar"
                 >
                   <X className="h-4 w-4" />
@@ -1081,8 +1081,8 @@ const SearchPage = () => {
                         >
                           <div className={`group relative flex items-center gap-2 p-2 rounded-lg cursor-pointer transition ${
                             selectedConversationId === conversation.id 
-                              ? 'bg-slate-100' 
-                              : 'hover:bg-slate-50'
+                              ? 'bg-accent' 
+                              : 'hover:bg-accent/50'
                           }`}
                           onClick={() => {
                             handleConversationSelect(conversation.id);
@@ -1102,30 +1102,30 @@ const SearchPage = () => {
                                         handleCancelEditConversation()
                                       }
                                     }}
-                                    className="text-sm bg-white border border-slate-300 rounded px-1 py-0.5 flex-1"
+                                    className="text-sm bg-background border border-border rounded px-1 py-0.5 flex-1"
                                     autoFocus
                                   />
                                   <button
                                     onClick={handleSaveConversationTitle}
-                                    className="p-0.5 rounded hover:bg-green-100 text-green-600"
+                                    className="p-0.5 rounded hover:bg-green-100 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
                                     title="Save"
                                   >
                                     <Check className="h-3 w-3" />
                                   </button>
                                   <button
                                     onClick={handleCancelEditConversation}
-                                    className="p-0.5 rounded hover:bg-red-100 text-red-600"
+                                    className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
                                     title="Cancel"
                                   >
                                     <XCircle className="h-3 w-3" />
                                   </button>
                                 </div>
                               ) : (
-                                <div className="text-sm text-slate-900 truncate">
+                                <div className="text-sm text-foreground truncate">
                                   {conversation.title}
                                 </div>
                               )}
-                              <div className="text-xs text-slate-500">
+                              <div className="text-xs text-muted-foreground">
                                 {formatDate(conversation.updated_at)}
                               </div>
                             </div>
@@ -1136,10 +1136,10 @@ const SearchPage = () => {
                                     e.stopPropagation()
                                     handleEditConversationTitle(conversation.id, conversation.title)
                                   }}
-                                  className="p-1 rounded hover:bg-slate-200 transition"
+                                  className="p-1 rounded hover:bg-accent transition"
                                   title="Edit title"
                                 >
-                                  <Edit2 className="h-3 w-3 text-slate-400" />
+                                  <Edit2 className="h-3 w-3 text-muted-foreground" />
                                 </button>
                               )}
                               <button
@@ -1148,13 +1148,13 @@ const SearchPage = () => {
                                   handleDeleteConversation(conversation.id);
                                 }}
                                 disabled={deletingConversationId === conversation.id}
-                                className="p-1 rounded hover:bg-slate-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="p-1 rounded hover:bg-accent transition disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Delete conversation"
                               >
                                 {deletingConversationId === conversation.id ? (
-                                  <div className="h-3 w-3 border border-slate-400 border-t-transparent rounded-full animate-spin" />
+                                  <div className="h-3 w-3 border border-muted-foreground border-t-transparent rounded-full animate-spin" />
                                 ) : (
-                                  <Trash2 className="h-3 w-3 text-slate-400" />
+                                  <Trash2 className="h-3 w-3 text-muted-foreground" />
                                 )}
                               </button>
                             </div>
@@ -1168,9 +1168,9 @@ const SearchPage = () => {
                         {/* Loading skeleton for conversations */}
                         {[1, 2, 3].map((i) => (
                           <div key={i} className="animate-pulse">
-                            <div className="bg-slate-200 rounded-lg p-3">
-                              <div className="h-4 bg-slate-300 rounded w-3/4 mb-2"></div>
-                              <div className="h-3 bg-slate-300 rounded w-1/2"></div>
+                            <div className="bg-muted rounded-lg p-3">
+                              <div className="h-4 bg-muted-foreground rounded w-3/4 mb-2"></div>
+                              <div className="h-3 bg-muted-foreground rounded w-1/2"></div>
                             </div>
                           </div>
                         ))}
@@ -1178,7 +1178,7 @@ const SearchPage = () => {
                     )}
                     
                     {filteredConversations.length === 0 && !loading && (
-                      <div className="text-center py-6 text-slate-500">
+                      <div className="text-center py-6 text-muted-foreground">
                         <p className="text-sm">
                           {searchQuery.trim() ? 'No conversations found' : 'No conversations yet'}
                         </p>
@@ -1194,24 +1194,24 @@ const SearchPage = () => {
         {/* Main Content */}
         <main className="flex-1 min-w-0 flex flex-col pb-32">
           {/* Top bar */}
-          <div className="h-12 bg-white border-b flex items-center gap-3 px-4">
-            <button 
-              onClick={() => setSidebarOpen(!sidebarOpen)} 
-              className="rounded-lg p-2 hover:bg-slate-100" 
+          <div className="h-12 bg-background dark:bg-gray-800 border-b border-border dark:border-gray-700 flex items-center gap-3 px-4">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="rounded-lg p-2 hover:bg-accent dark:hover:bg-gray-700"
               aria-label="Toggle conversation sidebar"
             >
-              <Menu className="h-4 w-4" />
+              <Menu className="h-4 w-4 dark:text-gray-300" />
             </button>
-            <div className="flex items-center gap-2 rounded-lg border bg-slate-50 px-3 py-1.5 w-full max-w-sm">
-              <Search className="h-4 w-4" />
-              <input 
-                className="bg-transparent outline-none text-sm w-full" 
+            <div className="flex items-center gap-2 rounded-lg border border-input dark:border-gray-600 bg-muted dark:bg-gray-700 px-3 py-1.5 w-full max-w-sm">
+              <Search className="h-4 w-4 dark:text-gray-400" />
+              <input
+                className="bg-transparent outline-none text-sm w-full text-foreground dark:text-gray-200 placeholder:text-muted-foreground dark:placeholder:text-gray-400"
                 placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               {isSearching && (
-                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-muted-foreground dark:border-gray-400 border-t-transparent rounded-full animate-spin" />
               )}
             </div>
             <div className="ml-auto flex items-center gap-2">
@@ -1225,8 +1225,8 @@ const SearchPage = () => {
               {!selectedConversationId && messages.length === 0 && (
                 <div className="flex items-center justify-center min-h-[60vh] sm:min-h-[65vh] text-center select-none">
                   <div>
-                    <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Ask Anything, I am here to answer!</h1>
-                    <p className="text-sm text-slate-500 mt-1">I’ll help with answers, explanations, and examples.</p>
+                    <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight dark:text-gray-100">Ask Anything, I am here to answer!</h1>
+                    <p className="text-sm text-muted-foreground dark:text-gray-400 mt-1">I'll help with answers, explanations, and examples.</p>
                   </div>
                 </div>
               )}
@@ -1239,11 +1239,11 @@ const SearchPage = () => {
                     <div key={i} className="animate-pulse">
                       <div className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[80%] rounded-2xl p-4 ${
-                          i % 2 === 0 ? 'bg-slate-200' : 'bg-white border'
+                          i % 2 === 0 ? 'bg-muted' : 'bg-card border border-border'
                         }`}>
-                          <div className="h-4 bg-slate-300 rounded w-full mb-2"></div>
-                          <div className="h-4 bg-slate-300 rounded w-3/4 mb-2"></div>
-                          <div className="h-4 bg-slate-300 rounded w-1/2"></div>
+                          <div className="h-4 bg-muted-foreground rounded w-full mb-2"></div>
+                          <div className="h-4 bg-muted-foreground rounded w-3/4 mb-2"></div>
+                          <div className="h-4 bg-muted-foreground rounded w-1/2"></div>
                         </div>
                       </div>
                     </div>
@@ -1263,12 +1263,12 @@ const SearchPage = () => {
                   >
                     {message.type === 'user' ? (
                       <div className="flex justify-end mb-8">
-                        <div className="bg-slate-200 text-slate-700 rounded-2xl px-4 py-2 text-sm max-w-[80%] group/user">
+                        <div className="bg-muted text-slate-700 rounded-2xl px-4 py-2 text-sm max-w-[80%] group/user">
                           {/* Show attachments above the user's message bubble */}
                           {message.attachments && message.attachments.length > 0 && (
                             <div className="mb-2 flex flex-wrap gap-2">
                               {message.attachments.map((att) => (
-                                <div key={att.id} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-white shadow-sm text-xs">
+                                <div key={att.id} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-card shadow-sm text-xs">
                                   <div className="w-3 h-3 rounded-full bg-red-500" />
                                   <span className="truncate max-w-[180px]" title={att.name}>{att.name}</span>
                                 </div>
@@ -1278,7 +1278,7 @@ const SearchPage = () => {
                           {editingMessageId === message.id ? (
                             <div className="w-full">
                               {/* ChatGPT-style editing interface */}
-                              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                              <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
                                 <textarea
                                   value={editingContent}
                                   onChange={(e) => setEditingContent(e.target.value)}
@@ -1289,14 +1289,14 @@ const SearchPage = () => {
                                 <div className="flex justify-end gap-2 mt-3">
                                   <button
                                     onClick={handleCancelEditMessage}
-                                    className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                                    className="px-4 py-2 text-sm text-muted-foreground bg-background border border-border rounded-lg hover:bg-accent transition-colors"
                                   >
                                     Cancel
                                   </button>
                                   <button
                                     onClick={handleSaveMessage}
                                     disabled={isSavingMessage}
-                                    className="px-4 py-2 text-sm text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center gap-2"
+                                    className="px-4 py-2 text-sm text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:bg-muted disabled:cursor-not-allowed flex items-center gap-2"
                                   >
                                     {isSavingMessage ? (
                                       <>
@@ -1320,14 +1320,14 @@ const SearchPage = () => {
                                   className="p-1.5 rounded hover:bg-slate-100 transition-colors"
                                   title="Copy message"
                                 >
-                                  <Copy className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
+                                  <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-slate-700" />
                                 </button>
                                 <button
                                   onClick={() => handleEditMessage(message.id, message.content)}
                                   className="p-1.5 rounded hover:bg-slate-100 transition-colors"
                                   title="Edit message"
                                 >
-                                  <Edit2 className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
+                                  <Edit2 className="h-3.5 w-3.5 text-muted-foreground hover:text-slate-700" />
                                 </button>
                               </div>
                             </div>
@@ -1347,7 +1347,7 @@ const SearchPage = () => {
                               {editingMessageId === message.id ? (
                                 <div className="w-full">
                                   {/* ChatGPT-style editing interface */}
-                                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                                  <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
                                     <textarea
                                       value={editingContent}
                                       onChange={(e) => setEditingContent(e.target.value)}
@@ -1358,14 +1358,14 @@ const SearchPage = () => {
                                     <div className="flex justify-end gap-2 mt-3">
                                       <button
                                         onClick={handleCancelEditMessage}
-                                        className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                                        className="px-4 py-2 text-sm text-muted-foreground bg-background border border-border rounded-lg hover:bg-accent transition-colors"
                                       >
                                         Cancel
                                       </button>
                                       <button
                                         onClick={handleSaveMessage}
                                         disabled={isSavingMessage}
-                                        className="px-4 py-2 text-sm text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center gap-2"
+                                        className="px-4 py-2 text-sm text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:bg-muted disabled:cursor-not-allowed flex items-center gap-2"
                                       >
                                         {isSavingMessage ? (
                                           <>
@@ -1381,7 +1381,7 @@ const SearchPage = () => {
                                 </div>
                               ) : (
                                 <>
-                                  <div className="text-slate-900">
+                                  <div className="text-foreground">
                                     <Markdown>{message.content}</Markdown>
                                   </div>
                                   
@@ -1392,7 +1392,7 @@ const SearchPage = () => {
                                       className="p-1.5 rounded hover:bg-slate-100 transition-colors"
                                       title="Copy message"
                                     >
-                                      <Copy className="h-3.5 w-3.5 text-slate-500 hover:text-slate-700" />
+                                      <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-slate-700" />
                                     </button>
                                   </div>
                                 </>
@@ -1400,11 +1400,11 @@ const SearchPage = () => {
                               
                               {/* Sources + show attachments similarly for assistant if desired (sources already shown) */}
                               {message.sources && message.sources.length > 0 && (
-                                <div className="mt-4 pt-3 border-t border-slate-100">
-                                  <p className="text-xs text-slate-500 mb-2">Sources:</p>
+                                <div className="mt-4 pt-3 border-t border-border">
+                                  <p className="text-xs text-muted-foreground mb-2">Sources:</p>
                                   <div className="flex flex-wrap gap-2">
                                     {message.sources.map((source, index) => (
-                                      <Badge key={index} variant="secondary" className="text-xs bg-slate-100 text-slate-600">
+                                      <Badge key={index} variant="secondary" className="text-xs bg-muted text-muted-foreground">
                                         <FileText className="h-3 w-3 mr-1" />
                                         {source}
                                       </Badge>
@@ -1427,7 +1427,7 @@ const SearchPage = () => {
           <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
             <div className="px-3 sm:px-4 py-4">
               <div className="mx-auto max-w-3xl pointer-events-auto">
-                <div className="bg-white/95 border rounded-[28px] px-4 py-3 shadow-sm">
+                <div className="bg-background/95 dark:bg-gray-800/95 border border-border dark:border-gray-700 rounded-[28px] px-4 py-3 shadow-sm">
                   <div className="flex items-end gap-3">
                     <div className="flex-1 px-1 sm:px-2 py-2">
                       <textarea
@@ -1441,7 +1441,7 @@ const SearchPage = () => {
                         }}
                         placeholder={loading ? "Loading..." : "Message Learningly…"}
                         rows={1}
-                        className="w-full resize-none outline-none text-sm bg-transparent leading-6 max-h-40"
+                        className="w-full resize-none outline-none text-sm bg-transparent leading-6 max-h-40 text-foreground dark:text-gray-200 placeholder:text-muted-foreground dark:placeholder:text-gray-400"
                         disabled={isTyping || loading || !user?.id}
                       />
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-2">
@@ -1449,7 +1449,7 @@ const SearchPage = () => {
                         {attachedDocs.length > 0 && (
                           <div className="flex flex-wrap gap-2 w-full">
                             {attachedDocs.map((doc) => (
-                              <div key={doc.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-white shadow-sm text-xs">
+                              <div key={doc.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-card shadow-sm text-xs">
                                 <div className={`w-3 h-3 rounded-full ${
                                   doc.status === 'ready' ? 'bg-green-500' : 
                                   doc.status === 'error' ? 'bg-red-500' : 
@@ -1457,14 +1457,14 @@ const SearchPage = () => {
                                 }`} />
                                 <span className="truncate max-w-[180px]" title={doc.name}>{doc.name}</span>
                                 {doc.status === 'uploading' && (
-                                  <Loader2 className="h-3 w-3 animate-spin text-slate-500" />
+                                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                                 )}
                                 {doc.status === 'error' && (
                                   <span className="text-red-600">Failed</span>
                                 )}
                                 <button
                                   onClick={() => setAttachedDocs(prev => prev.filter(d => d.id !== doc.id))}
-                                  className="ml-1 text-slate-500 hover:text-slate-700"
+                                  className="ml-1 text-muted-foreground hover:text-foreground"
                                   aria-label="Remove attachment"
                                 >
                                   ×
@@ -1479,13 +1479,13 @@ const SearchPage = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => setShowModelMenu((s) => !s)}
-                            className="h-8 px-3 text-xs border-slate-200 bg-white hover:bg-slate-50 w-full sm:min-w-[140px] justify-between"
+                            className="h-8 px-3 text-xs border-border bg-background hover:bg-accent w-full sm:min-w-[140px] justify-between"
                           >
                             <div className="flex items-center gap-2">
                               {selectedModel.startsWith('gemini') ? (
-                                <Zap className="h-3 w-3 text-purple-600" />
+                                <Zap className="h-3 w-3 text-purple-600 dark:text-purple-400" />
                               ) : (
-                                <Brain className="h-3 w-3 text-blue-600" />
+                                <Brain className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                               )}
                               <span className="truncate font-medium">
                                 {selectedModel.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
@@ -1494,14 +1494,14 @@ const SearchPage = () => {
                             <ChevronRight className={`h-3 w-3 transition-transform ${showModelMenu ? 'rotate-90' : ''}`} />
                           </Button>
                           {showModelMenu && (
-                            <div className="absolute left-0 sm:left-0 right-0 sm:right-auto bottom-full mb-2 w-full sm:w-64 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden z-[60]">
-                              <div className="p-2 border-b border-slate-100">
-                                <div className="text-xs font-medium text-slate-600 px-2 py-1">Select AI Model</div>
+                            <div className="absolute left-0 sm:left-0 right-0 sm:right-auto bottom-full mb-2 w-full sm:w-64 rounded-xl border border-border bg-card shadow-xl overflow-hidden z-[60]">
+                              <div className="p-2 border-b border-border">
+                                <div className="text-xs font-medium text-muted-foreground px-2 py-1">Select AI Model</div>
                               </div>
                               <div className="max-h-64 overflow-y-auto">
                                 {/* GPT-5 Models */}
                                 <div className="px-2 py-1">
-                                  <div className="text-xs font-medium text-slate-500 px-2 py-1 mb-1 flex items-center gap-1">
+                                  <div className="text-xs font-medium text-muted-foreground px-2 py-1 mb-1 flex items-center gap-1">
                                     <Brain className="h-3 w-3" />
                                     GPT-5 Models
                                   </div>
@@ -1517,17 +1517,17 @@ const SearchPage = () => {
                                         setSelectedModel(model.id as any);
                                         setShowModelMenu(false);
                                       }}
-                                      className={`w-full px-3 py-2.5 text-left hover:bg-slate-50 transition-colors rounded-lg ${
-                                        selectedModel === model.id ? 'bg-slate-100 text-slate-900' : 'text-slate-700'
+                                      className={`w-full px-3 py-2.5 text-left hover:bg-accent transition-colors rounded-lg ${
+                                        selectedModel === model.id ? 'bg-accent text-foreground' : 'text-foreground'
                                       }`}
                                     >
                                       <div className="flex items-center justify-between">
                                         <div>
                                           <div className="text-sm font-medium">{model.name}</div>
-                                          <div className="text-xs text-slate-500">{model.desc}</div>
+                                          <div className="text-xs text-muted-foreground">{model.desc}</div>
                                         </div>
                                         {selectedModel === model.id && (
-                                          <div className="w-2 h-2 rounded-full bg-slate-600"></div>
+                                          <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
                                         )}
                                       </div>
                                     </button>
@@ -1536,7 +1536,7 @@ const SearchPage = () => {
                                 
                                 {/* Gemini Models */}
                                 <div className="px-2 py-1">
-                                  <div className="text-xs font-medium text-slate-500 px-2 py-1 mb-1 flex items-center gap-1">
+                                  <div className="text-xs font-medium text-muted-foreground px-2 py-1 mb-1 flex items-center gap-1">
                                     <Zap className="h-3 w-3" />
                                     Gemini Models
                                   </div>
@@ -1551,17 +1551,17 @@ const SearchPage = () => {
                                         setSelectedModel(model.id as any);
                                         setShowModelMenu(false);
                                       }}
-                                      className={`w-full px-3 py-2.5 text-left hover:bg-slate-50 transition-colors rounded-lg ${
-                                        selectedModel === model.id ? 'bg-slate-100 text-slate-900' : 'text-slate-700'
+                                      className={`w-full px-3 py-2.5 text-left hover:bg-accent transition-colors rounded-lg ${
+                                        selectedModel === model.id ? 'bg-accent text-foreground' : 'text-foreground'
                                       }`}
                                     >
                                       <div className="flex items-center justify-between">
                                         <div>
                                           <div className="text-sm font-medium">{model.name}</div>
-                                          <div className="text-xs text-slate-500">{model.desc}</div>
+                                          <div className="text-xs text-muted-foreground">{model.desc}</div>
                                         </div>
                                         {selectedModel === model.id && (
-                                          <div className="w-2 h-2 rounded-full bg-slate-600"></div>
+                                          <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
                                         )}
                                       </div>
                                     </button>
@@ -1570,7 +1570,7 @@ const SearchPage = () => {
 
                                 {/* Other Providers (Llama, Claude, Grok, DeepSeek) – mapped to closest engines */}
                                 <div className="px-2 py-1">
-                                  <div className="text-xs font-medium text-slate-500 px-2 py-1 mb-1">Other Providers</div>
+                                  <div className="text-xs font-medium text-muted-foreground px-2 py-1 mb-1">Other Providers</div>
                                   {[
                                     { id: 'llama-3.1', name: 'Llama 3.1', map: 'gpt-5-mini' },
                                     { id: 'claude-3.7', name: 'Claude 3.7', map: 'gpt-5' },
@@ -1584,17 +1584,17 @@ const SearchPage = () => {
                                         setSelectedModel(model.id as any);
                                         setShowModelMenu(false);
                                       }}
-                                      className={`w-full px-3 py-2.5 text-left hover:bg-slate-50 transition-colors rounded-lg ${
-                                        (selectedModel === model.id || selectedModel === (model.map as any)) ? 'bg-slate-100 text-slate-900' : 'text-slate-700'
+                                      className={`w-full px-3 py-2.5 text-left hover:bg-accent transition-colors rounded-lg ${
+                                        (selectedModel === model.id || selectedModel === (model.map as any)) ? 'bg-accent text-foreground' : 'text-foreground'
                                       }`}
                                     >
                                       <div className="flex items-center justify-between">
                                         <div>
                                           <div className="text-sm font-medium">{model.name}</div>
-                                          <div className="text-xs text-slate-500">Maps to {model.map}</div>
+                                          <div className="text-xs text-muted-foreground">Maps to {model.map}</div>
                                         </div>
                                         {(selectedModel === model.id || selectedModel === (model.map as any)) && (
-                                          <div className="w-2 h-2 rounded-full bg-slate-600"></div>
+                                          <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
                                         )}
                                       </div>
                                     </button>
@@ -1605,7 +1605,7 @@ const SearchPage = () => {
                           )}
                         </div>
                         {/* Upload document like popular LLMs */}
-                        <label className="inline-flex items-center justify-center h-8 px-3 text-xs border border-slate-200 bg-white hover:bg-slate-50 rounded-md cursor-pointer w-full sm:w-auto">
+                        <label className="inline-flex items-center justify-center h-8 px-3 text-xs border border-border bg-background hover:bg-accent rounded-md cursor-pointer w-full sm:w-auto">
                           <input
                             type="file"
                             accept=".pdf,.txt,.docx,.png,.jpg,.jpeg"
@@ -1686,7 +1686,7 @@ const SearchPage = () => {
                             onClick={stopGeneration}
                             variant="outline"
                             size="sm"
-                            className="ml-auto h-8 px-3 text-xs border-red-200 text-red-600 hover:bg-red-50 flex items-center gap-1"
+                            className="ml-auto h-8 px-3 text-xs border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-1"
                           >
                             <Square className="h-3 w-3 fill-current" />
                             Stop
@@ -1697,11 +1697,11 @@ const SearchPage = () => {
                               <button
                                 onClick={handleSendMessage}
                                 disabled={!currentMessage.trim() || isTyping || loading || !user?.id || attachedDocs.some(d => d.status === 'uploading')}
-                                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1 text-xs px-3 py-1.5 rounded-full bg-slate-900 text-white hover:bg-slate-800 disabled:bg-slate-400 transition-colors shadow-sm"
+                                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1 text-xs px-3 py-1.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted transition-colors shadow-sm"
                               >
                                 <Send className="h-3.5 w-3.5"/> Send
                               </button>
-                              <button className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1 text-xs px-3 py-1.5 rounded-full border bg-white hover:bg-slate-50 transition-colors">
+                              <button className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1 text-xs px-3 py-1.5 rounded-full border border-border bg-background hover:bg-accent transition-colors">
                                 <Mic className="h-3.5 w-3.5"/> Voice
                               </button>
                             </div>

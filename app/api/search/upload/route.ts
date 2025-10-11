@@ -214,6 +214,13 @@ export async function POST(request: NextRequest) {
       serverExtractedText = buffer.toString('utf-8')
       serverPageCount = Math.max(1, Math.ceil(serverExtractedText.length / 2000))
       processingNotes.push('Plain text used')
+    } else if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(fileExtension) ||
+               fileType.startsWith('image/')) {
+      // For images, we'll use OCR or just store metadata
+      // Images don't have extractable text unless we use OCR
+      serverExtractedText = '' // Can add OCR later if needed
+      serverPageCount = 1
+      processingNotes.push('Image file uploaded - no text extraction')
     }
 
     // Upload to storage (same as reading)
@@ -224,34 +231,56 @@ export async function POST(request: NextRequest) {
 
     const { error: uploadError } = await supabase.storage
       .from('reading-documents')
-      .upload(storagePath, buffer, { contentType: fileType, upsert: false })
+      .upload(storagePath, buffer, {
+        contentType: fileType,
+        upsert: false,
+        cacheControl: '3600'
+      })
+
     if (uploadError) {
+      console.error('❌ [SEARCH UPLOAD] Storage upload error:', uploadError)
+
+      // If it's a MIME type issue with images, provide helpful error
+      if (uploadError.message.includes('mime type') && fileType.startsWith('image/')) {
+        return NextResponse.json({
+          error: 'Image uploads are not supported in this storage bucket',
+          details: 'The storage bucket is configured for document files only. Please contact an administrator to enable image uploads, or convert your image to a PDF first.',
+          suggestion: 'Try converting your image to a PDF before uploading'
+        }, { status: 400 })
+      }
+
       return NextResponse.json({ error: 'Failed to upload file', details: uploadError.message }, { status: 500 })
     }
     const { data: urlData } = supabase.storage
       .from('reading-documents')
       .getPublicUrl(storagePath)
 
+    // Determine if file is an image
+    const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(fileExtension) || fileType.startsWith('image/')
+    // Use 'reading' for document_type since the constraint only allows: 'reading', 'exam-prep', 'study-material'
+    const documentType = 'reading'
+
     // Insert into documents for consistency with reading feature
     const { data: documentRecord, error: dbError } = await supabase
       .from('documents')
       .insert({
         user_id: user.id,
-        title: fileName.replace(/\.(pdf|txt|docx)$/i, ''),
+        title: fileName.replace(/\.(pdf|txt|docx|png|jpg|jpeg|gif|webp)$/i, ''),
         original_filename: fileName,
         file_path: storagePath,
         file_type: fileExtension,
         file_size: fileSize,
         mime_type: fileType,
-        document_type: 'reading', // Search uploads are treated as reading documents
+        document_type: documentType, // Always 'reading' (constraint allows: reading, exam-prep, study-material)
         extracted_text: serverExtractedText || '',
         page_count: serverPageCount,
         text_length: serverExtractedText ? serverExtractedText.length : 0,
-        processing_status: serverExtractedText && serverExtractedText.trim().length > 0 ? 'completed' : 'failed',
+        processing_status: isImage ? 'completed' : (serverExtractedText && serverExtractedText.trim().length > 0 ? 'completed' : 'failed'),
         processing_notes: processingNotes,
         public_url: urlData.publicUrl,
-        metadata: { 
-          uploadedAt: new Date().toISOString()
+        metadata: {
+          uploadedAt: new Date().toISOString(),
+          isImage: isImage
         }
       })
       .select()
