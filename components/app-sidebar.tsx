@@ -347,7 +347,7 @@ export default function AppSidebar({
         </div>
         )}
         <div className="flex justify-end">
-          <button onClick={handleLogout} className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-red-600 transition-colors duration-200">
+          <button onClick={handleLogout} className="inline-flex items-center gap-2 text-sm text-white hover:text-red-600 transition-colors duration-200">
             <LogOut className="h-4 w-4"/>
             {!sidebarCollapsed && "Logout"}
           </button>

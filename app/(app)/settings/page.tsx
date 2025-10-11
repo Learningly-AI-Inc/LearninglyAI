@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuthContext } from "@/components/auth/auth-provider"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase"
+import { useTheme } from "@/components/theme-provider"
 
 const SettingsPage = () => {
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
@@ -36,6 +37,7 @@ const SettingsPage = () => {
   const { showSuccess, showError } = useToast()
   const { user, signOut } = useAuthContext()
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
 
   const handleExportData = async () => {
     if (!user) {
@@ -129,76 +131,76 @@ const SettingsPage = () => {
   }
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-6 space-y-8 dark:bg-gray-900 min-h-screen">
       <Header
         title="Settings"
         subtitle="Manage your application preferences."
       />
 
       <div className="space-y-6 max-w-3xl mx-auto">
-        <Card className="border-border">
+        <Card className="border-border dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
-            <CardTitle className="flex items-center text-foreground">
+            <CardTitle className="flex items-center text-foreground dark:text-gray-100">
               <Palette className="mr-2 h-5 w-5" />
               Appearance
             </CardTitle>
-            <CardDescription className="text-muted-foreground">
+            <CardDescription className="text-muted-foreground dark:text-gray-400">
               Customize the look and feel of the application.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <Label htmlFor="theme" className="text-foreground">Theme</Label>
-              <Select defaultValue="system">
-                <SelectTrigger className="w-[180px] border-border">
+              <Label htmlFor="theme" className="text-foreground dark:text-gray-200">Theme</Label>
+              <Select value={theme} onValueChange={(value) => setTheme(value as "light" | "dark" | "system")}>
+                <SelectTrigger className="w-[180px] border-border dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
                   <SelectValue placeholder="Select theme" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="light">Light</SelectItem>
-                  <SelectItem value="dark">Dark</SelectItem>
-                  <SelectItem value="system">System</SelectItem>
+                <SelectContent className="dark:bg-gray-700 dark:border-gray-600">
+                  <SelectItem value="light" className="dark:text-gray-200 dark:hover:bg-gray-600">Light</SelectItem>
+                  <SelectItem value="dark" className="dark:text-gray-200 dark:hover:bg-gray-600">Dark</SelectItem>
+                  <SelectItem value="system" className="dark:text-gray-200 dark:hover:bg-gray-600">System</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border">
+        <Card className="border-border dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
-            <CardTitle className="flex items-center text-foreground">
+            <CardTitle className="flex items-center text-foreground dark:text-gray-100">
               <Bell className="mr-2 h-5 w-5" />
               Notifications
             </CardTitle>
-            <CardDescription className="text-muted-foreground">
+            <CardDescription className="text-muted-foreground dark:text-gray-400">
               Manage how you receive notifications.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="email-notifications" className="text-foreground">Email Notifications</Label>
+              <Label htmlFor="email-notifications" className="text-foreground dark:text-gray-200">Email Notifications</Label>
               <Switch id="email-notifications" defaultChecked />
             </div>
             <div className="flex items-center justify-between">
-              <Label htmlFor="push-notifications" className="text-foreground">Push Notifications</Label>
+              <Label htmlFor="push-notifications" className="text-foreground dark:text-gray-200">Push Notifications</Label>
               <Switch id="push-notifications" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border">
+        <Card className="border-border dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
-            <CardTitle className="flex items-center text-foreground">
+            <CardTitle className="flex items-center text-foreground dark:text-gray-100">
               <Database className="mr-2 h-5 w-5" />
               Data Management
             </CardTitle>
-            <CardDescription className="text-muted-foreground">
+            <CardDescription className="text-muted-foreground dark:text-gray-400">
               Manage your personal data and history.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Button
               variant="outline"
-              className="w-full border-border"
+              className="w-full border-border dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
               onClick={handleExportData}
               disabled={isExporting}
             >
@@ -219,16 +221,16 @@ const SettingsPage = () => {
       </div>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="dark:bg-gray-800 dark:border-gray-700">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
               <AlertTriangle className="h-5 w-5" />
               Are you absolutely sure?
             </AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="dark:text-gray-300">
               This action cannot be undone. This will permanently delete your account
               and remove all your data from our servers, including:
-              <ul className="list-disc list-inside mt-2 space-y-1">
+              <ul className="list-disc list-inside mt-2 space-y-1 dark:text-gray-400">
                 <li>All your documents and study materials</li>
                 <li>All your conversations and chat history</li>
                 <li>Your subscription and usage data</li>
@@ -237,11 +239,11 @@ const SettingsPage = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting} className="dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:border-gray-600">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAccount}
               disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800"
             >
               {isDeleting ? "Deleting..." : "Yes, delete my account"}
             </AlertDialogAction>

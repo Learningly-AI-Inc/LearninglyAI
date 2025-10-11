@@ -135,7 +135,7 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleSearchKeyDown}
-              className="pl-10 w-[300px] bg-white/70 border-border/50 text-foreground focus:border-primary focus:ring-primary/30 rounded-full backdrop-blur-sm"
+              className="pl-10 w-[300px] bg-white border-border/50 text-foreground focus:border-primary focus:ring-primary/30 rounded-full backdrop-blur-sm"
             />
           </form>
           <Button variant="ghost" size="icon" className="relative text-foreground hover:bg-white/70">
