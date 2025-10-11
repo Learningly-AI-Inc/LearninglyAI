@@ -38,7 +38,6 @@ export function ImprovedWritingPage({
   }, [])
 
   return (
-<<<<<<< HEAD
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Slim header: remove large title space; keep drafts on the right */}
       {(header || draftsManager) && (
@@ -47,18 +46,6 @@ export function ImprovedWritingPage({
             {/* Intentionally keep left side minimal to maximize editor space */}
             {header}
             {draftsManager}
-=======
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-      {/* Header with usage limits */}
-      <div className="p-3 border-b bg-white">
-        <div className="flex justify-between items-center gap-4">
-          {/* Left: Title */}
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <PencilRuler className="h-4 w-4 text-white" />
-            </div>
-            <h1 className="text-xl font-bold text-blue-700">Writing Assistant</h1>
->>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
           </div>
 
           {/* Center: Usage Limit */}

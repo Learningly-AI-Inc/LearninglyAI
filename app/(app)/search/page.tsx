@@ -876,11 +876,7 @@ const SearchPage = () => {
 
 
   return (
-<<<<<<< HEAD
     <div className="h-screen w-full bg-gradient-to-b from-background to-background text-foreground">
-=======
-    <div className="h-screen w-full bg-gradient-to-b from-background to-background dark:from-gray-900 dark:to-gray-900 text-foreground dark:text-gray-100">
->>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
       <div className="flex h-full w-full">
         {/* Conversation Sidebar - Disabled on desktop for single-column layout */}
         <aside className="hidden">
@@ -1198,42 +1194,24 @@ const SearchPage = () => {
         {/* Main Content */}
         <main className="flex-1 min-w-0 flex flex-col pb-32">
           {/* Top bar */}
-<<<<<<< HEAD
           <div className="h-12 bg-background border-b border-border flex items-center gap-3 px-4">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)} 
               className="rounded-lg p-2 hover:bg-accent" 
-=======
-          <div className="h-12 bg-background dark:bg-gray-800 border-b border-border dark:border-gray-700 flex items-center gap-3 px-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="rounded-lg p-2 hover:bg-accent dark:hover:bg-gray-700"
->>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
               aria-label="Toggle conversation sidebar"
             >
               <Menu className="h-4 w-4 dark:text-gray-300" />
             </button>
-<<<<<<< HEAD
             <div className="flex items-center gap-2 rounded-lg border border-input bg-muted px-3 py-1.5 w-full max-w-sm">
               <Search className="h-4 w-4" />
               <input 
                 className="bg-transparent outline-none text-sm w-full text-foreground placeholder:text-muted-foreground" 
-=======
-            <div className="flex items-center gap-2 rounded-lg border border-input dark:border-gray-600 bg-muted dark:bg-gray-700 px-3 py-1.5 w-full max-w-sm">
-              <Search className="h-4 w-4 dark:text-gray-400" />
-              <input
-                className="bg-transparent outline-none text-sm w-full text-foreground dark:text-gray-200 placeholder:text-muted-foreground dark:placeholder:text-gray-400"
->>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
                 placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               {isSearching && (
-<<<<<<< HEAD
                 <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
-=======
-                <div className="w-4 h-4 border-2 border-muted-foreground dark:border-gray-400 border-t-transparent rounded-full animate-spin" />
->>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
               )}
             </div>
             <div className="ml-auto flex items-center gap-2">
@@ -1247,13 +1225,8 @@ const SearchPage = () => {
               {!selectedConversationId && messages.length === 0 && (
                 <div className="flex items-center justify-center min-h-[60vh] sm:min-h-[65vh] text-center select-none">
                   <div>
-<<<<<<< HEAD
                     <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Ask Anything, I am here to answer!</h1>
                     <p className="text-sm text-muted-foreground mt-1">I’ll help with answers, explanations, and examples.</p>
-=======
-                    <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight dark:text-gray-100">Ask Anything, I am here to answer!</h1>
-                    <p className="text-sm text-muted-foreground dark:text-gray-400 mt-1">I'll help with answers, explanations, and examples.</p>
->>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
                   </div>
                 </div>
               )}
@@ -1454,11 +1427,7 @@ const SearchPage = () => {
           <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
             <div className="px-3 sm:px-4 py-4">
               <div className="mx-auto max-w-3xl pointer-events-auto">
-<<<<<<< HEAD
                 <div className="bg-background/95 border border-border rounded-[28px] px-4 py-3 shadow-sm">
-=======
-                <div className="bg-background/95 dark:bg-gray-800/95 border border-border dark:border-gray-700 rounded-[28px] px-4 py-3 shadow-sm">
->>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
                   <div className="flex items-end gap-3">
                     <div className="flex-1 px-1 sm:px-2 py-2">
                       <textarea
@@ -1472,11 +1441,7 @@ const SearchPage = () => {
                         }}
                         placeholder={loading ? "Loading..." : "Message Learningly…"}
                         rows={1}
-<<<<<<< HEAD
                         className="w-full resize-none outline-none text-sm bg-transparent leading-6 max-h-40 text-foreground placeholder:text-muted-foreground"
-=======
-                        className="w-full resize-none outline-none text-sm bg-transparent leading-6 max-h-40 text-foreground dark:text-gray-200 placeholder:text-muted-foreground dark:placeholder:text-gray-400"
->>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
                         disabled={isTyping || loading || !user?.id}
                       />
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-2">

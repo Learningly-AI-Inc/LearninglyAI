@@ -303,7 +303,6 @@ const WritingPageClient = () => {
     return hash.toString();
   };
 
-<<<<<<< HEAD
   // Function to highlight grammar issues in the editor content
   const highlightGrammarIssues = (content: string, issues: GrammarIssue[]) => {
     if (!issues || issues.length === 0) {
@@ -350,9 +349,6 @@ const WritingPageClient = () => {
 
     return highlightedContent;
   };
-=======
-  // Removed highlightGrammarIssues function - no longer needed since we don't highlight in the editor
->>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
 
   // Function to navigate to next/previous issue
   const navigateToIssue = (direction: 'next' | 'prev') => {
