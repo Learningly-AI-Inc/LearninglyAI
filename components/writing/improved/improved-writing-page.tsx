@@ -65,7 +65,7 @@ export function ImprovedWritingPage({
           {/* Right: Drafts Manager */}
           {draftsManager}
         </div>
-      </div>
+      )}
 
       <div className="flex-grow p-4 overflow-hidden">
         {isMobile ? (
