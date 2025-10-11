@@ -22,12 +22,49 @@ import { useRouter } from "next/navigation"
 
 import { DocumentProvider } from "@/components/reading/document-context"
 import { FileUploaderComponent } from "@/components/reading/file-uploader"
+import { OptimizedFileUploader } from "@/components/reading/optimized-file-uploader"
 import { DocumentListModal } from "@/components/reading/document-list-modal"
+import { UsageProgressBar } from "@/components/ui/usage-progress-bar"
+import { UpgradeModal } from "@/components/ui/upgrade-modal"
+import { useUsageLimits } from "@/hooks/use-usage-limits"
 
 const ReadingPage = () => {
   const router = useRouter()
   const [showUploadModal, setShowUploadModal] = React.useState(false)
   const [showDocumentListModal, setShowDocumentListModal] = React.useState(false)
+  const [showUpgradeModal, setShowUpgradeModal] = React.useState(false)
+  const [upgradeModalConfig, setUpgradeModalConfig] = React.useState<{
+    title?: string;
+    message?: string;
+    limitType?: 'documents_uploaded' | 'exam_sessions';
+  }>({})
+  const { getCurrentUsage, getCurrentLimit, isLoading: usageLoading, usage, limits, checkUsageLimit } = useUsageLimits()
+
+  // Debug: Log usage data
+  React.useEffect(() => {
+    console.log('📊 Reading Page Usage Data:', {
+      usage,
+      limits,
+      current: getCurrentUsage('documents_uploaded'),
+      limit: getCurrentLimit('documents_uploaded'),
+      isLoading: usageLoading
+    });
+  }, [usage, limits, usageLoading])
+
+  // Check upload limit before opening uploader
+  const handleOpenUploader = async () => {
+    const limitCheck = await checkUsageLimit('documents_uploaded', 1)
+    if (!limitCheck.canProceed) {
+      setUpgradeModalConfig({
+        title: 'Upload Limit Reached',
+        message: limitCheck.message || 'You\'ve reached your monthly document upload limit. Upgrade to Premium to upload more documents.',
+        limitType: 'documents_uploaded'
+      })
+      setShowUpgradeModal(true)
+      return
+    }
+    setShowUploadModal(true)
+  }
 
   const uploadOptions = [
     {
@@ -35,7 +72,7 @@ const ReadingPage = () => {
       title: "Upload Documents",
       description: "PDF, DOCX, images, and text files",
       gradient: "from-blue-600 to-blue-600",
-      action: () => setShowUploadModal(true)
+      action: handleOpenUploader
     },
     {
       icon: BookOpen,
@@ -76,7 +113,7 @@ const ReadingPage = () => {
         {/* Modern Header */}
         <div className="bg-background border-b border-border/50 sticky top-0 z-40">
           <div className="w-full max-w-[85vw] mx-auto px-6 py-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg">
                   <BookOpen className="h-5 w-5 text-primary-foreground" />
@@ -85,6 +122,20 @@ const ReadingPage = () => {
                   Reading Hub
                 </h1>
               </div>
+
+              {/* Usage Limit Indicator */}
+              {!usageLoading && (
+                <div className="min-w-[280px]">
+                  <UsageProgressBar
+                    current={getCurrentUsage('documents_uploaded')}
+                    limit={getCurrentLimit('documents_uploaded')}
+                    label="Documents Uploaded"
+                    unit="docs"
+                    size="sm"
+                    showValues={true}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -132,13 +183,33 @@ const ReadingPage = () => {
       
       {/* Upload Modal */}
       {showUploadModal && (
-        <FileUploaderComponent onClose={() => setShowUploadModal(false)} />
+        <OptimizedFileUploader
+          onClose={() => setShowUploadModal(false)}
+          onUploaded={(result) => {
+            console.log('Upload completed:', result);
+            // Navigate to document viewer after successful upload
+            if (result?.fileUrl && result?.documentId) {
+              const title = result.title || 'Document';
+              router.push(`/reading/document-viewer?title=${encodeURIComponent(title)}&url=${encodeURIComponent(result.fileUrl)}&documentId=${encodeURIComponent(result.documentId)}`);
+            }
+          }}
+          enableClientSideExtraction={true}
+        />
       )}
       
       {/* Document List Modal */}
       {showDocumentListModal && (
         <DocumentListModal onClose={() => setShowDocumentListModal(false)} />
       )}
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        title={upgradeModalConfig.title}
+        message={upgradeModalConfig.message}
+        limitType={upgradeModalConfig.limitType}
+      />
     </DocumentProvider>
   )
 }

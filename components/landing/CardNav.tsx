@@ -88,21 +88,21 @@ const CardNav: React.FC<CardNavProps> = ({
     const navEl = navRef.current;
     if (!navEl) return null;
 
-    gsap.set(navEl, { height: 70, overflow: "hidden" });
-    gsap.set(cardsRef.current, { y: 30, opacity: 0 });
+    gsap.set(navEl, { height: 64, overflow: "hidden" });
+    gsap.set(cardsRef.current, { y: 20, opacity: 0 });
 
     const tl = gsap.timeline({ paused: true });
 
     tl.to(navEl, {
       height: calculateHeight,
-      duration: 0.25,
+      duration: 0.2,
       ease: "power2.out",
     });
 
     tl.to(
       cardsRef.current,
-      { y: 0, opacity: 1, duration: 0.2, ease: "power2.out", stagger: 0.03 },
-      "-=0.1"
+      { y: 0, opacity: 1, duration: 0.15, ease: "power2.out", stagger: 0.02 },
+      "-=0.05"
     );
 
     return tl;

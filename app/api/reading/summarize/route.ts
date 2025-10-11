@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { optimizeForAI, estimateTokens } from '@/lib/document-optimizer';
 
 export async function POST(req: NextRequest) {
   // Build-time safety check - return early if we're in a build environment without API keys
@@ -19,9 +20,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log('📝 Summarization request:', {
+      title: documentTitle,
+      originalLength: text.length,
+      originalTokens: estimateTokens(text)
+    });
+
     // Use OpenAI API for summarization
     const openaiApiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-    
+
     if (!openaiApiKey) {
       return NextResponse.json(
         { error: 'OpenAI API key not configured' },
@@ -29,9 +36,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const prompt = `Please provide a comprehensive and well-structured summary of the following document. 
+    // AGGRESSIVE OPTIMIZATION: For very large docs, compress even more
+    const textLength = text.length;
+    let targetTokens = 6000;
+
+    // For 17MB+ documents, be even more aggressive
+    if (textLength > 1000000) { // >1MB of text
+      targetTokens = 3000; // Much more aggressive compression
+      console.log('🚀 Large document detected, using aggressive compression');
+    } else if (textLength > 500000) {
+      targetTokens = 4000;
+    }
+
+    // Optimize document for AI processing (compress large documents intelligently)
+    const optimized = optimizeForAI(text, targetTokens);
+    const processedText = optimized.compressed;
+
+    console.log('🗜️ Document optimized:', {
+      compressionRatio: optimized.compressionRatio.toFixed(2),
+      compressedLength: processedText.length,
+      estimatedTokens: optimized.estimatedTokens,
+      keyPhrasesCount: optimized.keyPhrases.length
+    });
+
+    const prompt = `Please provide a comprehensive and well-structured summary of the following document.
 
 Document Title: ${documentTitle || 'Untitled Document'}
+
+${optimized.keyPhrases.length > 0 ? `Key Topics: ${optimized.keyPhrases.slice(0, 10).join(', ')}` : ''}
 
 Please structure your response as follows:
 
@@ -54,7 +86,7 @@ Please structure your response as follows:
 [List and define any important terms, acronyms, or concepts]
 
 Document Content:
-${text.substring(0, 8000)} // Limit to first 8000 characters to avoid token limits
+${processedText}
 
 Please ensure the summary is:
 - Well-organized and easy to follow
@@ -63,6 +95,10 @@ Please ensure the summary is:
 - Includes specific details and examples where relevant
 - Provides a complete overview without being overly verbose`;
 
+    // Use faster model for very large documents
+    const model = textLength > 1000000 ? 'gpt-4o-mini' : 'gpt-3.5-turbo';
+    console.log(`🤖 Using model: ${model} for ${textLength} char document`);
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -70,19 +106,20 @@ Please ensure the summary is:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model,
         messages: [
           {
             role: 'system',
-            content: 'You are a professional document summarizer. Provide clear, structured, and comprehensive summaries that maintain the original document\'s key information while being easy to read and understand.'
+            content: 'You are a professional document summarizer. Provide clear, structured, and comprehensive summaries that maintain the original document\'s key information while being easy to read and understand. Work FAST.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        max_tokens: 2000,
-        temperature: 0.3,
+        max_tokens: 1500, // Reduced for speed
+        temperature: 0.2, // Lower for faster, more deterministic responses
+        stream: false
       }),
     });
 

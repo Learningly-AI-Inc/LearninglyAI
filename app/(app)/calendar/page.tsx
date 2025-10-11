@@ -20,14 +20,23 @@ const CalendarPage = () => {
   } catch (error) {
     console.error('Error initializing calendar hook:', error)
     return (
+<<<<<<< HEAD
       <div className="p-4 space-y-4">
         <Header 
+=======
+      <div className="p-4 space-y-4 dark:bg-gray-900 min-h-screen">
+        <Header
+>>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
           subtitle="Manage your schedule and deadlines with Learningly."
         />
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <h3 className="text-lg font-semibold text-destructive mb-2">Calendar Error</h3>
+<<<<<<< HEAD
             <p className="text-muted-foreground">There was an error loading the calendar. Please refresh the page.</p>
+=======
+            <p className="text-muted-foreground dark:text-gray-400">There was an error loading the calendar. Please refresh the page.</p>
+>>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
           </div>
         </div>
       </div>
@@ -45,6 +54,10 @@ const CalendarPage = () => {
   const [isEventFormOpen, setIsEventFormOpen] = React.useState(false)
   const [isCreatingEvent, setIsCreatingEvent] = React.useState(false)
   const [isListening, setIsListening] = React.useState(false)
+<<<<<<< HEAD
+=======
+  const [activeTab, setActiveTab] = React.useState('calendar')
+>>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
 
   const handleEventClick = (event: CalendarEvent) => {
     setSelectedEvent(event)
@@ -104,6 +117,11 @@ const CalendarPage = () => {
     console.log('Schedule generated:', schedule)
     // Refresh events to show the new schedule
     refreshEvents()
+<<<<<<< HEAD
+=======
+    // Switch to calendar tab to show the generated events
+    setActiveTab('calendar')
+>>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
   }
 
   const handleIntegrationChange = () => {
@@ -112,6 +130,7 @@ const CalendarPage = () => {
   }
 
   return (
+<<<<<<< HEAD
     <div className="p-4 space-y-4">
       <Header 
         subtitle="Manage your schedule and deadlines with Learningly."
@@ -125,6 +144,21 @@ const CalendarPage = () => {
           <TabsTrigger value="integration">Integrations</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="debug">Debug</TabsTrigger>
+=======
+    <div className="p-4 space-y-4 dark:bg-gray-900 min-h-screen">
+      <Header
+        subtitle="Manage your schedule and deadlines with Learningly."
+      />
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-6 dark:bg-gray-800 dark:border-gray-700">
+          <TabsTrigger value="calendar" className="dark:data-[state=active]:bg-gray-700 dark:text-gray-300">Calendar</TabsTrigger>
+          <TabsTrigger value="syllabus" className="dark:data-[state=active]:bg-gray-700 dark:text-gray-300">Syllabus Upload</TabsTrigger>
+          <TabsTrigger value="voice" className="dark:data-[state=active]:bg-gray-700 dark:text-gray-300">Voice Editor</TabsTrigger>
+          <TabsTrigger value="integration" className="dark:data-[state=active]:bg-gray-700 dark:text-gray-300">Integrations</TabsTrigger>
+          <TabsTrigger value="settings" className="dark:data-[state=active]:bg-gray-700 dark:text-gray-300">Settings</TabsTrigger>
+          <TabsTrigger value="debug" className="dark:data-[state=active]:bg-gray-700 dark:text-gray-300">Debug</TabsTrigger>
+>>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
         </TabsList>
 
         <TabsContent value="calendar" className="space-y-4">

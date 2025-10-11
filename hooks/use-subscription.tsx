@@ -68,24 +68,22 @@ export function useSubscription() {
     fetchSubscription()
   }, [user])
 
-  // Always reconcile with Stripe on mount to ensure fresh data
-  useEffect(() => {
-    if (user) {
-      const reconcile = async () => {
-        try {
-          await fetch('/api/subscriptions/reconcile', { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-          })
-          await fetchSubscription() // Refresh after reconcile
-        } catch (error) {
-          console.error('Reconciliation failed:', error)
-        }
-      }
-      reconcile()
+  // Reconcile with Stripe manually via refresh function
+  // Removed automatic reconciliation on mount to improve performance
+  const reconcileWithStripe = async () => {
+    if (!user) return
+
+    try {
+      await fetch('/api/subscriptions/reconcile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
+      await fetchSubscription() // Refresh after reconcile
+    } catch (error) {
+      console.error('Reconciliation failed:', error)
     }
-  }, [user])
+  }
 
   const checkUsageLimit = async (action: string, amount: number = 1): Promise<boolean> => {
     if (!user) return false
@@ -231,6 +229,7 @@ export function useSubscription() {
     loading,
     error,
     refresh: refreshSubscription,
+    reconcileWithStripe, // Manual reconciliation function
     checkUsageLimit,
     incrementUsage,
     createCheckoutSession,

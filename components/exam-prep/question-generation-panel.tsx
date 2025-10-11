@@ -195,6 +195,7 @@ export function QuestionGenerationPanel({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
+        console.error('Generation failed:', errorData)
         throw new Error(errorData.error || `Generation failed: ${response.statusText}`)
       }
 

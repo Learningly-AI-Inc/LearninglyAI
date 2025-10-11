@@ -76,34 +76,51 @@ export class TokenManager {
   /**
    * Estimate token count for text (rough approximation)
    */
-  static estimateTokens(text: string): number {
+  static estimateTokens(text: string | any): number {
+    // Handle non-string inputs (e.g., arrays for multi-modal content)
     if (!text) return 0
-    
+    if (typeof text !== 'string') {
+      // If it's an array (multi-modal message), extract text parts
+      if (Array.isArray(text)) {
+        return text.reduce((total, part) => {
+          if (part.type === 'text' && part.text) {
+            return total + this.estimateTokens(part.text)
+          } else if (part.type === 'image_url') {
+            // Images use approximately 85-170 tokens depending on detail level
+            return total + 100 // Rough estimate for standard image
+          }
+          return total
+        }, 0)
+      }
+      // Convert to string as fallback
+      text = String(text)
+    }
+
     // More accurate estimation based on OpenAI's tokenizer behavior
     // English text: ~4 characters per token
     // Code: ~3 characters per token
     // Mixed content: ~3.5 characters per token
-    
+
     const words = text.split(/\s+/).length
     const characters = text.length
-    
+
     // Use the higher of word-based or character-based estimation
     const wordBasedEstimate = Math.ceil(words * 1.3) // ~1.3 tokens per word
     const charBasedEstimate = Math.ceil(characters / 3.5) // ~3.5 chars per token
-    
+
     return Math.max(wordBasedEstimate, charBasedEstimate)
   }
 
   /**
    * Count tokens for an array of messages
    */
-  static countMessageTokens(messages: Array<{ role: string; content: string }>): number {
+  static countMessageTokens(messages: Array<{ role: string; content: any }>): number {
     return messages.reduce((total, message) => {
       // Add tokens for role and content
       const roleTokens = 2 // "role" + role name
       const contentTokens = this.estimateTokens(message.content)
       const formattingTokens = 4 // Message formatting overhead
-      
+
       return total + roleTokens + contentTokens + formattingTokens
     }, 0)
   }
@@ -176,11 +193,11 @@ export class TokenManager {
    * Optimize messages to fit within token limits
    */
   optimizeMessages(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: any }>,
     maxTokens: number,
     model: string = 'gpt-3.5-turbo'
   ): {
-    optimizedMessages: Array<{ role: string; content: string }>
+    optimizedMessages: Array<{ role: string; content: any }>
     removedTokens: number
     strategy: string
   } {
@@ -217,9 +234,10 @@ export class TokenManager {
     // Strategy 2: If still too many tokens, truncate message content
     if (TokenManager.countMessageTokens(optimizedMessages) > maxTokens) {
       const maxContentLength = Math.floor(maxTokens * 3.5) // Rough character limit
-      
+
       optimizedMessages = optimizedMessages.map(message => {
-        if (message.content.length > maxContentLength) {
+        // Only truncate string content, skip multi-modal messages
+        if (typeof message.content === 'string' && message.content.length > maxContentLength) {
           return {
             ...message,
             content: message.content.substring(0, maxContentLength - 3) + '...'
@@ -227,7 +245,7 @@ export class TokenManager {
         }
         return message
       })
-      
+
       strategy = 'truncated_content'
       removedTokens = currentTokens - TokenManager.countMessageTokens(optimizedMessages)
     }
@@ -243,7 +261,7 @@ export class TokenManager {
    * Get token usage statistics
    */
   getTokenStats(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: any }>,
     model: string = 'gpt-3.5-turbo'
   ): {
     totalTokens: number
@@ -260,7 +278,7 @@ export class TokenManager {
   } {
     const totalTokens = TokenManager.countMessageTokens(messages)
     const estimatedCost = TokenManager.calculateCost(totalTokens, 0, model)
-    
+
     const tokenBreakdown = {
       system: 0,
       user: 0,
@@ -293,12 +311,22 @@ export class TokenManager {
    * Create a summary to reduce token usage
    */
   static createTokenEfficientSummary(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: any }>,
     maxSummaryTokens: number = 200
   ): string {
     const conversationText = messages
       .filter(m => m.role !== 'system')
-      .map(m => `${m.role}: ${m.content}`)
+      .map(m => {
+        // Handle multi-modal content by extracting text parts only
+        if (Array.isArray(m.content)) {
+          const textParts = m.content
+            .filter(part => part.type === 'text')
+            .map(part => part.text)
+            .join(' ')
+          return `${m.role}: ${textParts}`
+        }
+        return `${m.role}: ${m.content}`
+      })
       .join('\n')
 
     const maxSummaryLength = maxSummaryTokens * 3.5 // Convert to characters

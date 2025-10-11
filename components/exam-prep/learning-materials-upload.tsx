@@ -209,6 +209,8 @@ export function LearningMaterialsUpload({
         }
 
         const result = await response.json()
+
+        console.log('result exam prep upload', result)
         
         // Update to processing
         setUploadedMaterials(prev => 

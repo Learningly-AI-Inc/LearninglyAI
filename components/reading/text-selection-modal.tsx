@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/hooks/use-toast"
+import { LoadingFacts } from './loading-facts';
 
 interface TextSelectionModalProps {
   isOpen: boolean
@@ -290,12 +291,12 @@ export function TextSelectionModal({
 
           {/* Loading State */}
           {isLoading && (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-                <p className="text-gray-600">AI is analyzing your text...</p>
-                <p className="text-sm text-gray-500 mt-1">This should only take a moment</p>
-              </div>
+            <div className="py-4">
+              <LoadingFacts 
+                isLoading={true}
+                loadingType="analyzing"
+                className="mb-0"
+              />
             </div>
           )}
 

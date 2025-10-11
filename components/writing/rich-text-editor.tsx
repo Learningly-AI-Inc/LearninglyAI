@@ -29,6 +29,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 }) => {
   // Create a reference to the editor
   const editorRef = React.useRef<any>(null);
+  // Track if component is mounted to prevent setState on unmounted component
+  const isMountedRef = React.useRef(true);
   const [editorState, setEditorState] = useState(() => {
     if (initialContent && initialContent.trim()) {
       const contentBlock = htmlToDraft(initialContent);
@@ -49,25 +51,51 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (setEditorRef) {
       const replaceHtmlContent = (html: string) => {
         try {
-          const contentBlock = htmlToDraft(html || '');
+          // Clean the HTML to prevent extra line breaks
+          let cleanedHtml = html || '';
+          // Remove leading/trailing whitespace and normalize line breaks
+          cleanedHtml = cleanedHtml.trim();
+          // Ensure we don't have duplicate line breaks at the start
+          cleanedHtml = cleanedHtml.replace(/^(<p><br><\/p>)+/, '');
+
+          const contentBlock = htmlToDraft(cleanedHtml);
           if (!contentBlock || !contentBlock.contentBlocks) return;
 
           const element: any = editorRef.current?.editor;
           const prevScrollTop = element?.scrollTop || 0;
 
+          // Get current selection/cursor position
+          const currentSelection = editorState.getSelection();
+          const currentOffset = currentSelection.getAnchorOffset();
+
           const contentState = ContentState.createFromBlockArray(contentBlock.contentBlocks);
-          const newState = EditorState.createWithContent(contentState);
+          let newState = EditorState.createWithContent(contentState);
+
+          // Try to restore cursor position if we had one
+          if (currentOffset > 0) {
+            const firstBlock = newState.getCurrentContent().getFirstBlock();
+            const newSelection = currentSelection.merge({
+              anchorKey: firstBlock.getKey(),
+              anchorOffset: Math.min(currentOffset, firstBlock.getLength()),
+              focusKey: firstBlock.getKey(),
+              focusOffset: Math.min(currentOffset, firstBlock.getLength()),
+            });
+            newState = EditorState.forceSelection(newState, newSelection);
+          }
+
           setEditorState(newState);
 
-          // Restore scroll without jumping
-          setTimeout(() => {
-            if (element && typeof prevScrollTop === 'number') {
+          // Maintain the exact scroll position
+          requestAnimationFrame(() => {
+            if (element) {
               element.scrollTop = prevScrollTop;
-              element.focus?.();
+              if (isMountedRef.current) {
+                element.focus?.();
+              }
             }
-          }, 0);
-        } catch {
-          // no-op
+          });
+        } catch (err) {
+          console.error('Error replacing HTML content:', err);
         }
       };
 
@@ -79,6 +107,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       });
     }
   }, [setEditorRef, editorState]);
+  
+  // Cleanup effect to prevent setState on unmounted component
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   
   // IMPORTANT: Do NOT re-import HTML on every keystroke.
   // The parent passes updated HTML back as initialContent, but we only want
@@ -197,14 +232,16 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   // Handle click to focus editor and show cursor
   const handleEditorClick = () => {
-    if (editorRef.current?.editor) {
+    if (editorRef.current?.editor && isMountedRef.current) {
       setTimeout(() => {
-        editorRef.current.editor.focus();
-        // Force cursor to appear
-        const editorElement = editorRef.current.editor;
-        if (editorElement) {
-          editorElement.click();
-          editorElement.focus();
+        // Check if component is still mounted before calling focus
+        if (editorRef.current?.editor && isMountedRef.current) {
+          editorRef.current.editor.focus();
+          // Force cursor to appear
+          const editorElement = editorRef.current.editor;
+          if (editorElement && isMountedRef.current) {
+            editorElement.focus();
+          }
         }
       }, 10);
     }

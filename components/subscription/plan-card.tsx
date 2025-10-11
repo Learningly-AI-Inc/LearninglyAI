@@ -39,15 +39,67 @@ export function SubscriptionCard({ plan, isCurrentPlan = false, isPopular = fals
 
   const features = () => {
     const out: string[] = []
-    const writing = plan.limits.writing_words
-    out.push(writing === -1 ? 'Unlimited writing words' : `${writing.toLocaleString()} writing words per month`)
-    const uploads = plan.limits.document_uploads
-    out.push(uploads === -1 ? 'Unlimited document uploads' : `${uploads} uploads per month`)
-    const search = plan.limits.search_queries
-    out.push(search === -1 ? 'Unlimited search' : `${search} searches per month`)
-    const exams = plan.limits.exam_sessions
-    out.push(exams === -1 ? 'Unlimited exam sessions' : `${exams} exam sessions per month`)
+    
+    // Document uploads
+    const uploadsPerWeek = plan.limits?.document_uploads_per_week
+    const uploadsPerDay = plan.limits?.document_uploads_per_day
+    if (uploadsPerWeek !== undefined) {
+      out.push(uploadsPerWeek === -1 ? 'Unlimited document uploads' : `${uploadsPerWeek} uploads per week`)
+    } else if (uploadsPerDay !== undefined) {
+      out.push(uploadsPerDay === -1 ? 'Unlimited document uploads' : `${uploadsPerDay} uploads per day`)
+    }
+    
+    // Writing words
+    const wordsPerMonth = plan.limits?.writing_words_per_month
+    const wordsPerDay = plan.limits?.writing_words_per_day
+    if (wordsPerMonth !== undefined) {
+      out.push(wordsPerMonth === -1 ? 'Unlimited writing words' : `${wordsPerMonth?.toLocaleString() || 0} words per month`)
+    } else if (wordsPerDay !== undefined) {
+      out.push(wordsPerDay === -1 ? 'Unlimited writing words' : `${wordsPerDay?.toLocaleString() || 0} words per day`)
+    }
+    
+    // Search queries
+    const searchPerWeek = plan.limits?.search_queries_per_week
+    const searchPerDay = plan.limits?.search_queries_per_day
+    if (searchPerWeek !== undefined) {
+      out.push(searchPerWeek === -1 ? 'Unlimited search' : `${searchPerWeek} searches per week`)
+    } else if (searchPerDay !== undefined) {
+      out.push(searchPerDay === -1 ? 'Unlimited search' : `${searchPerDay} searches per day`)
+    }
+    
+    // Exam sessions
+    const examsPerMonth = plan.limits?.exam_sessions_per_month
+    const examsPerWeek = plan.limits?.exam_sessions_per_week
+    if (examsPerMonth !== undefined) {
+      out.push(examsPerMonth === -1 ? 'Unlimited exam sessions' : `${examsPerMonth} sessions per month`)
+    } else if (examsPerWeek !== undefined) {
+      out.push(examsPerWeek === -1 ? 'Unlimited exam sessions' : `${examsPerWeek} sessions per week`)
+    }
+    
+    // Storage
+    const storageMB = plan.limits?.storage_mb
+    if (storageMB !== undefined) {
+      const storageGB = Math.round(storageMB / 1024)
+      out.push(storageGB >= 1 ? `${storageGB}GB storage` : `${storageMB}MB storage`)
+    }
+    
+    // Calendar sync
+    const calendarDays = plan.limits?.calendar_sync_days
+    if (calendarDays !== undefined) {
+      if (calendarDays === -1) {
+        out.push('Unlimited calendar sync')
+      } else {
+        out.push(`${calendarDays}-day calendar sync`)
+      }
+    }
+    
+    // Premium features
+    if (plan.features?.analytics) out.push('Advanced analytics')
+    if (plan.features?.ai_customization) out.push('AI customization')
     if (plan.features?.priority_support) out.push('Priority support')
+    if (plan.features?.custom_models) out.push('Custom AI models')
+    if (plan.features?.early_access) out.push('Early access to new tools')
+    
     return out
   }
 

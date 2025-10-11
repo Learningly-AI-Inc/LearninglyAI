@@ -18,10 +18,13 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import AppSidebar from "@/components/app-sidebar"
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { useDeviceSize } from "@/hooks/use-device-size"
-import { AuthProvider } from "@/components/auth/auth-provider"
+import { AuthProvider, useAuthContext } from "@/components/auth/auth-provider"
+import { UserStatusProvider } from "@/contexts/user-status-context"
 import { OnboardingTour } from "@/components/onboarding-tour"
+import { ToastProvider } from "@/hooks/use-toast"
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+function AppLayoutContent({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuthContext()
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -30,6 +33,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const hasOpenedRef = React.useRef(false)
   const closingRef = React.useRef(false)
   const deviceSize = useDeviceSize()
+
+  // Redirect to account page if not authenticated
+  React.useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/account')
+    }
+  }, [user, loading, router])
   
   // Auto-collapse sidebar on smaller screens like laptops
   React.useEffect(() => {
@@ -105,51 +115,78 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render the app if user is not authenticated
+  if (!user) {
+    return null
+  }
+
+  return (
+    <ToastProvider>
+      <UserStatusProvider>
+        <Suspense fallback={null}>
+          <div className="min-h-screen bg-background">
+            <AppSidebar
+              sidebarCollapsed={sidebarCollapsed}
+              setSidebarCollapsed={setSidebarCollapsed}
+              navigationItems={navigationItems}
+              workspaceItems={workspaceItems}
+            />
+
+            <main
+              className={`
+                ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-[220px] lg:ml-[260px]'}
+                px-3 md:px-4
+                transition-all duration-300 ease-out
+              `}
+            >
+              {children}
+            </main>
+
+            {/* Global interactive tour (available on all app pages) */}
+            <OnboardingTour isOpen={openTour} onClose={handleTourClose} />
+
+            {/* Mobile Sidebar */}
+            <div className="md:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50 bg-background border border-border/50 hover:bg-accent shadow-lg">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[280px] bg-background/95 backdrop-blur-xl p-0 border-r border-border/50">
+                  <AppSidebar
+                    sidebarCollapsed={false}
+                    setSidebarCollapsed={() => {}}
+                    navigationItems={navigationItems}
+                    workspaceItems={workspaceItems}
+                    isMobile
+                  />
+                </SheetContent>
+              </Sheet>
+            </div>
+          </div>
+        </Suspense>
+      </UserStatusProvider>
+    </ToastProvider>
+  )
+}
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      <Suspense fallback={null}>
-        <div className="min-h-screen bg-background">
-          <AppSidebar
-            sidebarCollapsed={sidebarCollapsed}
-            setSidebarCollapsed={setSidebarCollapsed}
-            navigationItems={navigationItems}
-            workspaceItems={workspaceItems}
-          />
-          
-          <main 
-            className={`
-              ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-[220px] lg:ml-[260px]'}
-              px-3 md:px-4
-              transition-all duration-300 ease-out
-            `}
-          >
-            {children}
-          </main>
-
-          {/* Global interactive tour (available on all app pages) */}
-          <OnboardingTour isOpen={openTour} onClose={handleTourClose} />
-
-          {/* Mobile Sidebar */}
-          <div className="md:hidden">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50 bg-background border border-border/50 hover:bg-accent shadow-lg">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[280px] bg-background/95 backdrop-blur-xl p-0 border-r border-border/50">
-                <AppSidebar
-                  sidebarCollapsed={false}
-                  setSidebarCollapsed={() => {}}
-                  navigationItems={navigationItems}
-                  workspaceItems={workspaceItems}
-                  isMobile
-                />
-              </SheetContent>
-            </Sheet>
-          </div>
-        </div>
-      </Suspense>
+      <AppLayoutContent>{children}</AppLayoutContent>
     </AuthProvider>
   )
 }

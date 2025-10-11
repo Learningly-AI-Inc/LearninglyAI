@@ -13,6 +13,7 @@ import { FadeContent } from '@/components/react-bits/fade-content';
 import { ClickSpark } from '@/components/react-bits/click-spark';
 import { ChatMessage as ChatMessageComponent } from '@/components/ui/chat-message';
 import { Markdown } from '@/components/ui/markdown';
+import { LoadingFacts } from './loading-facts';
 
 interface ChipProps {
   text: string;
@@ -81,16 +82,10 @@ export function ChatInterface() {
     // Check if this is a summarize action
     if (message.toLowerCase().includes('summarize') && document) {
       console.log('📄 Detected summarize action, triggering summarization...');
-      
+
       // Add user message to chat
       addMessage({ role: 'user', content: message });
-      
-      // Add loading message
-      addMessage({ 
-        role: 'assistant', 
-        content: 'Generating document summary... Please wait.' 
-      });
-      
+
       try {
         // Check if document has a valid UUID (database-stored document)
         if (document.id && isValidUUID(document.id)) {
@@ -102,30 +97,16 @@ export function ChatInterface() {
           });
 
           if (result) {
-            // Replace the loading message with the actual summary
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessageIndex = newMessages.length - 1;
-              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
-                newMessages[lastMessageIndex] = {
-                  ...newMessages[lastMessageIndex],
-                  content: `**Document Summary**\n\n${result.summary}`
-                };
-              }
-              return newMessages;
+            // Add the summary as a new message
+            addMessage({
+              role: 'assistant',
+              content: `**Document Summary**\n\n${result.summary}`
             });
           } else {
-            // Replace loading message with error
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessageIndex = newMessages.length - 1;
-              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
-                newMessages[lastMessageIndex] = {
-                  ...newMessages[lastMessageIndex],
-                  content: 'Sorry, I encountered an error while generating the summary. Please try again.'
-                };
-              }
-              return newMessages;
+            // Add error message
+            addMessage({
+              role: 'assistant',
+              content: 'Sorry, I encountered an error while generating the summary. Please try again.'
             });
           }
         } else {
@@ -145,17 +126,10 @@ export function ChatInterface() {
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.summary) {
-              // Replace the loading message with the actual summary
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const lastMessageIndex = newMessages.length - 1;
-                if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
-                  newMessages[lastMessageIndex] = {
-                    ...newMessages[lastMessageIndex],
-                    content: `**Document Summary**\n\n${data.summary}`
-                  };
-                }
-                return newMessages;
+              // Add the summary as a new message
+              addMessage({
+                role: 'assistant',
+                content: `**Document Summary**\n\n${data.summary}`
               });
             } else {
               throw new Error('Failed to generate summary');
@@ -166,17 +140,10 @@ export function ChatInterface() {
         }
       } catch (error: any) {
         console.error('❌ Summarization error:', error);
-        // Replace loading message with error
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMessageIndex = newMessages.length - 1;
-          if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating document summary')) {
-            newMessages[lastMessageIndex] = {
-              ...newMessages[lastMessageIndex],
-              content: `Sorry, I encountered an error while generating the summary: ${error.message}. Please try again.`
-            };
-          }
-          return newMessages;
+        // Add error message
+        addMessage({
+          role: 'assistant',
+          content: `Sorry, I encountered an error while generating the summary: ${error.message}. Please try again.`
         });
       }
       return;
@@ -185,16 +152,10 @@ export function ChatInterface() {
     // Check if this is a flashcard action
     if ((message.toLowerCase().includes('flashcard') || message.toLowerCase().includes('flash card')) && document) {
       console.log('🃏 Detected flashcard action, triggering flashcard generation...');
-      
+
       // Add user message to chat
       addMessage({ role: 'user', content: message });
-      
-      // Add loading message
-      addMessage({ 
-        role: 'assistant', 
-        content: 'Generating flashcards... Please wait.' 
-      });
-      
+
       try {
         // Check if document has a valid UUID (database-stored document)
         if (document.id && isValidUUID(document.id)) {
@@ -206,61 +167,33 @@ export function ChatInterface() {
           });
 
           if (result) {
-            // Replace the loading message with the flashcard results
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessageIndex = newMessages.length - 1;
-              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
-                newMessages[lastMessageIndex] = {
-                  ...newMessages[lastMessageIndex],
-                  content: `**Flashcards Generated!**\n\nI've created ${result.flashcards.length} flashcards from your document "${result.metadata.title}".\n\n**Sample Cards:**\n\n${result.flashcards.slice(0, 3).map((card, index) => 
-                    `**Card ${index + 1}:**\n**Q:** ${card.front}\n**A:** ${card.back}\n`
-                  ).join('\n')}\n\nYou can view and study all flashcards in the Flashcards tab!`
-                };
-              }
-              return newMessages;
+            // Add the flashcard results as a new message
+            addMessage({
+              role: 'assistant',
+              content: `**Flashcards Generated!**\n\nI've created ${result.flashcards.length} flashcards from your document "${result.metadata.title}".\n\n**Sample Cards:**\n\n${result.flashcards.slice(0, 3).map((card, index) =>
+                `**Card ${index + 1}:**\n**Q:** ${card.front}\n**A:** ${card.back}\n`
+              ).join('\n')}\n\nYou can view and study all flashcards in the Flashcards tab!`
             });
           } else {
-            // Replace loading message with error
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessageIndex = newMessages.length - 1;
-              if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
-                newMessages[lastMessageIndex] = {
-                  ...newMessages[lastMessageIndex],
-                  content: 'Sorry, I encountered an error while generating flashcards. Please try again.'
-                };
-              }
-              return newMessages;
+            // Add error message
+            addMessage({
+              role: 'assistant',
+              content: 'Sorry, I encountered an error while generating flashcards. Please try again.'
             });
           }
         } else {
           // For sample documents, show error
-          setMessages(prev => {
-            const newMessages = [...prev];
-            const lastMessageIndex = newMessages.length - 1;
-            if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
-              newMessages[lastMessageIndex] = {
-                ...newMessages[lastMessageIndex],
-                content: 'Flashcard generation requires a properly uploaded document. Please upload your document first.'
-              };
-            }
-            return newMessages;
+          addMessage({
+            role: 'assistant',
+            content: 'Flashcard generation requires a properly uploaded document. Please upload your document first.'
           });
         }
       } catch (error: any) {
         console.error('❌ Flashcard generation error:', error);
-        // Replace loading message with error
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMessageIndex = newMessages.length - 1;
-          if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].content.includes('Generating flashcards')) {
-            newMessages[lastMessageIndex] = {
-              ...newMessages[lastMessageIndex],
-              content: `Sorry, I encountered an error while generating flashcards: ${error.message}. Please try again.`
-            };
-          }
-          return newMessages;
+        // Add error message
+        addMessage({
+          role: 'assistant',
+          content: `Sorry, I encountered an error while generating flashcards: ${error.message}. Please try again.`
         });
       }
       return;
@@ -444,22 +377,14 @@ export function ChatInterface() {
         ))}
 
         {(isLoading || isContextLoading || isSummarizing || isGeneratingFlashcards) && (
-          <div className="flex justify-start mb-6">
-            <div className="max-w-[95%] rounded-2xl px-4 py-3 bg-white border border-gray-200 shadow-sm">
-              <div className="flex items-center space-x-3">
-                <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-sm">
-                  <Bot className="h-3 w-3 text-white" />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                  <span className="text-sm text-gray-600 font-medium">
-                    {isSummarizing ? 'Summarizing document...' : 
-                     isGeneratingFlashcards ? 'Generating flashcards...' : 'Thinking...'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <LoadingFacts 
+            isLoading={true}
+            loadingType={
+              isSummarizing ? 'summarizing' : 
+              isGeneratingFlashcards ? 'generating' : 
+              'thinking'
+            }
+          />
         )}
 
         <div ref={messagesEndRef} />

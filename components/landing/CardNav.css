@@ -1,6 +1,6 @@
 .card-nav-container {
     position: fixed;
-    top: 1.5em;
+    top: 1.5rem;
     left: 50%;
     transform: translateX(-50%);
     width: 90%;
@@ -8,32 +8,26 @@
     z-index: 999;
     box-sizing: border-box;
   }
-  
+
   .card-nav {
     display: block;
-    height: 70px;
+    height: 64px;
     padding: 0;
-    background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 1rem;
-    box-shadow: 
-      0 20px 25px -5px rgba(0, 0, 0, 0.3),
-      0 10px 10px -5px rgba(0, 0, 0, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     position: relative;
     overflow: hidden;
     will-change: height;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    transform: translateZ(0); /* Force hardware acceleration */
+    transition: border-color 0.2s ease;
+    transform: translateZ(0);
   }
-  
+
   .card-nav:hover {
-    border-color: rgba(255, 255, 255, 0.2);
-    box-shadow: 
-      0 25px 30px -5px rgba(0, 0, 0, 0.4),
-      0 15px 15px -5px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.12);
   }
   
   .card-nav-top {
@@ -41,11 +35,11 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 70px;
+    height: 64px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.75rem 1.5rem;
+    padding: 0.75rem 1.25rem;
     z-index: 2;
   }
   
@@ -124,48 +118,42 @@
   }
   
   .card-nav-cta-button {
-    background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+    background: #2563EB;
     color: white;
     border: none;
-    border-radius: 0.75rem;
-    padding: 0 1.5rem;
+    border-radius: 10px;
+    padding: 0 1.25rem;
     height: calc(100% - 16px);
-    font-weight: 600;
+    font-weight: 500;
     font-size: 14px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     position: relative;
     overflow: hidden;
-    box-shadow: 
-      0 4px 14px 0 rgba(59, 130, 246, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
-  
+
   .card-nav-cta-button:hover {
-    transform: translateY(-1px);
-    box-shadow: 
-      0 6px 20px 0 rgba(59, 130, 246, 0.5),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    background: #1D4ED8;
   }
-  
+
   .card-nav-cta-button:active {
-    transform: translateY(0);
+    transform: scale(0.98);
   }
   
   .card-nav-content {
     position: absolute;
     left: 0;
     right: 0;
-    top: 70px;
+    top: 64px;
     bottom: 0;
-    padding: 1rem;
+    padding: 0.75rem;
     display: flex;
     align-items: flex-end;
-    gap: 16px;
+    gap: 12px;
     visibility: hidden;
     pointer-events: none;
     z-index: 1;
-    contain: layout; /* Optimize layout performance */
+    contain: layout;
   }
   
   .card-nav.open .card-nav-content {
@@ -177,29 +165,29 @@
     height: 100%;
     flex: 1 1 0;
     min-width: 0;
-    border-radius: 0.875rem;
+    border-radius: 12px;
     position: relative;
     display: flex;
     flex-direction: column;
-    padding: 20px;
-    gap: 12px;
+    padding: 18px;
+    gap: 10px;
     user-select: none;
-    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    transform: translateZ(0); /* Force hardware acceleration */
+    transition: transform 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transform: translateZ(0);
   }
-  
+
   .nav-card:hover {
     transform: translateY(-2px);
-    border-color: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.1);
   }
-  
+
   .nav-card-label {
     font-weight: 600;
-    font-size: 24px;
-    letter-spacing: -0.5px;
+    font-size: 20px;
+    letter-spacing: -0.3px;
     margin-bottom: 4px;
   }
   
@@ -303,15 +291,3 @@
     }
   }
   
-  /* Add a subtle glow effect to the navbar when it's active */
-  .card-nav.open::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    padding: 1px;
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(29, 78, 216, 0.2));
-    border-radius: inherit;
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask-composite: xor;
-    z-index: -1;
-  }

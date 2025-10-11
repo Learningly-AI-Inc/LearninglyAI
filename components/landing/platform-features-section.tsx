@@ -68,55 +68,86 @@ const features = [
 
 const FeatureCard = ({ icon: Icon, title, description, color, bgColor, className }: (typeof features)[0]) => (
   <motion.div
-    initial={{ opacity: 0, y: 30 }}
+    initial={{ opacity: 0, y: 20 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true, amount: 0.3 }}
-    transition={{ duration: 0.5 }}
+    transition={{ duration: 0.6, ease: "easeOut" }}
     className={cn("h-full", className)}
   >
-    <Card className="relative overflow-hidden h-full w-full rounded-2xl p-6 transition-all duration-300 bg-gradient-to-br from-gray-900/80 to-gray-800/60 border border-white/10 hover:border-white/20">
-      <div className="absolute top-0 right-0 -z-10 opacity-10">
-        <Icon className="w-32 h-32" color={color} />
-      </div>
-      <div className={cn("inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4", bgColor)}>
-        <Icon className={cn("h-6 w-6", color)} />
-      </div>
-      <h3 className="text-xl font-semibold text-white mb-3">{title}</h3>
-      <p className="text-gray-400 mb-6 text-sm leading-relaxed">{description}</p>
-      <Button variant="link" className="p-0 text-white/80 hover:text-white transition-all duration-300 mt-auto">
-        Try This Feature <ArrowRight className="ml-2 h-4 w-4" />
-      </Button>
-    </Card>
+    <motion.div
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2 }}
+    >
+      <Card className="group relative overflow-hidden h-full w-full rounded-2xl p-8 transition-all duration-300 bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/[0.07]">
+        <div className="relative z-10">
+          {/* Icon */}
+          <div className="mb-6">
+            <div className={cn("inline-flex p-3 rounded-xl", bgColor)}>
+              <Icon className={cn("h-6 w-6", color)} />
+            </div>
+          </div>
+
+          <h3 className="text-xl font-semibold text-white mb-3">
+            {title}
+          </h3>
+
+          <p className="text-gray-400 text-sm leading-relaxed">
+            {description}
+          </p>
+        </div>
+
+        {/* Subtle hover indicator */}
+        <motion.div
+          className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
+          initial={{ scaleX: 0 }}
+          whileHover={{ scaleX: 1 }}
+          transition={{ duration: 0.3 }}
+        />
+      </Card>
+    </motion.div>
   </motion.div>
 );
 
 export const PlatformFeaturesSection: React.FC = () => {
   return (
-    <section className="py-24 bg-black">
-      <div className="container mx-auto px-6">
+    <section id="features" className="relative py-24 bg-black overflow-hidden">
+      {/* Subtle background */}
+      <div className="absolute inset-0 overflow-hidden">
+        <motion.div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-3xl"
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.05, 0.1, 0.05],
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      </div>
+
+      <div className="container mx-auto px-4 md:px-6 relative z-10">
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="text-center max-w-4xl mx-auto mb-16"
+            className="text-center max-w-3xl mx-auto mb-16 md:mb-20"
           >
-            <span className="inline-block px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium rounded-full mb-6">
-              Your Study Game Changer
-            </span>
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-5">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 px-4">
               Everything you need to{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-green-400">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">
                 raise your grades
               </span>
             </h2>
-            <p className="text-lg text-gray-400 leading-relaxed">
-              Our comprehensive platform covers every aspect of your academic journey with powerful, personalized tools.
+            <p className="text-base md:text-lg text-gray-400 px-4">
+              Powerful tools designed for modern learners
             </p>
         </motion.div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {features.map((feature) => (
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {features.map((feature, index) => (
             <FeatureCard key={feature.title} {...feature} />
           ))}
         </div>

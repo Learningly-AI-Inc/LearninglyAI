@@ -1,78 +1,151 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import CardNav from './CardNav';
-import { Zap } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Menu, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export const NavigationHeader: React.FC = () => {
     const router = useRouter();
-    
-    const items = [
-      {
-        label: "Features",
-        bgColor: "#1E293B",
-        textColor: "#F8FAFC",
-        links: [
-          { label: "Reading & Summaries", ariaLabel: "Reading & Summaries", href: "#features" },
-          { label: "Smarter Writing Tools", ariaLabel: "Smarter Writing Tools", href: "#features" },
-          { label: "Exam-Prep Powerhouse", ariaLabel: "Exam-Prep Powerhouse", href: "#features" },
-        ]
-      },
-      {
-        label: "Resources", 
-        bgColor: "#312E81",
-        textColor: "#F8FAFC",
-        links: [
-          { label: "Pricing", ariaLabel: "Pricing", href: "#pricing" },
-          { label: "FAQ", ariaLabel: "FAQ", href: "#faq" },
-          { label: "Testimonials", ariaLabel: "Testimonials", href: "#testimonials" },
-        ]
-      },
-      {
-        label: "Account",
-        bgColor: "#1E40AF", 
-        textColor: "#F8FAFC",
-        links: [
-          { label: "Sign In", ariaLabel: "Sign In", href: "/account" },
-          { label: "Sign Up", ariaLabel: "Sign Up", href: "/account" },
-        ]
-      }
+    const [isOpen, setIsOpen] = useState(false);
+
+    const navLinks = [
+      { label: "Features", href: "#features" },
+      { label: "Pricing", href: "#pricing" },
+      { label: "FAQ", href: "#faq" },
     ];
 
-    const logoComponent = (
-      <div className="flex items-center space-x-3 cursor-pointer group">
-        <div className="relative">
-          <Image 
-            src="/learningly_logo.jpg" 
-            alt="Learningly Logo" 
-            width={32} 
-            height={32}
-            className="h-8 w-8 object-contain transition-all duration-300 group-hover:scale-110"
-          />
-          <div className="absolute inset-0 h-8 w-8 bg-blue-400/20 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        </div>
-        <span className="text-xl font-bold text-white group-hover:text-blue-100 transition-colors duration-300">
-          Learningly AI
-        </span>
-      </div>
-    );
-    
-    const handleGetStarted = () => {
-      router.push('/account');
+    const handleNavClick = (href: string) => {
+      setIsOpen(false);
+      if (href.startsWith('#')) {
+        setTimeout(() => {
+          const element = document.querySelector(href);
+          element?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      } else {
+        router.push(href);
+      }
     };
-  
+
     return (
-      <CardNav
-        logoComponent={logoComponent}
-        items={items}
-        baseColor="rgba(15, 23, 42, 0.85)"
-        menuColor="#F8FAFC"
-        buttonBgColor="linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)"
-        buttonTextColor="#FFFFFF"
-        ease="power3.out"
-        onGetStarted={handleGetStarted}
-      />
+      <>
+        <motion.nav
+          initial={{ y: -100 }}
+          animate={{ y: 0 }}
+          className="fixed top-0 left-0 right-0 z-50 px-4 pt-4"
+        >
+          <div className="max-w-6xl mx-auto">
+            <div className="backdrop-blur-md bg-black/40 border border-white/10 rounded-2xl px-4 md:px-6 py-3 flex items-center justify-between">
+              {/* Logo */}
+              <div className="flex items-center space-x-2 cursor-pointer" onClick={() => router.push('/')}>
+                <Image
+                  src="/learningly_logo.jpg"
+                  alt="Learningly"
+                  width={32}
+                  height={32}
+                  className="h-8 w-8 rounded-lg"
+                />
+                <span className="text-lg font-semibold text-white">Learningly</span>
+              </div>
+
+              {/* Desktop Nav */}
+              <div className="hidden md:flex items-center gap-8">
+                {navLinks.map((link) => (
+                  <button
+                    key={link.href}
+                    onClick={() => handleNavClick(link.href)}
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
+                  >
+                    {link.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Desktop CTA */}
+              <div className="hidden md:flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => router.push('/account')}
+                  className="text-white hover:bg-white/10"
+                >
+                  Sign In
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => router.push('/account')}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Get Started
+                </Button>
+              </div>
+
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="md:hidden p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+              >
+                {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+            </div>
+          </div>
+        </motion.nav>
+
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {isOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+                onClick={() => setIsOpen(false)}
+              />
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="fixed top-20 left-4 right-4 z-50 md:hidden"
+              >
+                <div className="bg-black/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 space-y-4">
+                  {navLinks.map((link) => (
+                    <button
+                      key={link.href}
+                      onClick={() => handleNavClick(link.href)}
+                      className="block w-full text-left text-white hover:text-blue-400 transition-colors py-2"
+                    >
+                      {link.label}
+                    </button>
+                  ))}
+                  <div className="pt-4 border-t border-white/10 space-y-2">
+                    <Button
+                      variant="outline"
+                      className="w-full border-white/20 text-white hover:bg-white/10"
+                      onClick={() => {
+                        setIsOpen(false);
+                        router.push('/account');
+                      }}
+                    >
+                      Sign In
+                    </Button>
+                    <Button
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                      onClick={() => {
+                        setIsOpen(false);
+                        router.push('/account');
+                      }}
+                    >
+                      Get Started
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </>
     );
   };
-  
+

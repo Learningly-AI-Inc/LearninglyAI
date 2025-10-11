@@ -39,45 +39,45 @@ export default function FeedbackPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
+    <div className="max-w-3xl mx-auto p-6 dark:bg-gray-900 min-h-screen">
       <div className="mb-6">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={() => router.push('/dashboard')}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Dashboard
         </Button>
       </div>
-      
-      <Card className="border-2 border-blue-100 bg-white/70 backdrop-blur-md">
+
+      <Card className="border-2 border-blue-100 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70 backdrop-blur-md">
         <CardHeader>
-          <CardTitle>We value your feedback</CardTitle>
-          <CardDescription>Tell us how Learningly is working for you.</CardDescription>
+          <CardTitle className="dark:text-gray-100">We value your feedback</CardTitle>
+          <CardDescription className="dark:text-gray-400">Tell us how Learningly is working for you.</CardDescription>
         </CardHeader>
         <CardContent>
           {success && (
-            <div className="mb-4 text-green-700 bg-green-50 border border-green-200 rounded-md p-3">
+            <div className="mb-4 text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-md p-3">
               Thanks! Your feedback has been sent.
             </div>
           )}
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div>
-              <label className="block text-sm font-medium mb-1">1) How satisfied are you so far? (1–5)</label>
-              <Input name="q1_satisfaction" type="number" min={1} max={5} placeholder="1–5" />
+              <label className="block text-sm font-medium mb-1 dark:text-gray-200">1) How satisfied are you so far? (1–5)</label>
+              <Input name="q1_satisfaction" type="number" min={1} max={5} placeholder="1–5" className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-400" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">2) Was today’s study session easier because of Learningly?</label>
-              <select name="q2_easier" className="w-full border rounded-md p-2 bg-white">
+              <label className="block text-sm font-medium mb-1 dark:text-gray-200">2) Was today's study session easier because of Learningly?</label>
+              <select name="q2_easier" className="w-full border rounded-md p-2 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
                 <option value="">Select</option>
                 <option>Yes</option>
                 <option>No</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">3) Which feature do you use the most?</label>
-              <select name="q3_most" className="w-full border rounded-md p-2 bg-white">
+              <label className="block text-sm font-medium mb-1 dark:text-gray-200">3) Which feature do you use the most?</label>
+              <select name="q3_most" className="w-full border rounded-md p-2 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
                 <option value="">Select</option>
                 <option>Reading</option>
                 <option>Writing</option>
@@ -87,36 +87,36 @@ export default function FeedbackPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">4) Which feature do you find least useful, and why?</label>
-              <Textarea name="q4_least_why" placeholder="Your thoughts..." rows={3} />
+              <label className="block text-sm font-medium mb-1 dark:text-gray-200">4) Which feature do you find least useful, and why?</label>
+              <Textarea name="q4_least_why" placeholder="Your thoughts..." rows={3} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-400" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">5) Did Reading/Exam Prep give you what you expected?</label>
-              <select name="q5_expected" className="w-full border rounded-md p-2 bg-white mb-2">
+              <label className="block text-sm font-medium mb-1 dark:text-gray-200">5) Did Reading/Exam Prep give you what you expected?</label>
+              <select name="q5_expected" className="w-full border rounded-md p-2 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 mb-2">
                 <option value="">Select</option>
                 <option>Yes</option>
                 <option>No</option>
               </select>
-              <Input name="q5_comment" placeholder="Optional comment" />
+              <Input name="q5_comment" placeholder="Optional comment" className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-400" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">6) What would you like Learningly to do better?</label>
-              <Textarea name="q6_better" placeholder="Your suggestions..." rows={3} />
+              <label className="block text-sm font-medium mb-1 dark:text-gray-200">6) What would you like Learningly to do better?</label>
+              <Textarea name="q6_better" placeholder="Your suggestions..." rows={3} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-400" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">7) Did something break or not work as expected?</label>
-              <Textarea name="q7_broken" placeholder="Describe the issue..." rows={3} />
+              <label className="block text-sm font-medium mb-1 dark:text-gray-200">7) Did something break or not work as expected?</label>
+              <Textarea name="q7_broken" placeholder="Describe the issue..." rows={3} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-400" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Your email (optional)</label>
-              <Input name="email" type="email" placeholder="you@example.com" />
+              <label className="block text-sm font-medium mb-1 dark:text-gray-200">Your email (optional)</label>
+              <Input name="email" type="email" placeholder="you@example.com" className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-400" />
             </div>
             <div className="pt-2">
               <Button type="submit" disabled={submitting} className="w-full">
                 {submitting ? 'Sending…' : 'Send Feedback'}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground text-center">Sent to contact@learningly.ai</p>
+            <p className="text-xs text-muted-foreground dark:text-gray-400 text-center">Sent to contact@learningly.ai</p>
           </form>
         </CardContent>
       </Card>

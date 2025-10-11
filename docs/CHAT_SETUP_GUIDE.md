@@ -20,7 +20,7 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # AI Services
-OPENAI_API_KEY=your_openai_api_key
+NEXT_PUBLIC_OPENAI_API_KEY=your_openai_api_key
 GOOGLE_AI_API_KEY=your_google_ai_api_key
 ```
 

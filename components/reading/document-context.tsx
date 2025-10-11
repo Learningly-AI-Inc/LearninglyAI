@@ -136,7 +136,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   }, []);
 
   const uploadDocument = React.useCallback(async (file: File) => {
-    console.log('🚀 Starting document upload process');
+    console.log('🚀 Starting optimized document upload process');
     
     setIsLoading(true);
     setUploadProgress({
@@ -161,20 +161,20 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
 
       const allowedExtensions = ['pdf', 'txt', 'docx'];
       const fileExtension = file.name.toLowerCase().split('.').pop() || '';
-      
+
       if (!allowedExtensions.includes(fileExtension)) {
         throw new Error(`File type .${fileExtension} not supported. Please use PDF, TXT, or DOCX files.`);
       }
 
       console.log('✅ Client-side validation passed');
-      
+
       setUploadProgress({
         stage: 'uploading',
-        progress: 30,
+        progress: 40,
         message: `Uploading file... (${Math.round(file.size / 1024 / 1024)}MB)`
       });
 
-      // Create FormData
+      // Create FormData - server will handle text extraction
       const formData = new FormData();
       formData.append('file', file);
 
@@ -200,8 +200,8 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
 
       setUploadProgress({
         stage: 'processing',
-        progress: 70,
-        message: 'Processing document...'
+        progress: 90,
+        message: 'Finalizing document processing...'
       });
 
       if (!response.ok) {
@@ -277,7 +277,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
           if (authError || !authData?.user?.id) throw new Error('Not authenticated')
           const userPrefix = authData.user.id
           const path = `${userPrefix}/${Date.now()}-${safeName}`
-          const { data: uploadData, error: uploadError } = await supabaseClient.storage
+          const { error: uploadError } = await supabaseClient.storage
             .from('reading-documents')
             .upload(path, file, { upsert: false })
           if (uploadError) throw uploadError

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { optimizeForAI, chunkText, estimateTokens, compressText } from '@/lib/document-optimizer';
 
 interface ContextOptions {
   maxTokens?: number;
   includeMetadata?: boolean;
   chunkSize?: number;
   overlap?: number;
-  strategy?: 'smart' | 'sequential' | 'semantic';
+  strategy?: 'smart' | 'sequential' | 'semantic' | 'compressed';
 }
 
 export async function POST(req: NextRequest) {
@@ -330,11 +331,21 @@ async function processContext(document: any, options: ContextOptions) {
     };
   }
 
+  // Compressed strategy - use intelligent optimization for large documents
+  if (strategy === 'compressed') {
+    return compressedChunking(extractedText, maxTokens, includeMetadata);
+  }
+
   // Smart chunking strategy
   if (strategy === 'smart') {
+    // For very large documents, use compression automatically
+    if (extractedText.length > 50000) {
+      console.log('📊 Large document detected, using compressed strategy');
+      return compressedChunking(extractedText, maxTokens, includeMetadata);
+    }
     return smartChunking(extractedText, maxTokens, chunkSize, overlap, includeMetadata);
   }
-  
+
   // Sequential chunking
   if (strategy === 'sequential') {
     return sequentialChunking(extractedText, maxTokens, chunkSize, overlap);
@@ -342,6 +353,38 @@ async function processContext(document: any, options: ContextOptions) {
 
   // Default to smart chunking
   return smartChunking(extractedText, maxTokens, chunkSize, overlap, includeMetadata);
+}
+
+function compressedChunking(text: string, maxTokens: number, includeMetadata: boolean) {
+  console.log('🗜️ Using intelligent compression for document processing');
+
+  // Use our optimization utility
+  const optimized = optimizeForAI(text, maxTokens);
+
+  return {
+    chunks: optimized.sections.map((section, index) => ({
+      content: section.content,
+      startIndex: section.startIndex,
+      endIndex: section.endIndex,
+      tokens: estimateTokens(section.content),
+      metadata: includeMetadata ? {
+        type: 'compressed',
+        importance: section.importance,
+        wordCount: section.wordCount,
+        sectionId: section.id
+      } : undefined
+    })),
+    totalTokens: optimized.estimatedTokens,
+    metadata: {
+      strategy: 'compressed',
+      originalLength: text.length,
+      compressedLength: optimized.compressed.length,
+      compressionRatio: optimized.compressionRatio.toFixed(2),
+      keyPhrases: optimized.keyPhrases,
+      chunkCount: optimized.sections.length,
+      estimatedTokensSaved: estimateTokens(text) - optimized.estimatedTokens
+    }
+  };
 }
 
 function smartChunking(text: string, maxTokens: number, chunkSize: number, overlap: number, includeMetadata: boolean) {

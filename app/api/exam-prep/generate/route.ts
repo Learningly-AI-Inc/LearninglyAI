@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 import { openai, DEFAULT_MODEL } from '@/lib/openai'
+import { subscriptionService } from '@/lib/subscription-service'
 
 export const runtime = 'nodejs'
 
@@ -42,12 +43,196 @@ async function fetchTextsForExamFiles(supabase: any, fileIds: string[], userId: 
   if (fileIds.length === 0) return []
   const { data, error } = await supabase
     .from('documents')
-    .select('id, extracted_text')
+    .select('id, extracted_text, file_path, file_type, original_filename, processing_status')
     .in('id', fileIds)
     .eq('user_id', userId)
     .eq('document_type', 'exam-prep')
+
+  console.log('🔍 fetchTextsForExamFiles query:', {
+    fileIds,
+    userId,
+    foundDocuments: data?.length || 0,
+    error: error?.message,
+    documents: data?.map((d: any) => ({
+      id: d.id,
+      filename: d.original_filename,
+      hasText: !!d.extracted_text,
+      textLength: d.extracted_text?.length || 0,
+      processingStatus: d.processing_status
+    }))
+  })
+
   if (error) throw error
-  return (data || []).map((r: { extracted_text?: string }) => (r.extracted_text || '')).filter(Boolean)
+
+  const results: string[] = []
+
+  for (const doc of data || []) {
+    let text = doc.extracted_text || ''
+
+    // If text is missing or empty, try on-demand extraction
+    if (!text || text.trim().length < 50) {
+      console.log('🛠️ Attempting on-demand extraction for exam-prep document:', doc.id)
+      const extractedText = await attemptOnDemandExtraction(supabase, doc, userId)
+      if (extractedText) {
+        text = extractedText
+      }
+    }
+
+    if (text && text.trim().length > 0) {
+      results.push(text)
+    }
+  }
+
+  return results
+}
+
+// Helper function for on-demand extraction
+async function attemptOnDemandExtraction(supabase: any, document: any, userId: string): Promise<string> {
+  try {
+    // Download the original file
+    if (!document.file_path) {
+      console.warn('⚠️ No file_path for document:', document.id)
+      return ''
+    }
+
+    const { data: blob, error: downloadError } = await supabase.storage
+      .from('exam-files')
+      .download(document.file_path)
+
+    if (downloadError || !blob) {
+      console.error('❌ Failed to download file:', downloadError)
+      return ''
+    }
+
+    const arrayBuffer = await blob.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    console.log(`📄 Downloaded file for extraction: ${buffer.length} bytes`)
+
+    const ext = String(document.file_type || document.original_filename || '').toLowerCase()
+    let extractedText = ''
+
+    if (ext.includes('pdf')) {
+      // Try pdf-parse first (EXACT pattern from working reading upload)
+      try {
+        const pdfParse = await import('pdf-parse').catch(() => null)
+        if (pdfParse?.default) {
+          const data = await pdfParse.default(buffer)
+          extractedText = String(data.text || '').trim()
+          console.log(`✅ Extracted ${extractedText.length} chars with pdf-parse`)
+        } else {
+          console.warn('⚠️ pdf-parse not available, trying Adobe fallback')
+        }
+      } catch (pdfError) {
+        console.error('❌ pdf-parse failed:', pdfError)
+      }
+
+      // If pdf-parse didn't extract text, try Adobe fallback
+      if (!extractedText || extractedText.trim().length === 0) {
+        try {
+          const text = await adobeExportPdfToDocxExtractText(buffer)
+          if (text) {
+            extractedText = text
+            console.log(`✅ Extracted ${extractedText.length} chars with Adobe Services`)
+          }
+        } catch (adobeError) {
+          console.error('❌ Adobe extraction also failed:', adobeError)
+        }
+      }
+    } else if (ext.includes('docx')) {
+      try {
+        const mammoth = await import('mammoth')
+        const result = await mammoth.extractRawText({ buffer })
+        extractedText = String(result.value || '').trim()
+        console.log(`✅ Extracted ${extractedText.length} chars from DOCX`)
+      } catch (docxError) {
+        console.error('❌ DOCX extraction failed:', docxError)
+      }
+    } else if (ext.includes('txt')) {
+      extractedText = buffer.toString('utf-8').trim()
+      console.log(`✅ Extracted ${extractedText.length} chars from TXT`)
+    }
+
+    // Clean and normalize the extracted text
+    extractedText = extractedText
+      .replace(/\u0000/g, '')
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      .trim()
+
+    // If extraction succeeded, update the database
+    if (extractedText && extractedText.length > 50) {
+      try {
+        await supabase
+          .from('documents')
+          .update({
+            extracted_text: extractedText,
+            text_length: extractedText.length,
+            processing_status: 'completed',
+            page_count: Math.max(1, Math.ceil(extractedText.length / 2000)),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', document.id)
+          .eq('user_id', userId)
+
+        console.log('✅ Updated document with extracted text:', document.id)
+      } catch (updateError) {
+        console.error('⚠️ Failed to update document:', updateError)
+      }
+
+      return extractedText
+    }
+
+    return ''
+  } catch (error) {
+    console.error('❌ On-demand extraction failed:', error)
+    return ''
+  }
+}
+
+// Helper: Export PDF -> DOCX using Adobe Services, then extract with mammoth
+async function adobeExportPdfToDocxExtractText(pdfBuffer: Buffer): Promise<string> {
+  try {
+    const sdk: any = await import('@adobe/pdfservices-node-sdk')
+    const mammoth = await import('mammoth')
+    const clientId = process.env.PDF_SERVICES_CLIENT_ID || process.env.ADOBE_CLIENT_ID
+    const clientSecret = process.env.PDF_SERVICES_CLIENT_SECRET || process.env.ADOBE_CLIENT_SECRET
+    if (!clientId || !clientSecret) return ''
+
+    // Convert buffer to readable stream
+    const streamMod: any = await import('node:stream').catch(() => import('stream'))
+    const ReadableAny = (streamMod as any).Readable || (streamMod as any).default?.Readable
+    const rs = ReadableAny?.from ? ReadableAny.from(pdfBuffer) : new ReadableAny({
+      read() {
+        this.push(pdfBuffer)
+        this.push(null)
+      }
+    })
+
+    const credentials = new (sdk as any).ServicePrincipalCredentials({ clientId, clientSecret })
+    const pdfServices = new (sdk as any).PDFServices({ credentials })
+    const asset = await pdfServices.upload({ readStream: rs, mimeType: (sdk as any).MimeType.PDF })
+    const params = new (sdk as any).ExportPDFParams({
+      targetFormat: (sdk as any).ExportPDFTargetFormat.DOCX,
+      ocrLocale: (sdk as any).ExportOCRLocale.EN_US
+    })
+    const job = new (sdk as any).ExportPDFJob({ inputAsset: asset, params })
+    const poll = await pdfServices.submit({ job })
+    const resp = await pdfServices.getJobResult({ pollingURL: poll, resultType: (sdk as any).ExportPDFResult })
+    const docxAsset = resp.result.asset
+    const streamAsset = await pdfServices.getContent({ asset: docxAsset })
+    const chunks: Buffer[] = []
+    const rs2: any = streamAsset.readStream
+    await new Promise<void>((resolve, reject) => {
+      rs2.on('data', (c: Buffer) => chunks.push(c))
+      rs2.on('end', () => resolve())
+      rs2.on('error', (e: any) => reject(e))
+    })
+    const docxBuffer = Buffer.concat(chunks)
+    const { value } = await mammoth.extractRawText({ buffer: docxBuffer })
+    return String(value || '').trim()
+  } catch (e) {
+    console.error('⚠️ Adobe export to DOCX failed:', e)
+    return ''
+  }
 }
 
 async function fetchTextsForReadingDocuments(supabase: any, docIds: string[], userId: string): Promise<string[]> {
@@ -111,11 +296,52 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+    // Check usage limits for exam sessions
+    const canGenerate = await subscriptionService.checkUsageLimit(user.id, 'exam_sessions', 1);
+    if (!canGenerate) {
+      const subscription = await subscriptionService.getUserSubscriptionWithPlan(user.id);
+      const isFreePlan = subscription?.subscription_plans?.name?.toLowerCase().includes('free');
+      
+      return NextResponse.json(
+        { 
+          error: 'Exam session limit exceeded',
+          message: isFreePlan 
+            ? 'You\'ve reached your free plan exam session limit. Upgrade to continue generating exams.'
+            : 'Exam session limit exceeded.',
+          needsUpgrade: isFreePlan,
+          limitType: 'exam_sessions'
+        },
+        { status: 429 }
+      );
+    }
+
     // Collect texts strictly from the user's own uploads
-    let textsA = await fetchTextsForExamFiles(supabase, body.fileIds || [], user.id)
+    // Frontend sends exam-prep IDs in `documentIds`; support both fields for robustness
+    const examPrepIds = (Array.isArray(body?.documentIds) && body.documentIds.length > 0)
+      ? body.documentIds
+      : (body.fileIds || [])
+
+    console.log('📚 Fetching documents:', {
+      examPrepIds,
+      documentIds: body.documentIds,
+      fileIds: body.fileIds,
+      sampleQuestionIds: body.sampleQuestionIds
+    })
+
+    let textsA = await fetchTextsForExamFiles(supabase, examPrepIds, user.id)
     let textsB = await fetchTextsForReadingDocuments(supabase, body.documentIds || [], user.id)
     let sampleTexts = await fetchSampleQuestions(supabase, body.sampleQuestionIds || [], user.id)
     let texts = [...textsA, ...textsB].filter(Boolean)
+
+    console.log('📄 Text extraction results:', {
+      textsACount: textsA.length,
+      textsBCount: textsB.length,
+      sampleTextsCount: sampleTexts.length,
+      totalTexts: texts.length,
+      textsALengths: textsA.map(t => t?.length || 0),
+      textsBLengths: textsB.map(t => t?.length || 0)
+    })
+
     if (texts.length === 0) {
       // Attempt on-demand re-extraction for reading documents (Adobe Services -> DOCX -> mammoth)
       async function bufferToReadable(buf: Buffer): Promise<any> {
@@ -568,6 +794,13 @@ Output format (strict JSON):
       ...normalized, 
       instructions: body.instructions || normalized.instructions,
       quizMode: body.quizMode || 'rapid-fire'
+    }
+
+    // Track usage after successful exam generation
+    try {
+      await subscriptionService.incrementUsage(user.id, 'exam_sessions', 1);
+    } catch (usageError) {
+      console.error('Failed to track exam session usage:', usageError);
     }
 
     return NextResponse.json({ success: true, exam })
