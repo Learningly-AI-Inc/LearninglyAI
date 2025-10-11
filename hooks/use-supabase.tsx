@@ -1,16 +1,14 @@
 "use client"
 
 import { createClient } from "@/lib/supabase"
-import { useEffect, useState } from "react"
+
+let supabaseClient: ReturnType<typeof createClient> | null = null
 
 export function useSupabase() {
-  const [supabase, setSupabase] = useState(createClient())
-
-  useEffect(() => {
-    setSupabase(createClient())
-  }, [])
-
-  return supabase
+  if (!supabaseClient) {
+    supabaseClient = createClient()
+  }
+  return supabaseClient
 }
 
 

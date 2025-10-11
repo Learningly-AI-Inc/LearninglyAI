@@ -27,8 +27,8 @@ export function AdminQuickActions() {
       title: "User Management",
       description: "Manage users, roles, and permissions",
       icon: Users,
-      color: "text-blue-600",
-      bgColor: "bg-blue-100",
+      color: "text-blue-600 dark:text-blue-400",
+      bgColor: "bg-blue-100 dark:bg-blue-900/20",
       action: () => router.push('/admin/users'),
       badge: null
     },
@@ -36,8 +36,8 @@ export function AdminQuickActions() {
       title: "Content Review",
       description: "Review and moderate uploaded content",
       icon: FileText,
-      color: "text-green-600",
-      bgColor: "bg-green-100",
+      color: "text-green-600 dark:text-green-400",
+      bgColor: "bg-green-100 dark:bg-green-900/20",
       action: () => router.push('/admin/content'),
       badge: "3 pending"
     },
@@ -45,8 +45,8 @@ export function AdminQuickActions() {
       title: "AI Usage Monitor",
       description: "Monitor AI model usage and costs",
       icon: Brain,
-      color: "text-purple-600",
-      bgColor: "bg-purple-100",
+      color: "text-purple-600 dark:text-purple-400",
+      bgColor: "bg-purple-100 dark:bg-purple-900/20",
       action: () => router.push('/admin/ai-usage'),
       badge: null
     },
@@ -54,8 +54,8 @@ export function AdminQuickActions() {
       title: "System Settings",
       description: "Configure system parameters",
       icon: Settings,
-      color: "text-gray-600",
-      bgColor: "bg-gray-100",
+      color: "text-muted-foreground",
+      bgColor: "bg-muted",
       action: () => router.push('/admin/settings'),
       badge: null
     },
@@ -63,8 +63,8 @@ export function AdminQuickActions() {
       title: "Database Backup",
       description: "Create system backup",
       icon: Database,
-      color: "text-orange-600",
-      bgColor: "bg-orange-100",
+      color: "text-orange-600 dark:text-orange-400",
+      bgColor: "bg-orange-100 dark:bg-orange-900/20",
       action: () => {
         // Implement backup functionality
         console.log('Creating backup...')

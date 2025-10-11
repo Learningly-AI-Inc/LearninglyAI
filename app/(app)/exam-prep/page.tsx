@@ -318,8 +318,8 @@ export default function ExamPrepPage() {
           <CardContent className="p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-700">Upload single or multiple files (up to 10 files, 100MB each).</p>
-                <p className="text-xs text-slate-500 mt-1">Drag & drop multiple files for faster uploads, or click to browse.</p>
+                <p className="text-sm text-foreground">Upload single or multiple files (up to 10 files, 100MB each).</p>
+                <p className="text-xs text-muted-foreground mt-1">Drag & drop multiple files for faster uploads, or click to browse.</p>
               </div>
               <Button
                 size="sm"
@@ -329,21 +329,21 @@ export default function ExamPrepPage() {
                 📤 Upload Files
               </Button>
             </div>
-            <div className="text-sm text-slate-600">
+            <div className="text-sm text-muted-foreground">
               {uploadedDocs.length === 0 ? 'No study materials uploaded yet.' : `${uploadedDocs.length} study material(s) ready.`}
             </div>
             {uploadedDocs.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs text-slate-500">Uploaded study materials:</p>
+                <p className="text-xs text-muted-foreground">Uploaded study materials:</p>
                 <div className="space-y-1">
                   {uploadedDocs.map((doc, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-white border rounded text-sm">
-                      <span className="text-slate-700">{doc.name || `Document ${index + 1}`}</span>
+                    <div key={index} className="flex items-center justify-between p-2 bg-card border rounded text-sm">
+                      <span className="text-card-foreground">{doc.name || `Document ${index + 1}`}</span>
                       <Button 
                         size="sm" 
                         variant="ghost" 
                         onClick={() => setUploadedDocs(prev => prev.filter((_, i) => i !== index))}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-destructive hover:text-destructive/80"
                       >
                         Remove
                       </Button>
@@ -370,17 +370,17 @@ export default function ExamPrepPage() {
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
               <Input id="title" value={title} onChange={(e)=>setTitle(e.target.value)} placeholder="e.g. Biology Midterm Practice" />
-              <p className="text-xs text-slate-500">A clear title keeps sessions organized.</p>
+              <p className="text-xs text-muted-foreground">A clear title keeps sessions organized.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="count">Questions</Label>
               <Input id="count" type="number" min={5} max={50} value={count} onChange={(e)=>setCount(Math.max(5, Math.min(50, parseInt(e.target.value || '0') || 0)))} />
-              <p className="text-xs text-slate-500">Tip: 10–30 works well for focused practice.</p>
+              <p className="text-xs text-muted-foreground">Tip: 10–30 works well for focused practice.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="duration">Duration (min)</Label>
               <Input id="duration" type="number" min={10} max={240} value={duration} onChange={(e)=>setDuration(Math.max(10, Math.min(240, parseInt(e.target.value || '0') || 0)))} />
-              <p className="text-xs text-slate-500">Set a realistic timebox to mimic test pace.</p>
+              <p className="text-xs text-muted-foreground">Set a realistic timebox to mimic test pace.</p>
             </div>
             <div className="space-y-2 sm:col-span-3">
               <Label>Exam Type</Label>

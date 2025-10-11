@@ -239,32 +239,32 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                         switch (type) {
                           case 'grammar':
                             return {
-                              badge: 'bg-red-100 text-red-800 border-red-200',
-                              original: 'text-red-600',
+                              badge: 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400 border-red-200 dark:border-red-800',
+                              original: 'text-red-600 dark:text-red-400',
                               badgeText: 'Grammar'
                             };
                           case 'spelling':
                             return {
-                              badge: 'bg-orange-100 text-orange-800 border-orange-200',
-                              original: 'text-orange-600',
+                              badge: 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400 border-orange-200 dark:border-orange-800',
+                              original: 'text-orange-600 dark:text-orange-400',
                               badgeText: 'Spelling'
                             };
                           case 'style':
                             return {
-                              badge: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-                              original: 'text-yellow-600',
+                              badge: 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800',
+                              original: 'text-yellow-600 dark:text-yellow-400',
                               badgeText: 'Style'
                             };
                           case 'clarity':
                             return {
-                              badge: 'bg-blue-100 text-blue-800 border-blue-200',
-                              original: 'text-blue-600',
+                              badge: 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400 border-blue-200 dark:border-blue-800',
+                              original: 'text-blue-600 dark:text-blue-400',
                               badgeText: 'Clarity'
                             };
                           default:
                             return {
-                              badge: 'bg-gray-100 text-gray-800 border-gray-200',
-                              original: 'text-gray-600',
+                              badge: 'bg-muted text-muted-foreground border-border',
+                              original: 'text-muted-foreground',
                               badgeText: 'Issue'
                             };
                         }
@@ -329,13 +329,13 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
 
             {/* Placeholder content for AI Checker */}
             <TabsContent value="checker" className="h-full m-0">
-              <div className="flex items-center justify-center h-full border-2 border-dashed border-gray-300 rounded-lg bg-white/50">
+              <div className="flex items-center justify-center h-full border-2 border-dashed border-border rounded-lg bg-card/50">
                 <div className="text-center">
-                  <div className="p-4 bg-blue-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                    <CheckCircle className="h-8 w-8 text-blue-600" />
+                  <div className="p-4 bg-primary/10 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                    <CheckCircle className="h-8 w-8 text-primary" />
                   </div>
-                  <h3 className="text-lg font-semibold text-blue-700 mb-2">AI Checker</h3>
-                  <p className="text-blue-700/80">Coming soon</p>
+                  <h3 className="text-lg font-semibold text-primary mb-2">AI Checker</h3>
+                  <p className="text-primary/80">Coming soon</p>
                 </div>
               </div>
             </TabsContent>

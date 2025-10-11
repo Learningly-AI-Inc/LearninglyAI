@@ -616,8 +616,8 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
         <Allotment defaultSizes={[60, 40]} minSize={300}>
            {/* Left Panel - PDF Viewer */}
            <Allotment.Pane>
-             <div className="h-full w-full bg-gray-50">
-               <div className="h-full w-full bg-white overflow-hidden">
+             <div className="h-full w-full bg-muted/20">
+               <div className="h-full w-full bg-background overflow-hidden">
                  {documentUrl ? (
                    <div className="w-full h-full overflow-hidden">
                     {(() => {
@@ -627,9 +627,9 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
                         return (
                           <div className="h-full w-full flex items-center justify-center">
                             <div className="text-center">
-                              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                              <p className="text-gray-500 font-medium">Loading document...</p>
-                              <p className="text-xs text-gray-400 mt-2">Optimized for speed</p>
+                              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
+                              <p className="text-muted-foreground font-medium">Loading document...</p>
+                              <p className="text-xs text-muted-foreground/60 mt-2">Optimized for speed</p>
                             </div>
                           </div>
                         )
@@ -638,7 +638,7 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
                         console.log('❌ Showing error state')
                         return (
                           <div className="h-full w-full flex items-center justify-center">
-                            <div className="text-center text-red-500">
+                            <div className="text-center text-destructive">
                               <AlertCircle className="h-10 w-10 mx-auto mb-4" />
                               <p>Failed to load document. Please try again.</p>
                             </div>
