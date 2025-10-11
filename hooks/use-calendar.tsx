@@ -62,23 +62,16 @@ export function useCalendar() {
       const filteredEvents = allCalendarEvents.filter(event => {
         const eventStart = new Date(event.start_time)
         const eventEnd = new Date(event.end_time)
-<<<<<<< HEAD
-        
-=======
 
->>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
         // Check if event overlaps with the current view period
         return (eventStart <= endDate && eventEnd >= startDate)
       })
 
       console.log(`Fetched ${allCalendarEvents.length} total events, ${filteredEvents.length} events in current view`)
-<<<<<<< HEAD
-=======
       console.log(`View date range: ${startDate.toISOString()} to ${endDate.toISOString()}`)
       if (allCalendarEvents.length > 0 && filteredEvents.length === 0) {
         console.log('⚠️ Events exist but are outside current view. First event date:', allCalendarEvents[0]?.start_time)
       }
->>>>>>> 5b9d8089b63862dc5b62e41ea9c11781c3b58fd1
       setEvents(filteredEvents)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch events')
