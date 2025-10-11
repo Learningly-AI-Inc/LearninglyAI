@@ -114,10 +114,10 @@ export function ChatInterface() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-background">
       {/* Sidebar - Conversations List */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-4 border-b border-gray-200">
+      <div className="w-80 bg-card border-r border-border flex flex-col">
+        <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Chats</h2>
             <Button
@@ -131,7 +131,7 @@ export function ChatInterface() {
           </div>
           
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
               placeholder="Search conversations..."
               value={searchQuery}
@@ -148,8 +148,8 @@ export function ChatInterface() {
                 key={conversation.id}
                 className={`p-3 rounded-lg cursor-pointer transition-colors ${
                   currentConversation?.id === conversation.id
-                    ? 'bg-blue-50 border border-blue-200'
-                    : 'hover:bg-gray-50'
+                    ? 'bg-primary/10 border border-primary/20'
+                    : 'hover:bg-accent'
                 }`}
                 onClick={() => handleSelectConversation(conversation.id)}
               >
@@ -162,7 +162,7 @@ export function ChatInterface() {
                       <Badge variant="outline" className="text-xs">
                         {conversation.model_name}
                       </Badge>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(conversation.updated_at), { addSuffix: true })}
                       </span>
                     </div>
@@ -195,8 +195,8 @@ export function ChatInterface() {
             ))}
             
             {filteredConversations.length === 0 && !isLoading && (
-              <div className="text-center py-8 text-gray-500">
-                <MessageSquare className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+              <div className="text-center py-8 text-muted-foreground">
+                <MessageSquare className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
                 <p>No conversations yet</p>
                 <p className="text-sm">Start a new chat to begin</p>
               </div>
@@ -210,13 +210,13 @@ export function ChatInterface() {
         {currentConversation ? (
           <>
             {/* Chat Header */}
-            <div className="bg-white border-b border-gray-200 p-4">
+            <div className="bg-background border-b border-border p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-lg font-semibold">{currentConversation.title}</h1>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant="outline">{currentConversation.model_name}</Badge>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-muted-foreground">
                       {formatDistanceToNow(new Date(currentConversation.updated_at), { addSuffix: true })}
                     </span>
                   </div>
@@ -248,8 +248,8 @@ export function ChatInterface() {
                     <div
                       className={`max-w-[70%] rounded-lg p-3 ${
                         message.role === 'user'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-900'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground'
                       }`}
                     >
                       <p className="whitespace-pre-wrap">{message.content}</p>
@@ -262,11 +262,11 @@ export function ChatInterface() {
                 
                 {isTyping && (
                   <div className="flex justify-start">
-                    <div className="bg-gray-100 rounded-lg p-3">
+                    <div className="bg-muted rounded-lg p-3">
                       <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                       </div>
                     </div>
                   </div>
@@ -277,7 +277,7 @@ export function ChatInterface() {
             </ScrollArea>
 
             {/* Message Input */}
-            <div className="bg-white border-t border-gray-200 p-4">
+            <div className="bg-background border-t border-border p-4">
               <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto">
                 <div className="flex gap-2">
                   <Input
@@ -299,11 +299,11 @@ export function ChatInterface() {
           /* Empty State */
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <MessageSquare className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <h2 className="text-xl font-semibold text-gray-600 mb-2">
+              <MessageSquare className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+              <h2 className="text-xl font-semibold text-foreground mb-2">
                 Welcome to Learningly AI Chat
               </h2>
-              <p className="text-gray-500 mb-4">
+              <p className="text-muted-foreground mb-4">
                 Start a new conversation to begin learning with AI
               </p>
               <Button onClick={handleNewConversation} size="lg">

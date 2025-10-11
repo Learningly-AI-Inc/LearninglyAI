@@ -116,9 +116,9 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
   }
   
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="h-[70px] border-b border-border/50 bg-white/80 backdrop-blur-xl px-6 flex items-center justify-between sticky top-0 z-30 modern-shadow">
+      <header className="h-[70px] border-b border-border/50 bg-background/80 backdrop-blur-xl px-6 flex items-center justify-between sticky top-0 z-30 modern-shadow">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
           <Badge variant="outline" className="hidden sm:flex items-center gap-1">
@@ -135,12 +135,12 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleSearchKeyDown}
-              className="pl-10 w-[300px] bg-white/70 border-border/50 text-foreground focus:border-primary focus:ring-primary/30 rounded-full backdrop-blur-sm"
+              className="pl-10 w-[300px] bg-white border-border/50 text-foreground focus:border-primary focus:ring-primary/30 rounded-full backdrop-blur-sm"
             />
           </form>
           <Button variant="ghost" size="icon" className="relative text-foreground hover:bg-white/70">
             <Bell className="h-5 w-5" />
-            <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-gradient-to-br from-red-400 to-red-600 rounded-full border-2 border-white animate-pulse"></span>
+            <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-gradient-to-br from-red-400 to-red-600 rounded-full border-2 border-background animate-pulse"></span>
           </Button>
           <div className="flex items-center space-x-3">
             <div className="relative">
@@ -159,7 +159,7 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
       {/* Dashboard Content */}
       <main className="p-6 space-y-8">
         <div className="space-y-2">
-          <h1 className="text-4xl font-bold text-blue-700">
+          <h1 className="text-4xl font-bold text-primary">
             Welcome back, {firstName}
           </h1>
           <p className="text-lg text-muted-foreground">
@@ -180,7 +180,7 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
               transition={{ duration: 0.5, delay: 0.1 * index }}
               // className={card?.className || ""}
             >
-              <Card className={`h-full group card-hover bg-white border border-border/50 modern-shadow-lg overflow-hidden relative`}>
+              <Card className={`h-full group card-hover bg-card border border-border/50 modern-shadow-lg overflow-hidden relative`}>
                 <Link href={card.href} className="block h-full p-6">
                   <div className="absolute top-4 right-4">
                     <Badge variant={card.badgeVariant} className="text-xs">
@@ -190,11 +190,11 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
                   
                   <div className="flex flex-col h-full">
                     <div className="flex items-start mb-4">
-                      <div className={`p-3 bg-blue-600 rounded-xl mr-4 text-white shadow-lg`}>
+                      <div className={`p-3 bg-primary rounded-xl mr-4 text-primary-foreground shadow-lg`}>
                         <card.icon className="h-6 w-6" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-bold text-xl text-foreground mb-2">
+                        <h4 className="font-bold text-xl text-card-foreground mb-2">
                           {card.title}
                         </h4>
                       </div>
@@ -206,10 +206,10 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
                     
                     <div className="mt-auto">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-blue-700 group-hover:text-blue-600 transition-colors">
+                        <span className="text-sm font-semibold text-primary group-hover:text-primary/80 transition-colors">
                           {card.cta}
                         </span>
-                        <ChevronRight className="h-5 w-5 text-blue-700 group-hover:translate-x-1 transition-transform duration-300" />
+                        <ChevronRight className="h-5 w-5 text-primary group-hover:translate-x-1 transition-transform duration-300" />
                       </div>
                     </div>
                   </div>

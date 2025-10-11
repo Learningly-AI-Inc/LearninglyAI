@@ -74,7 +74,7 @@ export default function TakeExamPage() {
   if (!exam) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-slate-600">No exam loaded. Generate one first.</div>
+        <div className="text-muted-foreground">No exam loaded. Generate one first.</div>
       </div>
     )
   }
@@ -82,7 +82,7 @@ export default function TakeExamPage() {
   if (exam.questions.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-slate-600">No questions were generated from your documents. Please try again with clearer materials.</div>
+        <div className="text-muted-foreground">No questions were generated from your documents. Please try again with clearer materials.</div>
       </div>
     )
   }

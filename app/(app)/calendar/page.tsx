@@ -1,79 +1,176 @@
 "use client"
 
 import * as React from "react"
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Header } from "@/components/ui/header"
-
-const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-const dates = Array.from({ length: 35 }, (_, i) => i - 4) // Dummy dates for a 5-week view
-
-const events: { [key: number]: { title: string; color: string }[] } = {
-  10: [{ title: "Midterm Exam", color: "bg-destructive" }],
-  15: [{ title: "Project Due", color: "bg-primary" }],
-  22: [{ title: "Study Session", color: "bg-accent" }],
-}
+import { CalendarView } from "@/components/calendar/calendar-view"
+import { EventForm } from "@/components/calendar/event-form"
+import { SyllabusUpload } from "@/components/calendar/syllabus-upload"
+import { VoiceEditor } from "@/components/calendar/voice-editor"
+import { CalendarIntegrationComponent } from "@/components/calendar/calendar-integration"
+import { CalendarSettings } from "@/components/calendar/calendar-settings"
+import { TestDbConnection } from "@/components/calendar/test-db-connection"
+import { useCalendar } from "@/hooks/use-calendar"
+import { CalendarEvent, EventFormData, GeneratedSchedule } from "@/types/calendar"
 
 const CalendarPage = () => {
+  let calendarHook
+  try {
+    calendarHook = useCalendar()
+  } catch (error) {
+    console.error('Error initializing calendar hook:', error)
+    return (
+      <div className="p-4 space-y-4 dark:bg-gray-900 min-h-screen">
+        <Header
+          subtitle="Manage your schedule and deadlines with Learningly."
+        />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-destructive mb-2">Calendar Error</h3>
+            <p className="text-muted-foreground dark:text-gray-400">There was an error loading the calendar. Please refresh the page.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const {
+    createEvent,
+    updateEvent,
+    deleteEvent,
+    refreshEvents
+  } = calendarHook
+
+  const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null)
+  const [isEventFormOpen, setIsEventFormOpen] = React.useState(false)
+  const [isCreatingEvent, setIsCreatingEvent] = React.useState(false)
+  const [isListening, setIsListening] = React.useState(false)
+  const [activeTab, setActiveTab] = React.useState('calendar')
+
+  const handleEventClick = (event: CalendarEvent) => {
+    setSelectedEvent(event)
+    setIsEventFormOpen(true)
+  }
+
+  const handleCreateEvent = () => {
+    setSelectedEvent(null)
+    setIsCreatingEvent(false)
+    setIsEventFormOpen(true)
+  }
+
+  const handleEventFormClose = () => {
+    setIsEventFormOpen(false)
+    setIsCreatingEvent(false)
+    setSelectedEvent(null)
+  }
+
+  const handleEventSubmit = async (data: EventFormData) => {
+    try {
+      setIsCreatingEvent(true)
+      if (selectedEvent) {
+        await updateEvent(selectedEvent.id, data)
+      } else {
+        await createEvent(data)
+      }
+      handleEventFormClose()
+    } catch (error) {
+      // Error handling is done in the hook
+    } finally {
+      setIsCreatingEvent(false)
+    }
+  }
+
+  const handleVoiceCommand = (command: any) => {
+    // Process voice commands
+    console.log('Voice command received:', command)
+    
+    // Example: Create event from voice command
+    if (command.action === 'create' && command.event_title && command.start_time) {
+      const eventData: EventFormData = {
+        title: command.event_title,
+        start_time: command.start_time,
+        end_time: command.end_time || command.start_time,
+        all_day: false,
+        color: '#3B82F6',
+        event_type: 'general',
+        location: command.location || '',
+        description: command.description || ''
+      }
+      
+      createEvent(eventData)
+    }
+  }
+
+  const handleScheduleGenerated = (schedule: GeneratedSchedule) => {
+    console.log('Schedule generated:', schedule)
+    // Refresh events to show the new schedule
+    refreshEvents()
+    // Switch to calendar tab to show the generated events
+    setActiveTab('calendar')
+  }
+
+  const handleIntegrationChange = () => {
+    // Refresh events when integrations change
+    refreshEvents()
+  }
+
   return (
-    <div className="p-6 space-y-6">
-      <Header 
-        title="Calendar" 
-        subtitle="Manage your academic schedule and deadlines."
+    <div className="p-4 space-y-4 dark:bg-gray-900 min-h-screen">
+      <Header
+        subtitle="Manage your schedule and deadlines with Learningly."
       />
 
-      <Card className="border-border">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="icon" className="border-border">
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <h2 className="text-xl font-semibold text-foreground">October 2024</h2>
-            <Button variant="outline" size="icon" className="border-border">
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Connect Google Calendar
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-7 gap-px border-l border-t border-border">
-            {days.map((day) => (
-              <div key={day} className="py-3 text-center font-semibold text-muted-foreground border-r border-b border-border bg-muted/30">
-                {day}
-              </div>
-            ))}
-            {dates.map((date, index) => (
-              <div
-                key={index}
-                className={`p-2 h-32 border-r border-b border-border ${
-                  date <= 0 || date > 31 ? "bg-muted/20" : "bg-background"
-                }`}
-              >
-                {date > 0 && date <= 31 && (
-                  <>
-                    <span className="font-semibold text-foreground text-sm">{date}</span>
-                    <div className="mt-1 space-y-1">
-                      {events[date] && events[date].map((event, eventIndex) => (
-                        <Badge 
-                          key={eventIndex} 
-                          className={`${event.color} text-primary-foreground text-xs px-2 py-1 block truncate`}
-                        >
-                          {event.title}
-                        </Badge>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-6 dark:bg-gray-800 dark:border-gray-700">
+          <TabsTrigger value="calendar" className="dark:data-[state=active]:bg-gray-700 dark:text-gray-300">Calendar</TabsTrigger>
+          <TabsTrigger value="syllabus" className="dark:data-[state=active]:bg-gray-700 dark:text-gray-300">Syllabus Upload</TabsTrigger>
+          <TabsTrigger value="voice" className="dark:data-[state=active]:bg-gray-700 dark:text-gray-300">Voice Editor</TabsTrigger>
+          <TabsTrigger value="integration" className="dark:data-[state=active]:bg-gray-700 dark:text-gray-300">Integrations</TabsTrigger>
+          <TabsTrigger value="settings" className="dark:data-[state=active]:bg-gray-700 dark:text-gray-300">Settings</TabsTrigger>
+          <TabsTrigger value="debug" className="dark:data-[state=active]:bg-gray-700 dark:text-gray-300">Debug</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="calendar" className="space-y-4">
+          <CalendarView 
+            onEventClick={handleEventClick}
+            onCreateEvent={handleCreateEvent}
+          />
+        </TabsContent>
+
+        <TabsContent value="syllabus" className="space-y-6">
+          <SyllabusUpload onScheduleGenerated={handleScheduleGenerated} />
+        </TabsContent>
+
+        <TabsContent value="voice" className="space-y-6">
+          <VoiceEditor 
+            onCommand={handleVoiceCommand}
+            isListening={isListening}
+            onStartListening={() => setIsListening(true)}
+            onStopListening={() => setIsListening(false)}
+          />
+        </TabsContent>
+
+        <TabsContent value="integration" className="space-y-6">
+          <CalendarIntegrationComponent onIntegrationChange={handleIntegrationChange} />
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-6">
+          <CalendarSettings />
+        </TabsContent>
+        
+        <TabsContent value="debug" className="space-y-6">
+          <TestDbConnection />
+        </TabsContent>
+      </Tabs>
+
+      {/* Event Form Modal */}
+      <EventForm
+        event={selectedEvent}
+        isOpen={isEventFormOpen}
+        onClose={handleEventFormClose}
+        onSubmit={handleEventSubmit}
+        loading={isCreatingEvent}
+      />
     </div>
   )
 }

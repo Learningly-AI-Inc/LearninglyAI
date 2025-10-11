@@ -66,7 +66,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
   const englishOptions = ["American", "British"];
   
   return (
-    <div className="flex flex-wrap gap-3 items-center justify-between py-3 px-3 bg-white">
+    <div className="flex flex-wrap gap-3 items-center justify-between py-3 px-3 bg-background">
       <div className="flex flex-wrap gap-2 items-center">
         <TooltipProvider>
           <Tooltip>
@@ -157,7 +157,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
                 size="sm"
                 onClick={() => onLengthAdjustClick('shorten')}
                 disabled={isProcessing || !hasContent}
-                className="text-gray-700 border-gray-300 h-9"
+                className="text-foreground border-border h-9"
               >
                 <ArrowUpDown className="h-4 w-4 mr-2" />
                 Shorten
@@ -177,7 +177,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
                 size="sm"
                 onClick={() => onLengthAdjustClick('expand')}
                 disabled={isProcessing || !hasContent}
-                className="text-gray-700 border-gray-300 h-9"
+                className="text-foreground border-border h-9"
               >
                 <ArrowUpDown className="h-4 w-4 mr-2" />
                 Expand
@@ -193,13 +193,13 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
       <div className="flex items-center gap-3">
         {/* Tune (Tone) Selector */}
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">Tune:</span>
+          <span className="text-sm font-medium text-foreground">Tune:</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-white border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1 h-8"
+                className="bg-background border-border hover:bg-accent text-foreground px-3 py-1 h-8"
               >
                 {selectedTone}
                 <ChevronDown className="h-3 w-3 ml-1" />
@@ -221,13 +221,13 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
 
         {/* English Type Selector */}
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">English:</span>
+          <span className="text-sm font-medium text-foreground">English:</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-white border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1 h-8"
+                className="bg-background border-border hover:bg-accent text-foreground px-3 py-1 h-8"
               >
                 {selectedEnglishType}
                 <ChevronDown className="h-3 w-3 ml-1" />
@@ -252,7 +252,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
                 size="sm"
                 onClick={() => onSaveDraft()}
                 disabled={isProcessing || !hasContent}
-                className="bg-white border-gray-300 hover:bg-gray-50 text-gray-700 shadow-sm hover:shadow-md transition-all duration-200 px-3 py-1 h-8"
+                className="bg-background border-border hover:bg-accent text-foreground shadow-sm hover:shadow-md transition-all duration-200 px-3 py-1 h-8"
               >
                 <Save className="h-4 w-4 mr-2" />
                 Save Draft
@@ -274,7 +274,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
                     variant="outline"
                     size="sm"
                     disabled={isProcessing || !hasContent}
-                    className="bg-white border-gray-300 hover:bg-gray-50 text-gray-700 shadow-sm hover:shadow-md transition-all duration-200 px-3 py-1 h-8"
+                    className="bg-background border-border hover:bg-accent text-foreground shadow-sm hover:shadow-md transition-all duration-200 px-3 py-1 h-8"
                   >
                     <Download className="h-4 w-4 mr-2" />
                     Export
@@ -311,7 +311,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
       {/* Last Processed Feature Indicator */}
       {lastProcessedFeature && (
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+          <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
             {lastProcessedFeature}
           </span>
         </div>

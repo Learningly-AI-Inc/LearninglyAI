@@ -193,7 +193,7 @@ export function FlashcardDisplay({
       </div>
 
       {/* Enhanced Flashcard */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="flex-1 flex items-center justify-center p-6 bg-gradient-to-br from-muted/20 to-muted/40">
         <div className="w-full max-w-lg">
           <ClickSpark>
             <Card 
@@ -206,19 +206,19 @@ export function FlashcardDisplay({
                     <div className={`absolute inset-0 w-full h-full transition-all duration-700 ${
                       isFlipped ? 'opacity-0 rotate-y-180' : 'opacity-100 rotate-y-0'
                     }`}>
-                      <div className="w-full h-full bg-gradient-to-br from-blue-500 via-blue-600 to-purple-700 p-6 flex flex-col text-white">
+                      <div className="w-full h-full bg-gradient-to-br from-primary via-primary/90 to-primary/70 p-6 flex flex-col text-primary-foreground">
                         <div className="flex items-center justify-center gap-2 mb-4 flex-shrink-0">
-                          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                          <div className="w-8 h-8 bg-primary-foreground/20 rounded-full flex items-center justify-center">
                             <BookOpen className="h-4 w-4" />
                           </div>
-                          <Badge className="bg-white/20 text-white border-white/30">
+                          <Badge className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30">
                             Question
                           </Badge>
                         </div>
                         
                         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-white/10 scrollbar-thumb-white/30 hover:scrollbar-thumb-white/50">
                           <div className="text-lg leading-relaxed text-center px-2">
-                            <div className="text-white [&>*]:text-white [&>strong]:text-blue-100">
+                            <div className="text-primary-foreground [&>*]:text-primary-foreground [&>strong]:text-primary-foreground/80">
                               <Markdown>
                                 {currentCard.front}
                               </Markdown>

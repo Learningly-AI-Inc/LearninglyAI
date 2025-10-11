@@ -194,14 +194,14 @@ export function TextSelectionModal({
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={handleClose}>
       <div 
-        className="bg-white rounded-xl shadow-lg w-full max-w-4xl max-h-[85vh] overflow-hidden"
+        className="bg-card rounded-xl shadow-lg w-full max-w-4xl max-h-[85vh] overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="flex justify-between items-center p-6 border-b bg-gradient-to-r from-primary/10 to-primary/5">
           <div>
-            <h2 className="text-2xl font-semibold text-gray-900">AI Text Analysis</h2>
-            <p className="text-gray-600 mt-1">
+            <h2 className="text-2xl font-semibold text-card-foreground">AI Text Analysis</h2>
+            <p className="text-muted-foreground mt-1">
               Analyzing text from {documentTitle ? `"${documentTitle}"` : 'document'} 
               {pageNumber && ` (Page ${pageNumber})`}
             </p>
