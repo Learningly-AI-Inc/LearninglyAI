@@ -85,6 +85,15 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
             <Button
               size="sm"
               variant="ghost"
+              onClick={handleCopyText}
+              className="text-muted-foreground hover:text-foreground"
+              disabled={isProcessing || (!suggestedText && grammarIssues.length === 0)}
+            >
+              <Copy className="h-4 w-4 mr-1" /> {copySuccess ? "Copied!" : "Copy"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={onClear}
               className="text-muted-foreground hover:text-foreground"
               disabled={isProcessing || (!suggestedText && grammarIssues.length === 0)}
@@ -98,7 +107,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
         {/* Keep internal tab state but hide the visual tabs; the toolbar will control it */}
         <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col min-h-0">
           <div className="flex-1 px-4 pb-4 overflow-auto">
-            <TabsContent value="paraphrase" className="h-full m-0">
+            <TabsContent value="paraphrase" className="h-full m-0 flex flex-col">
               {isProcessing ? (
                 <div className="space-y-4 p-4">
                   <div className="flex items-center gap-2 mb-4">
@@ -134,11 +143,11 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                   </div>
                 </div>
               ) : suggestedText ? (
-                <div className="space-y-4">
-                  <div className="bg-muted rounded-lg p-4 shadow-sm border max-h-72 overflow-auto">
+                <div className="space-y-4 flex flex-col flex-1">
+                  <div className="bg-muted rounded-lg p-4 shadow-sm border overflow-auto flex-1">
                     <h4 className="text-sm font-semibold text-foreground mb-2">Suggestion</h4>
-                    <div className="max-h-60 overflow-auto">
-                      <MarkdownRenderer 
+                    <div className="overflow-auto">
+                      <MarkdownRenderer
                         content={suggestedText}
                         className="prose prose-sm max-w-none dark:prose-invert"
                       />

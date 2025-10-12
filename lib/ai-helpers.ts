@@ -65,7 +65,8 @@ Requirements:
 - Keep a ${tone} tone.
 - Do not copy any sentence verbatim; restructure phrasing.
 - Maintain roughly the same length.
-- Output plain text only (no quotes, no lists, no headings).`;
+- IMPORTANT: Preserve all paragraph breaks and line breaks from the original text. Use double newlines (\\n\\n) to separate paragraphs.
+- Output plain text only (no quotes, no lists, no headings, no markdown formatting).`;
 
     const userPrompt = `Paraphrase this:
 ${text}`;
