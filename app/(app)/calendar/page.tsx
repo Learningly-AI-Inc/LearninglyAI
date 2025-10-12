@@ -14,11 +14,23 @@ import { useCalendar } from "@/hooks/use-calendar"
 import { CalendarEvent, EventFormData, GeneratedSchedule } from "@/types/calendar"
 
 const CalendarPage = () => {
-  let calendarHook
-  try {
-    calendarHook = useCalendar()
-  } catch (error) {
-    console.error('Error initializing calendar hook:', error)
+  // All hooks must be called at the top level unconditionally
+  const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null)
+  const [isEventFormOpen, setIsEventFormOpen] = React.useState(false)
+  const [isCreatingEvent, setIsCreatingEvent] = React.useState(false)
+  const [isListening, setIsListening] = React.useState(false)
+  const [activeTab, setActiveTab] = React.useState('calendar')
+  
+  // Call calendar hook unconditionally - it should handle its own errors internally
+  const {
+    createEvent,
+    updateEvent,
+    refreshEvents,
+    error: calendarError
+  } = useCalendar()
+
+  // Show error UI if calendar failed to load
+  if (calendarError) {
     return (
       <div className="p-4 space-y-4">
         <Header 
@@ -33,19 +45,6 @@ const CalendarPage = () => {
       </div>
     )
   }
-
-  const {
-    createEvent,
-    updateEvent,
-    deleteEvent,
-    refreshEvents
-  } = calendarHook
-
-  const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null)
-  const [isEventFormOpen, setIsEventFormOpen] = React.useState(false)
-  const [isCreatingEvent, setIsCreatingEvent] = React.useState(false)
-  const [isListening, setIsListening] = React.useState(false)
-  const [activeTab, setActiveTab] = React.useState('calendar')
 
   const handleEventClick = (event: CalendarEvent) => {
     setSelectedEvent(event)
