@@ -1,14 +1,44 @@
+/* Aggressively override toolbar background */
+.rdw-editor-toolbar,
+.toolbar-class {
+  background-color: hsl(var(--card)) !important;
+  background: hsl(var(--card)) !important;
+}
+
+/* Remove white backgrounds from all toolbar children */
+.rdw-editor-toolbar > *,
+.rdw-editor-toolbar div,
+.rdw-editor-toolbar span:not(.rdw-dropdown-selectedtext),
+.rdw-inline-wrapper,
+.rdw-block-wrapper,
+.rdw-fontsize-wrapper,
+.rdw-list-wrapper,
+.rdw-text-align-wrapper,
+.rdw-link-wrapper,
+.rdw-history-wrapper,
+.rdw-option-wrapper {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* Override any inline styles */
+.rdw-editor-toolbar [style*="background"] {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 .rdw-editor-toolbar {
-  padding: 6px 5px 0;
-  border-radius: 2px;
-  border: 1px solid hsl(var(--border));
-  display: flex;
-  justify-content: flex-start;
-  background: hsl(var(--background));
-  flex-wrap: wrap;
-  font-size: 15px;
-  margin-bottom: 5px;
-  user-select: none;
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+  border: none !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  display: flex !important;
+  justify-content: flex-start !important;
+  flex-wrap: wrap !important;
+  font-size: 15px !important;
+  margin-bottom: 0 !important;
+  user-select: none !important;
+  gap: 4px !important;
 }
 
 .rdw-editor-main {
@@ -20,6 +50,8 @@
   min-height: 200px;
   cursor: text !important;
   position: relative;
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 /* Ensure cursor is visible */
@@ -31,6 +63,7 @@
   position: relative;
   height: 100%;
   max-height: 100%;
+  background-color: hsl(var(--card)) !important;
 }
 
 .DraftEditor-editorContainer .public-DraftEditor-content {
@@ -38,6 +71,8 @@
   min-height: 200px;
   height: 100%;
   max-height: 100%;
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 .rdw-editor-wrapper {
@@ -46,6 +81,7 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+  background-color: hsl(var(--card)) !important;
 }
 
 .wrapper-class {
@@ -55,11 +91,12 @@
   max-height: 100% !important;
   flex-grow: 1;
   overflow: hidden;
+  background-color: hsl(var(--card)) !important;
 }
 
 .editor-class {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
   padding: 1rem;
   min-height: 300px !important;
   direction: ltr;
@@ -80,12 +117,14 @@
   min-height: 300px !important;
   position: relative;
   overflow: auto;
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 /* Fix for empty editor cursor */
 .public-DraftEditor-content:empty::before {
   content: attr(placeholder);
-  color: hsl(var(--muted-foreground));
+  color: hsl(var(--muted-foreground)) !important;
   pointer-events: none;
   position: absolute;
 }
@@ -98,10 +137,19 @@
 /* Additional cursor fixes */
 .DraftEditor-root {
   cursor: text !important;
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 .DraftEditor-root:focus {
   cursor: text !important;
+}
+
+/* Ensure all Draft.js elements use card background */
+.DraftEditor-editorContainer,
+.public-DraftStyleDefault-block {
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 .read-only .rdw-editor-toolbar {
@@ -110,12 +158,14 @@
 
 .toolbar-class {
   border-bottom: 1px solid hsl(var(--border));
+  background-color: hsl(var(--card)) !important;
 }
 
 .editor-wrapper {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background-color: hsl(var(--card)) !important;
 }
 
 /* Fix font size and dropdown issues */
@@ -124,8 +174,33 @@
   min-width: 40px !important;
   z-index: 100 !important;
   position: relative !important;
-  background: hsl(var(--background)) !important;
+  background: transparent !important;
   border: 1px solid hsl(var(--border)) !important;
+  border-radius: 4px !important;
+  color: hsl(var(--foreground)) !important;
+  padding: 4px 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.rdw-dropdown-wrapper:hover {
+  background: hsl(var(--accent)) !important;
+}
+
+.rdw-dropdown-wrapper:focus,
+.rdw-dropdown-wrapper:focus-within {
+  border-color: hsl(var(--ring)) !important;
+  outline: none !important;
+}
+
+.rdw-dropdown-selectedtext {
+  color: hsl(var(--foreground)) !important;
+  font-size: 14px !important;
+}
+
+.rdw-dropdown-carettoopen,
+.rdw-dropdown-carettoclose {
+  border-top-color: hsl(var(--foreground)) !important;
+  opacity: 0.7;
 }
 
 .rdw-dropdown-optionwrapper {
@@ -177,28 +252,35 @@
 
 /* Make toolbar buttons more visible on hover */
 .rdw-option-wrapper {
-  background: hsl(var(--background)) !important;
-  border: 1px solid hsl(var(--border)) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
   color: hsl(var(--foreground)) !important;
+  transition: all 0.2s ease !important;
 }
 
 .rdw-option-wrapper:hover {
-  box-shadow: 1px 1px 0px hsl(var(--border)) !important;
   background-color: hsl(var(--accent)) !important;
+  border-color: hsl(var(--border)) !important;
 }
 
 .rdw-option-active {
-  box-shadow: 1px 1px 0px hsl(var(--border)) !important;
   background-color: hsl(var(--accent)) !important;
+  border-color: hsl(var(--border)) !important;
 }
 
 /* Style toolbar icons for dark mode */
 .rdw-option-wrapper img {
   filter: brightness(0) saturate(100%) invert(0);
+  opacity: 0.8;
 }
 
 .dark .rdw-option-wrapper img {
   filter: brightness(0) saturate(100%) invert(1);
+  opacity: 0.9;
+}
+
+.rdw-option-wrapper:hover img {
+  opacity: 1;
 }
 
 /* Modal and link popups */
@@ -239,4 +321,191 @@
   background: hsl(var(--muted)) !important;
   color: hsl(var(--muted-foreground)) !important;
   opacity: 0.5;
+}
+
+/* Toolbar separators */
+.rdw-inline-wrapper,
+.rdw-block-wrapper,
+.rdw-fontsize-wrapper,
+.rdw-fontfamily-wrapper,
+.rdw-list-wrapper,
+.rdw-text-align-wrapper,
+.rdw-colorpicker-wrapper,
+.rdw-link-wrapper,
+.rdw-embedded-wrapper,
+.rdw-emoji-wrapper,
+.rdw-image-wrapper,
+.rdw-remove-wrapper,
+.rdw-history-wrapper {
+  border-right: 1px solid hsl(var(--border)) !important;
+  padding-right: 8px !important;
+  margin-right: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+}
+
+/* Last wrapper shouldn't have border */
+.rdw-history-wrapper {
+  border-right: none !important;
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Ensure all text in toolbar is visible */
+.rdw-editor-toolbar * {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Toolbar dividers */
+.rdw-editor-toolbar::after {
+  border-color: hsl(var(--border)) !important;
+}
+
+/* Color picker modal */
+.rdw-colorpicker-modal {
+  background: hsl(var(--popover)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.rdw-colorpicker-modal-header {
+  border-bottom: 1px solid hsl(var(--border)) !important;
+}
+
+.rdw-colorpicker-modal-options {
+  background: hsl(var(--popover)) !important;
+}
+
+/* Emoji picker */
+.rdw-emoji-modal {
+  background: hsl(var(--popover)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+/* Link tooltip */
+.rdw-link-decorator-wrapper {
+  position: relative;
+}
+
+.rdw-link-decorator-icon {
+  background: hsl(var(--popover)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+/* Ensure placeholder text is visible */
+.public-DraftEditorPlaceholder-root {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.public-DraftEditorPlaceholder-inner {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Fix SVG icons in toolbar for dark mode */
+.rdw-option-wrapper svg,
+.rdw-dropdown-wrapper svg,
+.rdw-editor-toolbar svg {
+  fill: hsl(var(--foreground)) !important;
+  opacity: 0.8;
+  transition: opacity 0.2s ease !important;
+}
+
+.rdw-option-wrapper:hover svg,
+.rdw-dropdown-wrapper:hover svg {
+  opacity: 1;
+}
+
+.rdw-option-active svg {
+  opacity: 1;
+}
+
+/* Text alignment and list icons */
+.rdw-text-align-wrapper svg,
+.rdw-list-wrapper svg,
+.rdw-inline-wrapper svg,
+.rdw-link-wrapper svg,
+.rdw-history-wrapper svg,
+.rdw-block-wrapper svg,
+.rdw-fontsize-wrapper svg {
+  fill: hsl(var(--foreground)) !important;
+}
+
+/* Ensure button text is readable */
+.rdw-option-wrapper button {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Scrollbar styling for dropdowns in dark mode */
+.rdw-dropdown-optionwrapper::-webkit-scrollbar {
+  width: 8px;
+}
+
+.rdw-dropdown-optionwrapper::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+.rdw-dropdown-optionwrapper::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground));
+  border-radius: 4px;
+}
+
+.rdw-dropdown-optionwrapper::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--foreground));
+}
+
+/* COMPREHENSIVE DARK MODE FIX - Override all possible white backgrounds */
+.rdw-editor-main *,
+.DraftEditor-root *,
+.public-DraftEditor-content *,
+.DraftEditor-editorContainer * {
+  background-color: transparent !important;
+}
+
+/* But ensure the main containers keep card background */
+.rdw-editor-main,
+.DraftEditor-root,
+.public-DraftEditor-content,
+.DraftEditor-editorContainer,
+.rdw-editor-wrapper,
+.wrapper-class,
+.editor-class,
+.toolbar-class {
+  background-color: hsl(var(--card)) !important;
+}
+
+/* Ensure all text is foreground color */
+.rdw-editor-main,
+.rdw-editor-main *,
+.DraftEditor-root,
+.DraftEditor-root *,
+.public-DraftEditor-content,
+.public-DraftEditor-content *,
+.DraftEditor-editorContainer,
+.DraftEditor-editorContainer * {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* NUCLEAR OPTION - Force styles with attribute selectors */
+[class*="rdw-editor"],
+[class*="DraftEditor"],
+[class*="public-Draft"] {
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Override React Draft WYSIWYG default white background */
+.rdw-editor-main,
+.DraftEditor-editorContainer,
+.DraftEditor-root,
+div[class*="DraftEditor"],
+div[class*="rdw"] {
+  background: hsl(var(--card)) !important;
+  background-color: hsl(var(--card)) !important;
+}
+
+/* Ensure the actual editable area is dark */
+[contenteditable="true"] {
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
 }

@@ -249,12 +249,14 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   };
 
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="w-full h-full flex flex-col" style={{ backgroundColor: 'hsl(var(--card))' }}>
       <div
         className={`editor-wrapper ${readOnly ? "read-only" : ""} flex flex-col h-full`}
         style={{ 
           overflow: "hidden",
-          position: "relative"
+          position: "relative",
+          backgroundColor: 'hsl(var(--card))',
+          color: 'hsl(var(--foreground))'
         }}
         onClick={handleEditorClick}
       >
@@ -269,6 +271,22 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           readOnly={readOnly}
           toolbar={toolbarOptions}
           textAlignment="left"
+          toolbarStyle={{
+            backgroundColor: 'hsl(var(--card))',
+            border: 'none',
+            borderBottom: '1px solid hsl(var(--border))',
+            color: 'hsl(var(--foreground))'
+          }}
+          editorStyle={{
+            backgroundColor: 'hsl(var(--card))',
+            color: 'hsl(var(--foreground))',
+            minHeight: '300px',
+            padding: '1rem'
+          }}
+          wrapperStyle={{
+            backgroundColor: 'hsl(var(--card))',
+            color: 'hsl(var(--foreground))'
+          }}
           onFocus={() => {
             // Ensure cursor is visible when editor gains focus
             if (editorRef.current?.editor) {
