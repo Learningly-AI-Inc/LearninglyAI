@@ -40,18 +40,15 @@ export function ImprovedWritingPage({
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
-      {/* Slim header: remove large title space; keep drafts on the right */}
-      {(header || draftsManager) && (
-        <div className="p-2 border-b bg-background">
-          <div className="flex justify-between items-center">
-            {/* Intentionally keep left side minimal to maximize editor space */}
-            {header}
-            {draftsManager}
+      <div className="p-3 border-b bg-background">
+        <div className="flex justify-between items-center gap-4">
+          <div className="flex items-center gap-2">
+            <PencilRuler className="h-5 w-5 text-primary" />
+            <span className="font-semibold text-lg text-foreground">Writing Assistant</span>
           </div>
 
-          {/* Center: Usage Limit */}
           {!usageLoading && (
-            <div className="flex-1 max-w-md">
+            <div className="flex-1 max-w-md mx-auto">
               <UsageProgressBar
                 current={getCurrentUsage('writing_words')}
                 limit={getCurrentLimit('writing_words')}
@@ -63,10 +60,11 @@ export function ImprovedWritingPage({
             </div>
           )}
 
-          {/* Right: Drafts Manager */}
-          {draftsManager}
+          <div>
+            {draftsManager}
+          </div>
         </div>
-      )}
+      </div>
 
       <div className="flex-grow p-4 overflow-hidden">
         {isMobile ? (
