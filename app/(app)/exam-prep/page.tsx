@@ -353,14 +353,14 @@ export default function ExamPrepPage() {
           </CardContent>
         </Card>
 
-        <Card className="mb-6 shadow-lg border-l-4 border-purple-500 dark:border-purple-400 dark:bg-gray-800">
-          <CardHeader className="p-6 pb-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
+        <Card className="mb-6 shadow-lg border-l-4 border-blue-500 dark:border-blue-400 dark:bg-gray-800">
+          <CardHeader className="p-6 pb-3 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base text-purple-700 dark:text-purple-300">⚙️ Exam Settings</CardTitle>
+                <CardTitle className="text-base text-blue-700 dark:text-blue-300">⚙️ Exam Settings</CardTitle>
                 <CardDescription className="dark:text-slate-400">Adjust to fit your study session.</CardDescription>
               </div>
-              <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-700">Simple</Badge>
+              <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700">Simple</Badge>
             </div>
           </CardHeader>
           <Separator className="dark:bg-gray-700" />
@@ -656,7 +656,7 @@ export default function ExamPrepPage() {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl p-8 animate-in fade-in duration-300">
             <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mb-4">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full mb-4">
                 <Loader2 className="w-10 h-10 text-white animate-spin" />
               </div>
               <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">Generating Your {mode === 'pdf' ? 'PDF Exam' : 'Quiz'}...</h3>
@@ -664,7 +664,7 @@ export default function ExamPrepPage() {
             </div>
 
             {loadingFact && (
-              <div className="bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-pink-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-xl p-6 shadow-inner">
+              <div className="bg-gradient-to-r from-blue-50 via-blue-100 to-blue-50 dark:from-blue-900/20 dark:via-blue-800/20 dark:to-blue-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-xl p-6 shadow-inner">
                 <div className="flex items-start gap-4">
                   <div className="text-4xl animate-pulse">💭</div>
                   <div className="flex-1">
@@ -677,8 +677,8 @@ export default function ExamPrepPage() {
             <div className="mt-6 flex justify-center">
               <div className="flex gap-2">
                 <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-3 h-3 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-3 h-3 bg-blue-700 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
               </div>
             </div>
           </div>
@@ -693,11 +693,11 @@ export default function ExamPrepPage() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="p-6 border-b dark:border-gray-700 bg-gradient-to-r from-pink-600 to-orange-600 rounded-t-xl flex-shrink-0">
+            <div className="p-6 border-b dark:border-gray-700 bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-xl flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-white">🎉 Your Exam is Ready!</h2>
-                  <p className="text-pink-100 text-sm mt-1">{generatedExamData.examTitle}</p>
+                  <p className="text-blue-100 text-sm mt-1">{generatedExamData.examTitle}</p>
                 </div>
                 <button
                   onClick={() => setShowPdfModal(false)}
@@ -746,7 +746,7 @@ export default function ExamPrepPage() {
                       URL.revokeObjectURL(url)
                       setShowPdfModal(false)
                     }}
-                    className="bg-gradient-to-r from-pink-600 to-orange-600 hover:from-pink-700 hover:to-orange-700 text-white shadow-lg"
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg"
                   >
                     📥 Download PDF
                   </Button>
