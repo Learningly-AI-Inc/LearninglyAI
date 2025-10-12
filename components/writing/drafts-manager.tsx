@@ -107,17 +107,17 @@ const DraftsManager: React.FC<DraftsManagerProps> = ({ userId, onLoadDraft }) =>
                       <CardTitle className="text-base font-medium">
                         {draft.title}
                       </CardTitle>
-                      <div className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                      <div className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded">
                         {draft.tone}
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="py-2 px-4">
-                    <p className="text-sm text-gray-500 mb-2 line-clamp-2">
+                    <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
                       {draft.excerpt}
                     </p>
                     <div className="flex justify-between items-center">
-                      <div className="flex items-center text-xs text-gray-500">
+                      <div className="flex items-center text-xs text-muted-foreground">
                         <Clock className="h-3 w-3 mr-1" />
                         Updated {formatDate(draft.updatedAt)}
                       </div>
@@ -125,7 +125,7 @@ const DraftsManager: React.FC<DraftsManagerProps> = ({ userId, onLoadDraft }) =>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-600 hover:bg-red-50"
+                          className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

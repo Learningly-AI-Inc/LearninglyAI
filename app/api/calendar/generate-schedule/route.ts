@@ -48,45 +48,39 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate semester dates based on semester name
-    const now = new Date()
-    const currentYear = now.getFullYear()
-    const currentMonth = now.getMonth() + 1 // 1-12
+    const currentYear = new Date().getFullYear()
     let semesterStartDate: Date
     let semesterEndDate: Date
-
-    // Extract year from semester name if present
-    const yearMatch = semester_name.match(/20\d{2}/)
-    const specifiedYear = yearMatch ? parseInt(yearMatch[0]) : null
-
+    
     if (semester_name.toLowerCase().includes('spring')) {
       // Spring semester: January to May
-      // Use specified year, or if after May, use next year, otherwise current year
-      const year = specifiedYear || (currentMonth > 5 ? currentYear + 1 : currentYear)
+      const year = semester_name.includes('2025') ? 2025 : currentYear
       semesterStartDate = new Date(`${year}-01-15`) // Spring semester start
       semesterEndDate = new Date(`${year}-05-15`) // Spring semester end
     } else if (semester_name.toLowerCase().includes('fall')) {
       // Fall semester: August to December
-      // Use specified year, or if before August, use current year, otherwise current year
-      const year = specifiedYear || currentYear
+      const year = semester_name.includes('2024') ? 2024 : currentYear
       semesterStartDate = new Date(`${year}-08-26`) // Fall semester start
       semesterEndDate = new Date(`${year}-12-13`) // Fall semester end
     } else if (semester_name.toLowerCase().includes('summer')) {
       // Summer semester: May to August
-      const year = specifiedYear || currentYear
+      const year = semester_name.includes('2025') ? 2025 : currentYear
       semesterStartDate = new Date(`${year}-05-15`) // Summer semester start
       semesterEndDate = new Date(`${year}-08-15`) // Summer semester end
     } else {
-      // Default to current or upcoming semester based on current date
-      if (currentMonth >= 1 && currentMonth <= 5) {
-        // Currently in Spring - use Spring dates
+      // Default to current semester
+      const now = new Date()
+      const month = now.getMonth() + 1
+      if (month >= 1 && month <= 5) {
+        // Spring
         semesterStartDate = new Date(`${currentYear}-01-15`)
         semesterEndDate = new Date(`${currentYear}-05-15`)
-      } else if (currentMonth >= 8 && currentMonth <= 12) {
-        // Currently in Fall - use Fall dates
+      } else if (month >= 8 && month <= 12) {
+        // Fall
         semesterStartDate = new Date(`${currentYear}-08-26`)
         semesterEndDate = new Date(`${currentYear}-12-13`)
       } else {
-        // Currently in Summer - use Summer dates
+        // Summer
         semesterStartDate = new Date(`${currentYear}-05-15`)
         semesterEndDate = new Date(`${currentYear}-08-15`)
       }

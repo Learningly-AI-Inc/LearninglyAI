@@ -141,12 +141,12 @@ export default function TakeExamPage() {
           <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
               <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="tracking-tight text-white">{exam.examTitle}</CardTitle>
-                <div className="text-sm text-blue-100">Duration: {exam.duration} minutes</div>
+                <CardTitle className="tracking-tight">{exam.examTitle}</CardTitle>
+                <div className="text-sm text-muted-foreground">Duration: {exam.duration} minutes</div>
               </div>
                 <div className="flex items-center gap-4">
                   {secondsLeft !== null && (
-                    <div className="text-lg font-mono tabular-nums bg-white/20 px-3 py-1 rounded-lg">
+                    <div className="text-sm font-mono tabular-nums text-foreground">
                       {Math.max(0, Math.floor(secondsLeft / 60)).toString().padStart(2, '0')}
                       :
                       {Math.max(0, secondsLeft % 60).toString().padStart(2, '0')}
@@ -164,8 +164,8 @@ export default function TakeExamPage() {
               exam?.quizMode === 'scheduled' ? (
                 // Scheduled Mode: Show all questions vertically
                 <>
-                  <div className="flex justify-between items-center sticky top-0 bg-white z-10 pb-4 border-b">
-                    <div className="text-sm text-slate-600">
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm text-muted-foreground">
                       {Object.keys(answers).length} of {total} questions answered
                     </div>
                     <Button onClick={submitAll} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
@@ -173,47 +173,34 @@ export default function TakeExamPage() {
                     </Button>
                   </div>
 
-                  {/* All Questions Displayed Vertically */}
-                  <div className="space-y-8 pt-4">
-                    {exam.questions.map((question, questionIndex) => (
-                      <div key={questionIndex} className="border-l-4 border-blue-500 pl-4 py-2">
-                        <div className="text-sm font-semibold text-blue-600 mb-3">
-                          Question {questionIndex + 1} of {total}
-                        </div>
-                        <div className="text-lg font-medium leading-relaxed mb-4">{question.question}</div>
-                        <div className="grid grid-cols-1 gap-3">
-                          {question.options?.map((opt, optIndex) => {
-                            const label = ['A', 'B', 'C', 'D'][optIndex] || String(optIndex + 1)
-                            const value = `${label}`
-                            const isSelected = answers[questionIndex] === value
-                            return (
-                              <button
-                                key={optIndex}
-                                onClick={() => setAnswers(prev => ({ ...prev, [questionIndex]: value }))}
-                                className={`w-full h-auto min-h-[3rem] py-3 px-4 rounded-lg border-2 text-left transition-all ${
-                                  isSelected
-                                    ? 'border-blue-600 bg-blue-50 shadow-md'
-                                    : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                                }`}
-                              >
-                                <span className="font-semibold text-blue-600 mr-3">{label}.</span>
-                                <span>{opt}</span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="border-t pt-6">
+                    <div className="text-sm text-muted-foreground mb-4">Question {index + 1} of {total}</div>
+                    <div className="text-base leading-relaxed mb-6">{q?.question}</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {q?.options?.map((opt, i) => {
+                        const label = ['A', 'B', 'C', 'D'][i] || String(i + 1)
+                        const value = `${label}`
+                        return (
+                          <Button
+                            key={i}
+                            variant={selected === value ? 'default' : 'outline'}
+                            onClick={() => setSelected(value)}
+                            className={`w-full h-auto min-h-[3rem] py-3 justify-start items-start text-left whitespace-normal break-words text-wrap leading-snug ${selected === value ? '' : 'hover:bg-accent'}`}
+                          >
+                            <span className="mr-3 font-semibold shrink-0">{label}.</span>
+                            <span className="flex-1 break-words">{opt}</span>
+                          </Button>
+                        )
+                      })}
+                    </div>
                   </div>
                 </>
               ) : (
                 // Rapid Fire Mode: One question at a time
                 <>
-                  <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-lg text-sm font-semibold my-4">
-                    Question {index + 1} of {total}
-                  </div>
-                  <div className="text-lg font-medium leading-relaxed mb-6">{q?.question}</div>
-                  <div className="grid grid-cols-1 gap-3">
+                  <div className="text-sm text-muted-foreground">Question {index + 1} of {total}</div>
+                  <div className="text-base leading-relaxed">{q?.question}</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {q?.options?.map((opt, i) => {
                       const label = ['A', 'B', 'C', 'D'][i] || String(i + 1)
                       const value = `${label}`
@@ -221,11 +208,7 @@ export default function TakeExamPage() {
                         <button
                           key={i}
                           onClick={() => setSelected(value)}
-                          className={`w-full h-auto min-h-[3rem] py-3 px-4 rounded-lg border-2 text-left transition-all ${
-                            selected === value
-                              ? 'border-purple-600 bg-purple-50 shadow-md'
-                              : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                          }`}
+                          className={`w-full h-auto min-h-[3rem] py-3 justify-start items-start text-left whitespace-normal break-words text-wrap leading-snug ${selected === value ? '' : 'hover:bg-accent'}`}
                         >
                           <span className="font-semibold text-purple-600 mr-3">{label}.</span>
                           <span>{opt}</span>
@@ -250,6 +233,9 @@ export default function TakeExamPage() {
                           <div className="text-sm mt-2 leading-relaxed">Explanation: {q.explanation}</div>
                         )}
                       </div>
+                      {q?.explanation && (
+                        <div className="text-sm text-foreground leading-relaxed">Explanation: {q.explanation}</div>
+                      )}
                       <div className="flex justify-end">
                         <Button onClick={next} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
                           Next

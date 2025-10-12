@@ -18,6 +18,7 @@ interface ImprovedWritingPageProps {
 }
 
 export function ImprovedWritingPage({
+  header,
   draftsManager,
   writingToolbar,
   richTextEditor,
@@ -38,21 +39,16 @@ export function ImprovedWritingPage({
   }, [])
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-      {/* Header with usage limits */}
-      <div className="p-3 border-b bg-white">
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
+      <div className="p-3 border-b bg-background">
         <div className="flex justify-between items-center gap-4">
-          {/* Left: Title */}
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <PencilRuler className="h-4 w-4 text-white" />
-            </div>
-            <h1 className="text-xl font-bold text-blue-700">Writing Assistant</h1>
+          <div className="flex items-center gap-2">
+            <PencilRuler className="h-5 w-5 text-primary" />
+            <span className="font-semibold text-lg text-foreground">Writing Assistant</span>
           </div>
 
-          {/* Center: Usage Limit */}
           {!usageLoading && (
-            <div className="flex-1 max-w-md">
+            <div className="flex-1 max-w-md mx-auto">
               <UsageProgressBar
                 current={getCurrentUsage('writing_words')}
                 limit={getCurrentLimit('writing_words')}
@@ -64,8 +60,9 @@ export function ImprovedWritingPage({
             </div>
           )}
 
-          {/* Right: Drafts Manager */}
-          {draftsManager}
+          <div>
+            {draftsManager}
+          </div>
         </div>
       </div>
 
@@ -81,7 +78,7 @@ export function ImprovedWritingPage({
                 {richTextEditor}
               </CardContent>
               <Separator />
-              <div className="p-3 bg-muted border-t">
+              <div className="p-3 bg-background border-t">
                 {wordCounter}
               </div>
             </Card>
@@ -101,7 +98,7 @@ export function ImprovedWritingPage({
                   {richTextEditor}
                 </CardContent>
                 <Separator />
-                <div className="p-3 bg-muted border-t">
+                <div className="p-3 bg-background border-t">
                   {wordCounter}
                 </div>
               </Card>

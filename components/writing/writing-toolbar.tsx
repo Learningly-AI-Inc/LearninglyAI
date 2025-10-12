@@ -132,7 +132,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
           variant="outline"
           size="sm"
           onMouseDown={() => onSelectOutput('detector')}
-          className="text-gray-700 border-gray-300 h-9"
+          className="h-9"
         >
           <Scan className="h-4 w-4 mr-2" />
           Humanizer
@@ -142,7 +142,7 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
           variant="outline"
           size="sm"
           onMouseDown={() => onSelectOutput('checker')}
-          className="text-gray-700 border-gray-300 h-9"
+          className="h-9"
         >
           <ShieldCheck className="h-4 w-4 mr-2" />
           AI Checker

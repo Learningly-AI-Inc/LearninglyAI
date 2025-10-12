@@ -38,6 +38,31 @@ const SettingsPage = () => {
   const { user, signOut } = useAuthContext()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
+  
+  // State for notification settings
+  const [emailNotifications, setEmailNotifications] = React.useState<boolean>(false)
+  const [pushNotifications, setPushNotifications] = React.useState<boolean>(false)
+
+  // Load notification settings from localStorage on component mount
+  React.useEffect(() => {
+    const savedEmailNotifications = localStorage.getItem("emailNotifications") === "true"
+    const savedPushNotifications = localStorage.getItem("pushNotifications") === "true"
+    
+    setEmailNotifications(savedEmailNotifications)
+    setPushNotifications(savedPushNotifications)
+  }, [])
+
+  // Handle email notifications toggle
+  const handleEmailNotificationsChange = (checked: boolean) => {
+    setEmailNotifications(checked)
+    localStorage.setItem("emailNotifications", checked.toString())
+  }
+
+  // Handle push notifications toggle
+  const handlePushNotificationsChange = (checked: boolean) => {
+    setPushNotifications(checked)
+    localStorage.setItem("pushNotifications", checked.toString())
+  }
 
   const handleExportData = async () => {
     if (!user) {
@@ -150,15 +175,15 @@ const SettingsPage = () => {
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <Label htmlFor="theme" className="text-foreground dark:text-gray-200">Theme</Label>
+              <Label htmlFor="theme" className="text-foreground">Theme</Label>
               <Select value={theme} onValueChange={(value) => setTheme(value as "light" | "dark" | "system")}>
-                <SelectTrigger className="w-[180px] border-border dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                <SelectTrigger className="w-[180px] border-border">
                   <SelectValue placeholder="Select theme" />
                 </SelectTrigger>
-                <SelectContent className="dark:bg-gray-700 dark:border-gray-600">
-                  <SelectItem value="light" className="dark:text-gray-200 dark:hover:bg-gray-600">Light</SelectItem>
-                  <SelectItem value="dark" className="dark:text-gray-200 dark:hover:bg-gray-600">Dark</SelectItem>
-                  <SelectItem value="system" className="dark:text-gray-200 dark:hover:bg-gray-600">System</SelectItem>
+                <SelectContent>
+                  <SelectItem value="light">Light</SelectItem>
+                  <SelectItem value="dark">Dark</SelectItem>
+                  <SelectItem value="system">System</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -177,12 +202,20 @@ const SettingsPage = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="email-notifications" className="text-foreground dark:text-gray-200">Email Notifications</Label>
-              <Switch id="email-notifications" defaultChecked />
+              <Label htmlFor="email-notifications" className="text-foreground">Email Notifications</Label>
+              <Switch 
+                id="email-notifications" 
+                checked={emailNotifications}
+                onCheckedChange={handleEmailNotificationsChange}
+              />
             </div>
             <div className="flex items-center justify-between">
-              <Label htmlFor="push-notifications" className="text-foreground dark:text-gray-200">Push Notifications</Label>
-              <Switch id="push-notifications" />
+              <Label htmlFor="push-notifications" className="text-foreground">Push Notifications</Label>
+              <Switch 
+                id="push-notifications" 
+                checked={pushNotifications}
+                onCheckedChange={handlePushNotificationsChange}
+              />
             </div>
           </CardContent>
         </Card>
