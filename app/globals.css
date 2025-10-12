@@ -68,100 +68,100 @@
 
 @layer base {
   :root {
-    /* Modern professional light theme */
+    /* Clean professional theme with blue accents */
     --background: 0 0% 99%;
-    --foreground: 222 84% 4.9%;
+    --foreground: 0 0% 9%;
     --card: 0 0% 100%;
-    --card-foreground: 222 84% 4.9%;
+    --card-foreground: 0 0% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 84% 4.9%;
-    --primary: 222 47% 11%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 25% 45%;
-    --accent: 210 40% 94%;
-    --accent-foreground: 222 47% 11%;
+    --popover-foreground: 0 0% 9%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 9%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 222 47% 11%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 217 91% 60%;
     --radius: 0.75rem;
 
     /* Sidebar variables */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 84% 4.9%;
-    --sidebar-muted: 210 40% 96%;
-    --sidebar-muted-foreground: 215 25% 45%;
-    --sidebar-border: 214 32% 91%;
-    --sidebar-input: 214 32% 91%;
-    --sidebar-primary: 222 47% 11%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 210 40% 94%;
-    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-foreground: 0 0% 9%;
+    --sidebar-muted: 0 0% 96%;
+    --sidebar-muted-foreground: 0 0% 45%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-input: 0 0% 90%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 91% 95%;
+    --sidebar-accent-foreground: 217 91% 60%;
     --sidebar-destructive: 0 84% 60%;
-    --sidebar-destructive-foreground: 210 40% 98%;
-    --sidebar-ring: 222 47% 11%;
+    --sidebar-destructive-foreground: 0 0% 98%;
+    --sidebar-ring: 217 91% 60%;
     
-    /* Professional brand colors */
-    --brand-primary: 222 47% 11%;
-    --brand-secondary: 210 40% 96%;
-    --brand-accent: 268 95% 68%;
-    --brand-gradient-from: 268 95% 68%;
-    --brand-gradient-to: 222 47% 11%;
+    /* Blue brand colors for accents only */
+    --brand-primary: 217 91% 60%;
+    --brand-secondary: 0 0% 96%;
+    --brand-accent: 217 91% 60%;
+    --brand-gradient-from: 217 91% 60%;
+    --brand-gradient-to: 224 76% 48%;
     --success: 142 76% 36%;
     --warning: 43 96% 56%;
-    --info: 199 89% 48%;
+    --info: 217 91% 60%;
   }
 
   .dark {
-    /* Modern professional dark theme - enhanced for better aesthetics */
-    --background: 222 47% 11%;
-    --foreground: 213 31% 91%;
-    --card: 224 71% 4%;
-    --card-foreground: 213 31% 91%;
-    --popover: 224 71% 4%;
-    --popover-foreground: 213 31% 91%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 222 47% 15%;
-    --secondary-foreground: 213 31% 91%;
-    --muted: 223 47% 15%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 216 34% 17%;
-    --accent-foreground: 213 31% 91%;
+    /* Clean dark theme with blue accents */
+    --background: 0 0% 9%;
+    --foreground: 0 0% 91%;
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 91%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 91%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 91%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 91%;
     --destructive: 0 63% 50%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
-    --ring: 212 95% 68%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 217 91% 60%;
 
     /* Sidebar variables for dark mode */
-    --sidebar-background: 224 71% 4%;
-    --sidebar-foreground: 213 31% 91%;
-    --sidebar-muted: 223 47% 15%;
-    --sidebar-muted-foreground: 215 20% 65%;
-    --sidebar-border: 216 34% 17%;
-    --sidebar-input: 216 34% 17%;
-    --sidebar-primary: 210 40% 98%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 216 34% 17%;
-    --sidebar-accent-foreground: 213 31% 91%;
+    --sidebar-background: 0 0% 12%;
+    --sidebar-foreground: 0 0% 91%;
+    --sidebar-muted: 0 0% 18%;
+    --sidebar-muted-foreground: 0 0% 65%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-input: 0 0% 18%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 91% 20%;
+    --sidebar-accent-foreground: 217 91% 70%;
     --sidebar-destructive: 0 63% 50%;
-    --sidebar-destructive-foreground: 210 40% 98%;
-    --sidebar-ring: 212 95% 68%;
+    --sidebar-destructive-foreground: 0 0% 98%;
+    --sidebar-ring: 217 91% 60%;
     
-    /* Professional brand colors for dark mode */
-    --brand-primary: 210 40% 98%;
-    --brand-secondary: 222 47% 15%;
-    --brand-accent: 268 95% 68%;
-    --brand-gradient-from: 268 95% 68%;
-    --brand-gradient-to: 210 40% 98%;
+    /* Blue brand colors for accents only */
+    --brand-primary: 217 91% 60%;
+    --brand-secondary: 0 0% 18%;
+    --brand-accent: 217 91% 60%;
+    --brand-gradient-from: 217 91% 60%;
+    --brand-gradient-to: 224 76% 48%;
     --success: 142 71% 45%;
     --warning: 43 96% 56%;
-    --info: 199 89% 48%;
+    --info: 217 91% 60%;
   }
 }
 
