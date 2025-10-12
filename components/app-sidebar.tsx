@@ -335,7 +335,7 @@ export default function AppSidebar({
           )}
           <button 
             onClick={() => router.push('/pricing')}
-            className={`${sidebarCollapsed ? "w-8 h-6 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200" : "w-full px-3 py-2"} text-xs font-medium bg-white text-blue-700 rounded-full hover:bg-white/90 transition-colors duration-200 shadow-sm`}
+            className={`${sidebarCollapsed ? "w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200" : "w-full px-3 py-2"} text-xs font-medium bg-white text-blue-700 dark:text-blue-600 rounded-full hover:bg-white/90 transition-colors duration-200 shadow-sm`}
           >
             {sidebarCollapsed ? <Crown className="h-5 w-5 text-white" /> : (
               <div className="flex items-center justify-center gap-1">
@@ -347,7 +347,7 @@ export default function AppSidebar({
         </div>
         )}
         <div className="flex justify-end">
-          <button onClick={handleLogout} className="inline-flex items-center gap-2 text-sm text-white hover:text-red-600 transition-colors duration-200">
+          <button onClick={handleLogout} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors duration-200">
             <LogOut className="h-4 w-4"/>
             {!sidebarCollapsed && "Logout"}
           </button>

@@ -118,10 +118,10 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   // Show loading state while checking authentication
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     )
@@ -136,7 +136,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
     <ToastProvider>
       <UserStatusProvider>
         <Suspense fallback={null}>
-          <div className="min-h-screen bg-white">
+          <div className="min-h-screen bg-background">
             <AppSidebar
               sidebarCollapsed={sidebarCollapsed}
               setSidebarCollapsed={setSidebarCollapsed}
@@ -161,11 +161,11 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
             <div className="md:hidden">
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50 bg-white border border-border/50 hover:bg-slate-50 shadow-lg">
+                  <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50 bg-background border border-border/50 hover:bg-accent shadow-lg">
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-[280px] bg-white/95 backdrop-blur-xl p-0 border-r border-border/50">
+                <SheetContent side="left" className="w-[280px] bg-background/95 backdrop-blur-xl p-0 border-r border-border/50">
                   <AppSidebar
                     sidebarCollapsed={false}
                     setSidebarCollapsed={() => {}}

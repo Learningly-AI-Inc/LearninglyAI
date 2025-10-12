@@ -303,7 +303,52 @@ const WritingPageClient = () => {
     return hash.toString();
   };
 
-  // Removed highlightGrammarIssues function - no longer needed since we don't highlight in the editor
+  // Function to highlight grammar issues in the editor content
+  const highlightGrammarIssues = (content: string, issues: GrammarIssue[]) => {
+    if (!issues || issues.length === 0) {
+      return content;
+    }
+
+    let highlightedContent = content;
+    const issueHighlights: Array<{start: number, end: number, issue: GrammarIssue}> = [];
+
+    // Find all issue positions and sort by start position
+    issues.forEach((issue, index) => {
+      const regex = buildHtmlInterleavedRegex(issue.original);
+      const match = highlightedContent.match(regex);
+      if (match && match.index !== undefined) {
+        issueHighlights.push({
+          start: match.index,
+          end: match.index + match[0].length,
+          issue: { ...issue, id: `${issue.id}-${index}` }
+        });
+      }
+    });
+
+    // Sort by start position (descending to avoid offset issues)
+    issueHighlights.sort((a, b) => b.start - a.start);
+
+    // Apply highlights from end to beginning
+    issueHighlights.forEach((highlight, index) => {
+      const { start, end, issue } = highlight;
+      const before = highlightedContent.slice(0, start);
+      const issueText = highlightedContent.slice(start, end);
+      const after = highlightedContent.slice(end);
+      
+      const issueTypeClass = {
+        'grammar': 'bg-red-100 dark:bg-red-900/20 border-b-2 border-red-400 dark:border-red-600',
+        'spelling': 'bg-orange-100 dark:bg-orange-900/20 border-b-2 border-orange-400 dark:border-orange-600', 
+        'style': 'bg-yellow-100 dark:bg-yellow-900/20 border-b-2 border-yellow-400 dark:border-yellow-600',
+        'clarity': 'bg-blue-100 dark:bg-blue-900/20 border-b-2 border-blue-400 dark:border-blue-600'
+      }[issue.type] || 'bg-muted border-b-2 border-border';
+
+      const highlightedIssue = `<span class="grammar-issue ${issueTypeClass}" data-issue-id="${escapeHtmlAttribute(issue.id)}" data-issue-type="${escapeHtmlAttribute(issue.type)}" title="${escapeHtmlAttribute(issue.description)}">${issueText}</span>`;
+      
+      highlightedContent = before + highlightedIssue + after;
+    });
+
+    return highlightedContent;
+  };
 
   // Function to navigate to next/previous issue
   const navigateToIssue = (direction: 'next' | 'prev') => {

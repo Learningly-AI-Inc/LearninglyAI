@@ -140,14 +140,7 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
       setUploadProgress(80)
 
       const { courses, semester_name } = await response.json()
-
-      console.log('Received from API:', { courses, semester_name, courseCount: courses?.length })
-
-      // Validate that we have courses
-      if (!courses || courses.length === 0) {
-        throw new Error('No courses found in syllabus. The AI could not extract course information from this document.')
-      }
-
+      
       // Save document metadata to database using existing documents table
       // TEMPORARY WORKAROUND: Skip database insert if RLS is blocking it
       try {
@@ -203,15 +196,7 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
   }
 
   const generateSchedule = async () => {
-    if (!extractedCourses.length) {
-      showError('No courses extracted from syllabus. Please upload a different file or try again.')
-      return
-    }
-
-    if (!semesterName) {
-      showError('Semester name is missing. Please upload the syllabus again.')
-      return
-    }
+    if (!extractedCourses.length || !semesterName) return
 
     try {
       setIsUploading(true)
@@ -269,7 +254,7 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
       }
 
       setProcessingStatus('completed')
-
+      
       // Call the callback with the schedule data
       onScheduleGenerated?.({
         id: 'temp-id',
@@ -282,7 +267,7 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
         created_at: new Date().toISOString()
       })
 
-      showSuccess(`Successfully created ${events?.length || 0} calendar events! Switch to the Calendar tab to view them.`)
+      showSuccess(`Created ${events?.length || 0} calendar events for ${semesterName} with ${extractedCourses.length} courses`)
 
     } catch (error) {
       console.error('Error generating schedule:', error)

@@ -12,11 +12,11 @@ let openai: OpenAI | null = null
 
 function getOpenAI(): OpenAI {
   if (!openai) {
-    if (!process.env.NEXT_PUBLIC_OPENAI_API_KEY) {
+    if (!process.env.OPENAI_API_KEY) {
       throw new Error('OpenAI API key not configured')
     }
     openai = new OpenAI({
-      apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+      apiKey: process.env.OPENAI_API_KEY,
     })
   }
   return openai
@@ -36,8 +36,7 @@ async function extractTextFromPDFBuffer(buffer: Buffer): Promise<string> {
     } = await import('@adobe/pdfservices-node-sdk')
 
     // Load credentials from the JSON file
-    const path = require('path')
-    const credentialsPath = path.join(process.cwd(), 'app', 'pdfservices-api-credentials.json')
+    const credentialsPath = '/Users/brianchen/Documents/LearninglyAI/app/pdfservices-api-credentials.json'
     const credentialsData = JSON.parse(require('fs').readFileSync(credentialsPath, 'utf8'))
     
     const credentials = new ServicePrincipalCredentials({
@@ -275,41 +274,26 @@ async function parseSyllabusWithLLM(text: string): Promise<{ courses: Course[], 
   console.log('Last 500 characters of text:', text.substring(Math.max(0, text.length - 500)))
   console.log('========================')
   
-  // Get current date info for semester detection
-  const now = new Date()
-  const currentYear = now.getFullYear()
-  const currentMonth = now.getMonth() + 1 // 1-12
-
-  // Determine current semester
-  let currentSemester = 'Current Semester'
-  if (currentMonth >= 1 && currentMonth <= 5) {
-    currentSemester = `Spring ${currentYear}`
-  } else if (currentMonth >= 8 && currentMonth <= 12) {
-    currentSemester = `Fall ${currentYear}`
-  } else {
-    currentSemester = `Summer ${currentYear}`
-  }
-
-  const prompt = `You are an expert at parsing academic syllabi and exam schedules. Extract course and exam information from the following text and return ONLY a valid JSON object.
+  const prompt = `You are an expert at parsing academic syllabi. Extract course information from the following syllabus text and return ONLY a valid JSON object.
 
 IMPORTANT: Return ONLY valid JSON. No markdown, no backticks, no explanations, no additional text.
 
 Required JSON structure:
 {
-  "semester_name": "Fall ${currentYear}",
+  "semester_name": "Fall 2024",
   "courses": [
     {
       "name": "Course Name",
       "code": "COURSE 101",
-      "instructor": "Instructor Name or Unknown",
+      "instructor": "Instructor Name",
       "credits": 3,
-      "location": "Room/Building or null",
+      "location": "Room/Building",
       "schedule": [
         {
           "day_of_week": 1,
           "start_time": "09:00",
           "end_time": "10:30",
-          "location": "Room/Building or null",
+          "location": "Room/Building",
           "type": "lecture"
         }
       ]
@@ -318,44 +302,13 @@ Required JSON structure:
 }
 
 Guidelines:
-1. SEMESTER NAME: Use "${currentSemester}" as the semester name if not explicitly stated in the document
-   - If the document mentions a specific semester and year, use that
-   - Otherwise, use "${currentSemester}"
-
-2. If the document is a COURSE syllabus with class meeting times:
-   - Extract ALL courses with their scheduled meeting times
-   - Convert day names to numbers: Monday=1, Tuesday=2, Wednesday=3, Thursday=4, Friday=5, Saturday=6, Sunday=0
-   - Use 24-hour time format (e.g., "09:00" not "9:00 AM")
-
-3. If the document is an EXAM syllabus (listing exam topics/duration but no class schedule):
-   - Extract the course name from the document title or context
-   - Use "Unknown" for instructor if not specified
-   - Estimate credits as 3 if not specified
-   - Create a schedule array with the exam date/time if provided
-   - If exam date is not specified, create ONE placeholder event for the course
-
-4. ALWAYS return at least ONE course, even if schedule information is minimal
-   - Use the document's title or main subject as the course name
-   - If no schedule is found, create a single placeholder schedule entry
-
-Example for exam syllabus without schedule:
-{
-  "semester_name": "${currentSemester}",
-  "courses": [{
-    "name": "Business Studies",
-    "code": "BUS 101",
-    "instructor": "Unknown",
-    "credits": 3,
-    "location": null,
-    "schedule": [{
-      "day_of_week": 1,
-      "start_time": "09:00",
-      "end_time": "12:00",
-      "location": null,
-      "type": "lecture"
-    }]
-  }]
-}
+- Extract ALL courses mentioned in the syllabus
+- For each course, extract ALL scheduled meeting times
+- Convert day names to numbers: Monday=1, Tuesday=2, Wednesday=3, Thursday=4, Friday=5, Saturday=6, Sunday=0
+- Use 24-hour time format (e.g., "09:00" not "9:00 AM")
+- If location is not specified, use null
+- If credits are not specified, estimate based on typical course credit hours
+- Include all recurring class meetings, labs, tutorials, etc.
 
 Syllabus text:
 ${text}

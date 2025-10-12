@@ -293,13 +293,11 @@ export default function ExamPrepPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="container mx-auto px-4 py-10 max-w-4xl">
-        <header className="mb-8 text-center">
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-            📚 Exam Prep
-          </h1>
-          <p className="text-slate-600 dark:text-slate-300">Generate full-length PDF exams or online quizzes from your study materials.</p>
+    <div className="min-h-screen bg-gradient-to-b from-background via-muted/20 to-muted/40">
+      <div className="container mx-auto px-4 py-10 max-w-3xl">
+        <header className="mb-6">
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">Exam Prep</h1>
+          <p className="text-sm text-muted-foreground mt-1">Generate full-length PDF exams or online quizzes from your study materials.</p>
         </header>
 
         <Card className="mb-6 shadow-lg border-l-4 border-blue-500 dark:border-blue-400 dark:bg-gray-800">
@@ -318,8 +316,8 @@ export default function ExamPrepPage() {
           <CardContent className="p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-foreground dark:text-slate-200">Upload single or multiple files (up to 10 files, 100MB each).</p>
-                <p className="text-xs text-muted-foreground dark:text-slate-400 mt-1">Drag & drop multiple files for faster uploads, or click to browse.</p>
+                <p className="text-sm text-foreground">Upload single or multiple files (up to 10 files, 100MB each).</p>
+                <p className="text-xs text-muted-foreground mt-1">Drag & drop multiple files for faster uploads, or click to browse.</p>
               </div>
               <Button
                 size="sm"
@@ -329,21 +327,21 @@ export default function ExamPrepPage() {
                 📤 Upload Files
               </Button>
             </div>
-            <div className="text-sm text-muted-foreground dark:text-slate-400">
+            <div className="text-sm text-muted-foreground">
               {uploadedDocs.length === 0 ? 'No study materials uploaded yet.' : `${uploadedDocs.length} study material(s) ready.`}
             </div>
             {uploadedDocs.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground dark:text-slate-400">Uploaded study materials:</p>
+                <p className="text-xs text-muted-foreground">Uploaded study materials:</p>
                 <div className="space-y-1">
                   {uploadedDocs.map((doc, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-card dark:bg-gray-700 border dark:border-gray-600 rounded text-sm">
-                      <span className="text-card-foreground dark:text-slate-200">{doc.name || `Document ${index + 1}`}</span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                    <div key={index} className="flex items-center justify-between p-2 bg-card border rounded text-sm">
+                      <span className="text-card-foreground">{doc.name || `Document ${index + 1}`}</span>
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
                         onClick={() => setUploadedDocs(prev => prev.filter((_, i) => i !== index))}
-                        className="text-destructive hover:text-destructive/80 dark:text-red-400 dark:hover:text-red-300"
+                        className="text-destructive hover:text-destructive/80"
                       >
                         Remove
                       </Button>
@@ -368,68 +366,68 @@ export default function ExamPrepPage() {
           <Separator className="dark:bg-gray-700" />
           <CardContent className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="title" className="dark:text-slate-200">Title</Label>
-              <Input id="title" value={title} onChange={(e)=>setTitle(e.target.value)} placeholder="e.g. Biology Midterm Practice" className="dark:bg-gray-700 dark:border-gray-600 dark:text-slate-200 dark:placeholder-slate-400" />
-              <p className="text-xs text-muted-foreground dark:text-slate-400">A clear title keeps sessions organized.</p>
+              <Label htmlFor="title">Title</Label>
+              <Input id="title" value={title} onChange={(e)=>setTitle(e.target.value)} placeholder="e.g. Biology Midterm Practice" />
+              <p className="text-xs text-muted-foreground">A clear title keeps sessions organized.</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="count" className="dark:text-slate-200">Questions</Label>
-              <Input id="count" type="number" min={5} max={50} value={count} onChange={(e)=>setCount(Math.max(5, Math.min(50, parseInt(e.target.value || '0') || 0)))} className="dark:bg-gray-700 dark:border-gray-600 dark:text-slate-200" />
-              <p className="text-xs text-muted-foreground dark:text-slate-400">Tip: 10–30 works well for focused practice.</p>
+              <Label htmlFor="count">Questions</Label>
+              <Input id="count" type="number" min={5} max={50} value={count} onChange={(e)=>setCount(Math.max(5, Math.min(50, parseInt(e.target.value || '0') || 0)))} />
+              <p className="text-xs text-muted-foreground">Tip: 10–30 works well for focused practice.</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="duration" className="dark:text-slate-200">Duration (min)</Label>
-              <Input id="duration" type="number" min={10} max={240} value={duration} onChange={(e)=>setDuration(Math.max(10, Math.min(240, parseInt(e.target.value || '0') || 0)))} className="dark:bg-gray-700 dark:border-gray-600 dark:text-slate-200" />
-              <p className="text-xs text-muted-foreground dark:text-slate-400">Set a realistic timebox to mimic test pace.</p>
+              <Label htmlFor="duration">Duration (min)</Label>
+              <Input id="duration" type="number" min={10} max={240} value={duration} onChange={(e)=>setDuration(Math.max(10, Math.min(240, parseInt(e.target.value || '0') || 0)))} />
+              <p className="text-xs text-muted-foreground">Set a realistic timebox to mimic test pace.</p>
             </div>
             <div className="space-y-2 sm:col-span-3">
               <Label className="dark:text-slate-200">Exam Type</Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div
-                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    mode === 'online'
-                      ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 shadow-md'
-                      : 'border-gray-200 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                <div 
+                  className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                    mode === 'online' 
+                      ? 'border-primary bg-primary/10' 
+                      : 'border-border hover:border-border/80'
                   }`}
                   onClick={() => setMode('online')}
                 >
                   <div className="flex items-center space-x-3">
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      mode === 'online' ? 'border-purple-500 bg-purple-500' : 'border-gray-300 dark:border-gray-600'
+                    <div className={`w-4 h-4 rounded-full border-2 ${
+                      mode === 'online' ? 'border-primary bg-primary' : 'border-muted-foreground'
                     }`}>
-                      {mode === 'online' && <div className="w-2 h-2 bg-white rounded-full" />}
+                      {mode === 'online' && <div className="w-2 h-2 bg-primary-foreground rounded-full m-0.5" />}
                     </div>
                     <div>
-                      <h3 className="font-medium text-slate-900 dark:text-slate-100">💻 Online Quiz</h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">Interactive quiz with real-time feedback</p>
+                      <h3 className="font-medium text-foreground">Online Quiz</h3>
+                      <p className="text-sm text-muted-foreground">Interactive quiz with real-time feedback</p>
                     </div>
                   </div>
                 </div>
-                <div
-                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    mode === 'pdf'
-                      ? 'border-pink-500 bg-gradient-to-br from-pink-50 to-orange-50 dark:from-pink-900/30 dark:to-orange-900/30 shadow-md'
-                      : 'border-gray-200 dark:border-gray-600 hover:border-pink-300 dark:hover:border-pink-500 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                <div 
+                  className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                    mode === 'pdf' 
+                      ? 'border-primary bg-primary/10' 
+                      : 'border-border hover:border-border/80'
                   }`}
                   onClick={() => setMode('pdf')}
                 >
                   <div className="flex items-center space-x-3">
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      mode === 'pdf' ? 'border-pink-500 bg-pink-500' : 'border-gray-300 dark:border-gray-600'
+                    <div className={`w-4 h-4 rounded-full border-2 ${
+                      mode === 'pdf' ? 'border-primary bg-primary' : 'border-muted-foreground'
                     }`}>
-                      {mode === 'pdf' && <div className="w-2 h-2 bg-white rounded-full" />}
+                      {mode === 'pdf' && <div className="w-2 h-2 bg-primary-foreground rounded-full m-0.5" />}
                     </div>
                     <div>
-                      <h3 className="font-medium text-slate-900 dark:text-slate-100">📄 PDF Exam</h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">Downloadable exam for offline practice</p>
+                      <h3 className="font-medium text-foreground">PDF Exam</h3>
+                      <p className="text-sm text-muted-foreground">Downloadable exam for offline practice</p>
                     </div>
                   </div>
                 </div>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                {mode === 'online'
-                  ? 'Choose between rapid-fire questions or scheduled format below.'
-                  : 'Generates and downloads a PDF exam with questions and answer key.'
+              <p className="text-xs text-muted-foreground mt-2">
+                {mode === 'online' 
+                  ? 'Choose between rapid-fire questions or scheduled format below.' 
+                  : 'Opens the advanced PDF builder for comprehensive exam generation.'
                 }
               </p>
             </div>
@@ -498,85 +496,125 @@ export default function ExamPrepPage() {
                 <div className="space-y-2 sm:col-span-3">
                   <Label className="dark:text-slate-200">Quiz Mode</Label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                        quizMode === 'rapid-fire'
-                          ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 shadow-md'
-                          : 'border-gray-200 dark:border-gray-600 hover:border-emerald-300 dark:hover:border-emerald-500 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                    <div 
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                        quizMode === 'rapid-fire' 
+                          ? 'border-green-500 bg-green-500/10' 
+                          : 'border-border hover:border-border/80'
                       }`}
                       onClick={() => setQuizMode('rapid-fire')}
                     >
                       <div className="flex items-center space-x-3">
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          quizMode === 'rapid-fire' ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 dark:border-gray-600'
+                        <div className={`w-4 h-4 rounded-full border-2 ${
+                          quizMode === 'rapid-fire' ? 'border-green-500 bg-green-500' : 'border-muted-foreground'
                         }`}>
                           {quizMode === 'rapid-fire' && <div className="w-2 h-2 bg-white rounded-full" />}
                         </div>
                         <div>
-                          <h3 className="font-medium text-slate-900 dark:text-slate-100">⚡ Rapid Fire</h3>
-                          <p className="text-sm text-slate-600 dark:text-slate-400">Questions appear one by one</p>
+                          <h3 className="font-medium text-foreground">Rapid Fire Round</h3>
+                          <p className="text-sm text-muted-foreground">Questions appear one by one</p>
                         </div>
                       </div>
                     </div>
-                    <div
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                        quizMode === 'scheduled'
-                          ? 'border-cyan-500 bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-900/30 dark:to-blue-900/30 shadow-md'
-                          : 'border-gray-200 dark:border-gray-600 hover:border-cyan-300 dark:hover:border-cyan-500 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                    <div 
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                        quizMode === 'scheduled' 
+                          ? 'border-green-500 bg-green-500/10' 
+                          : 'border-border hover:border-border/80'
                       }`}
                       onClick={() => setQuizMode('scheduled')}
                     >
                       <div className="flex items-center space-x-3">
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          quizMode === 'scheduled' ? 'border-cyan-500 bg-cyan-500' : 'border-gray-300 dark:border-gray-600'
+                        <div className={`w-4 h-4 rounded-full border-2 ${
+                          quizMode === 'scheduled' ? 'border-green-500 bg-green-500' : 'border-muted-foreground'
                         }`}>
                           {quizMode === 'scheduled' && <div className="w-2 h-2 bg-white rounded-full" />}
                         </div>
                         <div>
-                          <h3 className="font-medium text-slate-900 dark:text-slate-100">📋 Scheduled</h3>
-                          <p className="text-sm text-slate-600 dark:text-slate-400">All questions visible top to bottom</p>
+                          <h3 className="font-medium text-foreground">Scheduled Quiz</h3>
+                          <p className="text-sm text-muted-foreground">All questions visible from top to bottom</p>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                    {quizMode === 'rapid-fire'
-                      ? 'Perfect for quick practice sessions with immediate feedback.'
-                      : 'Ideal for comprehensive review with ability to scroll through all questions.'
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {quizMode === 'rapid-fire' 
+                      ? 'Perfect for quick practice sessions with immediate feedback.' 
+                      : 'Ideal for comprehensive review with ability to navigate between questions.'
                     }
                   </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Difficulty</Label>
+                  <Select value={difficulty} onValueChange={(v)=>setDifficulty(v as any)}>
+                    <SelectTrigger><SelectValue placeholder="Select difficulty" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="easy">Easy</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="hard">Hard</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Specific instructions (optional)</Label>
+                  <Textarea value={instructions} onChange={(e)=>setInstructions(e.target.value)} rows={3} placeholder="Any topics to emphasize, style preferences, or special constraints" />
+                </div>
+                <div className="space-y-2 sm:col-span-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Sample questions (optional)</Label>
+                      <p className="text-xs text-muted-foreground mt-1">Upload up to 5 sample questions from your professor for better exam generation</p>
+                    </div>
+                    <Badge variant={sampleQuestions.length > 0 ? "secondary" : "outline"}>
+                      {sampleQuestions.length > 0 ? `${sampleQuestions.length}/5 files` : 'No files'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 border border-dashed border-border rounded-lg bg-muted/50">
+                    <div className="text-sm text-muted-foreground">
+                      {sampleQuestions.length === 0 ? 'No sample questions uploaded yet.' : `${sampleQuestions.length} sample question file(s) ready.`}
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => setShowSampleUploader(true)}
+                      disabled={sampleQuestions.length >= 5}
+                    >
+                      {sampleQuestions.length >= 5 ? 'Max 5 files' : 'Upload Sample'}
+                    </Button>
+                  </div>
+                  {sampleQuestions.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">Uploaded sample questions:</p>
+                      <div className="space-y-1">
+                        {sampleQuestions.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between p-2 bg-card border rounded text-sm">
+                            <span className="text-card-foreground">{file.name || `Sample Question ${index + 1}`}</span>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => setSampleQuestions(prev => prev.filter((_, i) => i !== index))}
+                              className="text-destructive hover:text-destructive/80"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}
           </CardContent>
-          <CardFooter className="p-6 pt-0 dark:border-gray-700">
-            <div className="flex items-center justify-between w-full">
-              <p className="text-xs text-slate-500 dark:text-slate-400">You can adjust settings anytime before generating.</p>
-              <Button
-                onClick={generate}
-                disabled={uploadedDocs.length === 0 || isGenerating}
-                className={`${
-                  mode === 'pdf'
-                    ? 'bg-gradient-to-r from-pink-600 to-orange-600 hover:from-pink-700 hover:to-orange-700'
-                    : quizMode === 'rapid-fire'
-                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700'
-                    : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700'
-                } text-white shadow-md`}
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  mode === 'pdf'
-                    ? '✨ Generate PDF Exam'
-                    : quizMode === 'rapid-fire'
-                    ? '⚡ Generate Rapid Fire Quiz'
-                    : '📋 Generate Scheduled Quiz'
-                )}
-              </Button>
-            </div>
+          <CardFooter className="p-6 pt-0 flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">You can adjust settings anytime before generating.</p>
+            <Button onClick={generate} disabled={uploadedDocs.length === 0 || isGenerating}>
+              {isGenerating ? 'Generating…' : (
+                mode === 'pdf' 
+                  ? 'Open PDF Builder' 
+                  : `Generate ${quizMode === 'rapid-fire' ? 'Rapid Fire' : 'Scheduled'} Quiz`
+              )}
+            </Button>
           </CardFooter>
         </Card>
       </div>

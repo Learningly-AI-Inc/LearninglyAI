@@ -6,6 +6,7 @@ import { Editor } from "react-draft-wysiwyg";
 import draftToHtml from "draftjs-to-html";
 import htmlToDraft from "html-to-draftjs";
 import "react-draft-wysiwyg/dist/react-draft-wysiwyg.css";
+import "./editor-styles.css";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface RichTextEditorProps {
@@ -157,6 +158,71 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   }, []);
 
+  // NUCLEAR OPTION: Force remove ALL white backgrounds from Draft.js
+  useEffect(() => {
+    const forceThemeStyles = () => {
+      // Get computed values of CSS variables
+      const rootStyles = getComputedStyle(document.documentElement);
+      const cardBg = rootStyles.getPropertyValue('--card').trim();
+      const textColor = rootStyles.getPropertyValue('--foreground').trim();
+      
+      // Convert to HSL format
+      const cardBgColor = cardBg ? `hsl(${cardBg})` : 'hsl(224 71% 4%)'; // fallback dark color
+      const textColorValue = textColor ? `hsl(${textColor})` : 'hsl(213 31% 91%)'; // fallback light text
+      
+      // Target ALL possible Draft.js elements
+      const selectors = [
+        '[class*="Draft"]',
+        '[class*="rdw-"]',
+        '[class*="public-Draft"]',
+        '.DraftEditor-root',
+        '.DraftEditor-editorContainer',
+        '.public-DraftEditor-content',
+        '.rdw-editor-main',
+        '.dark-mode-editor',
+        '.dark-mode-wrapper',
+        '[contenteditable="true"]'
+      ];
+      
+      selectors.forEach(selector => {
+        try {
+          const elements = document.querySelectorAll(selector);
+          elements.forEach((el: Element) => {
+            const htmlEl = el as HTMLElement;
+            // Force dark background with computed values
+            htmlEl.style.setProperty('background-color', cardBgColor, 'important');
+            htmlEl.style.setProperty('background', cardBgColor, 'important');
+            htmlEl.style.setProperty('color', textColorValue, 'important');
+          });
+        } catch (e) {
+          // Ignore errors
+        }
+      });
+    };
+
+    // Run immediately
+    forceThemeStyles();
+    
+    // Run on interval
+    const interval = setInterval(forceThemeStyles, 50);
+    
+    // Use MutationObserver to catch DOM changes
+    const observer = new MutationObserver(forceThemeStyles);
+    
+    // Observe the entire document for changes
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class']
+    });
+    
+    return () => {
+      clearInterval(interval);
+      observer.disconnect();
+    };
+  }, []);
+
   const onEditorStateChange = (newState: EditorState) => {
     // Prevent automatic new line creation by checking content
     const content = newState.getCurrentContent();
@@ -248,26 +314,38 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   };
 
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="w-full h-full flex flex-col bg-card">
       <div
-        className={`editor-wrapper ${readOnly ? "read-only" : ""} flex flex-col h-full`}
+        className={`editor-wrapper ${readOnly ? "read-only" : ""} flex flex-col h-full bg-card`}
         style={{ 
           overflow: "hidden",
-          position: "relative"
+          position: "relative",
+          backgroundColor: "hsl(var(--card))",
+          color: "hsl(var(--foreground))"
         }}
         onClick={handleEditorClick}
       >
         <Editor
           ref={editorRef}
           editorState={editorState}
-          toolbarClassName="toolbar-class"
-          wrapperClassName="wrapper-class flex flex-col h-full"
-          editorClassName="editor-class p-4 flex-1 overflow-auto focus:outline-none"
+          toolbarClassName="dark-mode-toolbar"
+          wrapperClassName="dark-mode-wrapper flex flex-col h-full"
+          editorClassName="dark-mode-editor p-4 flex-1 overflow-auto focus:outline-none"
           onEditorStateChange={onEditorStateChange}
           placeholder={placeholder}
           readOnly={readOnly}
           toolbar={toolbarOptions}
           textAlignment="left"
+          editorStyle={{
+            backgroundColor: "hsl(var(--card))",
+            color: "hsl(var(--foreground))",
+            minHeight: "300px"
+          }}
+          toolbarStyle={{
+            backgroundColor: "hsl(var(--card))",
+            border: "none",
+            borderBottom: "1px solid hsl(var(--border))"
+          }}
           onFocus={() => {
             // Ensure cursor is visible when editor gains focus
             if (editorRef.current?.editor) {
