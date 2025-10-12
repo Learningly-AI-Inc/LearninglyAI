@@ -124,6 +124,8 @@
   min-width: 40px !important;
   z-index: 100 !important;
   position: relative !important;
+  background: hsl(var(--background)) !important;
+  border: 1px solid hsl(var(--border)) !important;
 }
 
 .rdw-dropdown-optionwrapper {
@@ -135,6 +137,24 @@
   top: 100% !important;
   width: auto !important;
   min-width: 100% !important;
+  background: hsl(var(--popover)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.rdw-dropdownoption-default {
+  background: hsl(var(--popover)) !important;
+  color: hsl(var(--popover-foreground)) !important;
+}
+
+.rdw-dropdownoption-highlighted {
+  background: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}
+
+.rdw-dropdownoption-active {
+  background: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
 }
 
 .fontsize-dropdown {
@@ -156,6 +176,12 @@
 }
 
 /* Make toolbar buttons more visible on hover */
+.rdw-option-wrapper {
+  background: hsl(var(--background)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
 .rdw-option-wrapper:hover {
   box-shadow: 1px 1px 0px hsl(var(--border)) !important;
   background-color: hsl(var(--accent)) !important;
@@ -164,4 +190,53 @@
 .rdw-option-active {
   box-shadow: 1px 1px 0px hsl(var(--border)) !important;
   background-color: hsl(var(--accent)) !important;
+}
+
+/* Style toolbar icons for dark mode */
+.rdw-option-wrapper img {
+  filter: brightness(0) saturate(100%) invert(0);
+}
+
+.dark .rdw-option-wrapper img {
+  filter: brightness(0) saturate(100%) invert(1);
+}
+
+/* Modal and link popups */
+.rdw-link-modal,
+.rdw-embedded-modal,
+.rdw-emoji-modal,
+.rdw-image-modal {
+  background: hsl(var(--popover)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.rdw-link-modal input,
+.rdw-embedded-modal input,
+.rdw-image-modal input {
+  background: hsl(var(--input)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+.rdw-link-modal-btn,
+.rdw-embedded-modal-btn,
+.rdw-image-modal-btn {
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  border: none !important;
+}
+
+.rdw-link-modal-btn:hover,
+.rdw-embedded-modal-btn:hover,
+.rdw-image-modal-btn:hover {
+  opacity: 0.9;
+}
+
+.rdw-link-modal-btn:disabled,
+.rdw-embedded-modal-btn:disabled,
+.rdw-image-modal-btn:disabled {
+  background: hsl(var(--muted)) !important;
+  color: hsl(var(--muted-foreground)) !important;
+  opacity: 0.5;
 }
