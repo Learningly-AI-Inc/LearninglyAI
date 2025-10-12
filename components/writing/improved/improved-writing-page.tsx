@@ -80,7 +80,7 @@ export function ImprovedWritingPage({
                 {richTextEditor}
               </CardContent>
               <Separator />
-              <div className="p-3 bg-muted border-t">
+              <div className="p-3 bg-background border-t">
                 {wordCounter}
               </div>
             </Card>
@@ -100,7 +100,7 @@ export function ImprovedWritingPage({
                   {richTextEditor}
                 </CardContent>
                 <Separator />
-                <div className="p-3 bg-muted border-t">
+                <div className="p-3 bg-background border-t">
                   {wordCounter}
                 </div>
               </Card>
