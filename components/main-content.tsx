@@ -28,8 +28,8 @@ const featureCards = [
     description: "Summarize documents, generate notes, and create interactive quizzes from any text.",
     href: "/reading",
     cta: "Start Reading",
-    gradient: "from-blue-500/20 to-cyan-500/20",
-    iconBg: "bg-gradient-to-br from-blue-500 to-cyan-500",
+    gradient: "from-blue-500/20 to-blue-600/20",
+    iconBg: "bg-gradient-to-br from-blue-500 to-blue-600",
     badge: "Popular",
     badgeVariant: "secondary" as const,
   },
@@ -39,8 +39,8 @@ const featureCards = [
     description: "Enhance your essays with AI-powered grammar checks, style improvements, and paraphrasing.",
     href: "/writing",
     cta: "Start Writing",
-    gradient: "from-purple-500/20 to-pink-500/20",
-    iconBg: "bg-gradient-to-br from-purple-500 to-pink-500",
+    gradient: "from-blue-500/20 to-blue-600/20",
+    iconBg: "bg-gradient-to-br from-blue-500 to-blue-600",
     badge: "Enhanced",
     badgeVariant: "outline" as const,
   },
@@ -50,8 +50,8 @@ const featureCards = [
     description: "Discover AI-powered insights and answers from your personal document library.",
     href: "/search",
     cta: "Start Searching",
-    gradient: "from-emerald-500/20 to-teal-500/20",
-    iconBg: "bg-gradient-to-br from-emerald-500 to-teal-500",
+    gradient: "from-blue-500/20 to-blue-600/20",
+    iconBg: "bg-gradient-to-br from-blue-500 to-blue-600",
     badge: "New",
     badgeVariant: "default" as const,
   },
@@ -61,8 +61,8 @@ const featureCards = [
     description: "Generate comprehensive practice exams, track study progress, and ace your tests with confidence.",
     href: "/exam-prep",
     cta: "Start Preparing",
-    gradient: "from-indigo-500/20 to-violet-500/20",
-    iconBg: "bg-gradient-to-br from-indigo-500 to-violet-500",
+    gradient: "from-blue-500/20 to-blue-600/20",
+    iconBg: "bg-gradient-to-br from-blue-500 to-blue-600",
     badge: "AI-Powered",
     badgeVariant: "default" as const,
   },
@@ -162,9 +162,6 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
           <h1 className="text-4xl font-bold text-primary">
             Welcome back, {firstName}
           </h1>
-          <p className="text-lg text-muted-foreground">
-            Let's make learning easier and faster today. ✨
-          </p>
         </div>
 
         {/* Usage Overview */}
@@ -190,7 +187,7 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
                   
                   <div className="flex flex-col h-full">
                     <div className="flex items-start mb-4">
-                      <div className={`p-3 bg-primary rounded-xl mr-4 text-primary-foreground shadow-lg`}>
+                      <div className={`p-3 ${card.iconBg} rounded-xl mr-4 text-white shadow-lg`}>
                         <card.icon className="h-6 w-6" />
                       </div>
                       <div className="flex-1">
