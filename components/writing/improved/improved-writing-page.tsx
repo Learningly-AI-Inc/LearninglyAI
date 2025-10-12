@@ -18,6 +18,7 @@ interface ImprovedWritingPageProps {
 }
 
 export function ImprovedWritingPage({
+  header,
   draftsManager,
   writingToolbar,
   richTextEditor,
