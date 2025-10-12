@@ -45,24 +45,42 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    const response = await processWithAI({
-      text,
-      action: 'grammar',
-      userId: user.id
-    });
-
-    // Track usage after successful processing
+    let response;
     try {
-      await subscriptionService.incrementUsage(user.id, 'writing_words', wordCount);
-    } catch (usageError) {
-      console.error('Failed to track writing usage:', usageError);
+      response = await processWithAI({
+        text,
+        action: 'grammar',
+        userId: user.id
+      });
+
+      console.log(`Grammar check completed: Found ${response.grammarIssues?.length || 0} issues`);
+
+      // Track usage after successful processing
+      try {
+        await subscriptionService.incrementUsage(user.id, 'writing_words', wordCount);
+      } catch (usageError) {
+        console.error('Failed to track writing usage:', usageError);
+      }
+
+      return NextResponse.json(response);
+    } catch (aiError) {
+      console.error('AI processing error in grammar check:', aiError);
+      return NextResponse.json(
+        {
+          error: 'Grammar check failed',
+          message: 'The AI service encountered an error. Please try again.',
+          details: process.env.NODE_ENV === 'development' ? String(aiError) : undefined
+        },
+        { status: 500 }
+      );
     }
-    
-    return NextResponse.json(response);
   } catch (error) {
     console.error('Error in grammar check API:', error);
     return NextResponse.json(
-      { error: 'Failed to process grammar check request' },
+      {
+        error: 'Failed to process grammar check request',
+        message: 'An unexpected error occurred. Please try again.'
+      },
       { status: 500 }
     );
   }

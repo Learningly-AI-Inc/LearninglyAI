@@ -62,8 +62,15 @@ const WritingPageClient = () => {
       textToParaphrase = '';
     }
 
-    // Strip HTML tags to get plain text for paraphrasing
+    // Convert HTML to plain text while preserving paragraph structure
     if (textToParaphrase) {
+      // Convert paragraph breaks to double newlines
+      textToParaphrase = textToParaphrase.replace(/<\/p>\s*<p>/gi, '\n\n');
+      textToParaphrase = textToParaphrase.replace(/<p>/gi, '');
+      textToParaphrase = textToParaphrase.replace(/<\/p>/gi, '\n\n');
+      // Convert line breaks to single newlines
+      textToParaphrase = textToParaphrase.replace(/<br\s*\/?>/gi, '\n');
+      // Strip remaining HTML tags
       textToParaphrase = textToParaphrase.replace(/<[^>]*>?/gm, '').trim();
     }
 

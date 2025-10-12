@@ -5,9 +5,14 @@ import { getOpenAIClient, DEFAULT_MODEL } from './openai';
 // Initialize the Google Generative AI client with the API key
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '');
 
-// Get the Gemini model (using 2.5 Flash for best performance/value)
+// Get the Gemini model for general tasks (using 2.5 Flash for best performance/value)
 const geminiModel = genAI.getGenerativeModel({
   model: "gemini-2.5-flash",
+});
+
+// Get the Gemini Pro model specifically for grammar checking (more accurate)
+const geminiProModel = genAI.getGenerativeModel({
+  model: "gemini-2.5-pro",
 });
 
 export interface AIRequest {
@@ -65,7 +70,8 @@ Requirements:
 - Keep a ${tone} tone.
 - Do not copy any sentence verbatim; restructure phrasing.
 - Maintain roughly the same length.
-- Output plain text only (no quotes, no lists, no headings).`;
+- IMPORTANT: Preserve all paragraph breaks and line breaks from the original text. Use double newlines (\\n\\n) to separate paragraphs.
+- Output plain text only (no quotes, no lists, no headings, no markdown formatting).`;
 
     const userPrompt = `Paraphrase this:
 ${text}`;
@@ -130,88 +136,51 @@ function normalizeIssueType(type: string): "grammar" | "spelling" | "style" | "c
 // Function for comprehensive grammar checking with multiple passes
 async function checkGrammar(text: string): Promise<GrammarIssue[]> {
   try {
-    const prompt = `You are an EXTREMELY STRICT English grammar and spelling checker. Find and report ALL errors by analyzing SENTENCE BY SENTENCE.
+    // Use a more focused and effective prompt
+    const prompt = `You are a professional English grammar and spelling checker. Your job is to find ALL errors in the text below.
 
-CRITICAL INSTRUCTIONS:
-1. SPELLING: Check every word for typos and misspellings
-2. VERB TENSE: Check every verb for correct tense
-3. SUBJECT-VERB AGREEMENT: Check every subject-verb pair
-4. ARTICLES: Check for missing or incorrect articles (a/an/the)
-5. PUNCTUATION: Check for missing commas, periods, apostrophes, quotes
-6. CAPITALIZATION: Check first letter of sentences and proper nouns
-7. SINGULAR/PLURAL: Check noun agreement
-8. PREPOSITIONS: Check correct preposition usage and word order
-9. WORD CHOICE: Check commonly confused words
-10. MISSING WORDS: Check for missing helper verbs, pronouns, conjunctions
+CHECK FOR THESE ERRORS (check EVERY word):
+1. Spelling mistakes (like "dreamz" → "dreams", "peeple" → "people", "becaus" → "because")
+2. Verb tense errors (like "I visit NYC" → "I visited NYC" when talking about the past)
+3. Missing or incorrect articles (a/an/the)
+4. Subject-verb agreement (like "building are" → "buildings are" or "people gets" → "people get")
+5. Missing words (like "you tired" → "you're tired")
+6. Wrong word usage (like "then" → "than")
+7. Punctuation (missing apostrophes, commas, etc.)
+8. Capitalization errors
 
-IMPORTANT: Report errors SENTENCE BY SENTENCE. Group related errors in the same phrase together.
+CRITICAL: You MUST find ALL errors. Check EVERY sentence carefully, word by word.
 
-For EVERY ERROR, report it in this EXACT JSON format:
+For each error found, return JSON in this exact format:
 [
   {
-    "original": "exact wrong text from the original (can be 1-5 words)",
-    "suggestion": "corrected version",
+    "original": "exact wrong text from input",
+    "suggestion": "corrected text",
     "type": "spelling" or "grammar" or "style" or "clarity",
-    "description": "clear explanation of what's wrong"
+    "description": "brief explanation"
   }
 ]
 
-GROUPING RULES:
-- If multiple errors are in the SAME phrase (adjacent or very close words), combine them into ONE item
-- If errors are in DIFFERENT parts of the sentence, report them separately
+RULES:
+- Group errors that are next to each other (e.g., "dreamz comes" → "dreams come")
+- Report separate errors in different parts of the sentence as separate items
+- Be thorough - if a text has many obvious errors, you should find 20+ issues
+- Return ONLY the JSON array, nothing else
 
-EXAMPLES:
-✓ CORRECT: {"original": "me and my cousin was", "suggestion": "my cousin and I were"} ← Multiple related errors in one phrase
-✓ CORRECT: {"original": "yesterday i goes", "suggestion": "Yesterday I went"} ← Multiple errors at start of sentence
-✓ CORRECT: {"original": "runned", "suggestion": "ran"} ← Single word error later in sentence
-✓ CORRECT: {"original": "dont", "suggestion": "don't"} ← Single spelling error
-
-✗ WRONG: Report the entire sentence as one item (unless it's a very short sentence)
-✗ WRONG: Report every single word separately even when they're adjacent
-
-CRITICAL EXAMPLES you MUST catch:
-- "dreamz" → "dreams" (spelling)
-- "becaus light is" → "because lights are" (spelling + grammar)
-- "I visit NYC" → "I visited NYC" (grammar: wrong tense)
-- "building are touching" → "buildings are touching" (grammar: plural agreement)
-- "is call" → "is called" (grammar: passive voice)
-- "first time I visit" → "first time I visited" (grammar: past tense)
-- "I feel like" → "I felt like" (grammar: past tense consistency)
-- "advertizements" → "advertisements" (spelling)
-- "then sun sometime" → "than sun sometimes" (spelling + word choice)
-- "picturs" → "pictures" (spelling)
-- "characters" → "characters" (spelling)
-- "energi" → "energy" (spelling)
-- "make you feel alive even when you tired" → "make you feel alive even when you're tired" (grammar: missing verb)
-- "concret" → "concrete" (spelling)
-- "jog, sit on benches" → OK (this is correct)
-- "lay down" → "lie down" (grammar: lay vs lie)
-- "cover the trees" → "covers the trees" (grammar: subject-verb agreement)
-- "kids sliding" → OK (this is correct)
-- "concerts happen" → OK (this is correct)
-- "expensiv" → "expensive" (spelling)
-- "restarant" → "restaurant" (spelling)
-- "then rent" → "than rent" (word choice: then vs than)
-- "vendors sell" → OK (this is correct)
-- "pretzals" → "pretzels" (spelling)
-
-TEXT TO CHECK (READ EVERY WORD CAREFULLY):
+TEXT TO CHECK:
 "${text}"
 
-YOU MUST RETURN ONLY THE JSON ARRAY. NO EXPLANATORY TEXT BEFORE OR AFTER.
+Return the JSON array with ALL errors found:`;
 
-IMPORTANT REMINDER:
-- Go through the text SENTENCE BY SENTENCE
-- Check EACH sentence for ALL 10 error types listed above
-- Group adjacent/related errors in the same phrase, but report separate phrases separately
-- Be EXTREMELY thorough - catch ALL errors
-- Do NOT skip any sentences
-- ONLY return the JSON array with all errors found
+    // Use Gemini Pro for better accuracy on grammar checking
+    const result = await geminiProModel.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.1, // Lower temperature for more consistent, focused results
+        maxOutputTokens: 8192, // Ensure we can return many errors
+      },
+    });
 
-FINAL CHECK: Make sure you found all spelling errors, verb tense errors, and grammar errors. If the text is obviously poorly written but you only found 2-3 items, you missed errors!`;
-
-    // First pass - comprehensive check
-    const result = await geminiModel.generateContent(prompt);
     const response = await result.response;
     let responseText = response.text().trim();
 
@@ -230,17 +199,27 @@ FINAL CHECK: Make sure you found all spelling errors, verb tense errors, and gra
         const jsonStr = jsonMatch[0];
         const issues: Omit<GrammarIssue, 'id'>[] = JSON.parse(jsonStr);
 
-        console.log(`Found ${issues.length} grammar issues from AI`);
+        console.log(`✓ Found ${issues.length} grammar issues from Gemini Pro`);
+
+        if (issues.length === 0) {
+          console.log('AI returned empty array - text might be error-free');
+          return [];
+        }
 
         // Add IDs to each issue and validate
         const validatedIssues = issues
           .filter(issue => {
             // Ensure we have both original and suggestion text, and they're different
-            return issue.original &&
+            const isValid = issue.original &&
                    issue.suggestion &&
                    issue.original.trim() !== '' &&
                    issue.suggestion.trim() !== '' &&
                    issue.original.trim() !== issue.suggestion.trim();
+
+            if (!isValid) {
+              console.log('Filtered out invalid issue:', issue);
+            }
+            return isValid;
           })
           .map(issue => {
             // Normalize issue type to match our expected values
@@ -255,19 +234,26 @@ FINAL CHECK: Make sure you found all spelling errors, verb tense errors, and gra
             };
           });
 
-        console.log(`Validated ${validatedIssues.length} grammar issues`);
+        console.log(`✓ Validated ${validatedIssues.length} grammar issues for return`);
+
+        if (validatedIssues.length === 0) {
+          console.warn('WARNING: All issues were filtered out during validation');
+        }
+
         return validatedIssues;
       }
-      console.log('No JSON match found in response');
-      return [];
+
+      console.error('ERROR: No JSON array found in AI response');
+      console.error('Response text:', responseText.substring(0, 500));
+      throw new Error('AI did not return valid JSON format');
     } catch (parseError) {
-      console.error('Error parsing grammar check response:', parseError);
-      console.error('Response text:', responseText);
-      return [];
+      console.error('ERROR: Failed to parse grammar check response:', parseError);
+      console.error('Response text:', responseText.substring(0, 500));
+      throw parseError;
     }
   } catch (error) {
-    console.error('Error checking grammar:', error);
-    return [];
+    console.error('ERROR in checkGrammar function:', error);
+    throw error;
   }
 }
 
@@ -287,7 +273,7 @@ async function shortenText(text: string, percentage: number = 50): Promise<strin
     Shorter version (target: about ${targetWordCount} words):`;
 
     const result = await geminiModel.generateContent(prompt);
-    const response = await result.response;
+    const response = result.response;
     return response.text().trim();
   } catch (error) {
     console.error('Error shortening text:', error);
@@ -310,7 +296,7 @@ async function expandText(text: string, percentage: number = 50): Promise<string
     Expanded version (target: about ${targetWordCount} words):`;
 
     const result = await geminiModel.generateContent(prompt);
-    const response = await result.response;
+    const response = result.response;
     return response.text().trim();
   } catch (error) {
     console.error('Error expanding text:', error);
