@@ -92,7 +92,7 @@ export const PricingSection: React.FC = () => {
 
     if (planId === 'free') {
       console.log('Free plan selected, redirecting to signup');
-      window.location.href = '/account/signup';
+      window.location.href = '/account';
       return;
     }
 
