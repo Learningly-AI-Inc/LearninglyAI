@@ -102,16 +102,43 @@ async function extractTextFromPDFBuffer(buffer: Buffer): Promise<string> {
     const zipEntries = zip.getEntries()
     
     let extractedText = ''
+    let previousElement: any = null
+    
     for (const entry of zipEntries) {
       if (entry.entryName.endsWith('.json')) {
         const jsonContent = entry.getData().toString('utf8')
         const jsonData = JSON.parse(jsonContent)
         
-        // Extract text from the JSON structure
+        console.log('Adobe PDF JSON structure:', JSON.stringify(jsonData).substring(0, 1000))
+        
+        // Extract text from the JSON structure with better formatting
         if (jsonData.elements) {
           for (const element of jsonData.elements) {
             if (element.Text && element.Text.trim()) {
-              extractedText += element.Text + ' '
+              // Check if this is a new paragraph or line
+              const text = element.Text.trim()
+              
+              // Add line break if this is a new text block or if Path indicates new line
+              if (previousElement) {
+                // If there's a significant position change or it's a new paragraph
+                if (element.Path && element.Path !== previousElement.Path) {
+                  extractedText += '\n'
+                }
+                // If bounds change significantly (new line)
+                else if (element.Bounds && previousElement.Bounds) {
+                  const yDiff = Math.abs(element.Bounds[1] - previousElement.Bounds[1])
+                  if (yDiff > 5) { // New line
+                    extractedText += '\n'
+                  } else {
+                    extractedText += ' '
+                  }
+                } else {
+                  extractedText += ' '
+                }
+              }
+              
+              extractedText += text
+              previousElement = element
             }
           }
         }
@@ -122,10 +149,23 @@ async function extractTextFromPDFBuffer(buffer: Buffer): Promise<string> {
       throw new Error('Adobe PDF Services text extraction yielded insufficient content')
     }
 
+    // Clean up excessive whitespace while preserving line breaks
+    extractedText = extractedText
+      .replace(/[ \t]+/g, ' ') // Replace multiple spaces/tabs with single space
+      .replace(/\n\s+/g, '\n') // Remove spaces after newlines
+      .replace(/\s+\n/g, '\n') // Remove spaces before newlines
+      .replace(/\n{3,}/g, '\n\n') // Limit multiple newlines to 2
+      .trim()
+
     console.log('Successfully extracted text using Adobe PDF Services, length:', extractedText.length)
-    console.log('First 500 characters of extracted text:', extractedText.substring(0, 500))
-    console.log('Last 500 characters of extracted text:', extractedText.substring(Math.max(0, extractedText.length - 500)))
-    return extractedText.trim()
+    console.log('First 1000 characters of extracted text:')
+    console.log(extractedText.substring(0, 1000))
+    console.log('\n--- Middle section (chars 1000-2000) ---')
+    console.log(extractedText.substring(1000, 2000))
+    console.log('\n--- Last 1000 characters ---')
+    console.log(extractedText.substring(Math.max(0, extractedText.length - 1000)))
+    
+    return extractedText
 
   } catch (error) {
     console.error('Adobe PDF Services failed, trying improved fallback method:', error)
@@ -268,13 +308,30 @@ async function extractTextFromPDF(fileUrl: string): Promise<string> {
 }
 
 async function parseSyllabusWithLLM(text: string): Promise<{ courses: Course[], semester_name: string }> {
-  console.log('=== LLM PARSING DEBUG ===')
+  console.log('\n=== LLM PARSING DEBUG ===')
   console.log('Text length being sent to LLM:', text.length)
-  console.log('First 500 characters of text:', text.substring(0, 500))
-  console.log('Last 500 characters of text:', text.substring(Math.max(0, text.length - 500)))
-  console.log('========================')
+  console.log('\n--- First 1000 characters of text being sent to LLM ---')
+  console.log(text.substring(0, 1000))
+  console.log('\n--- Last 1000 characters of text being sent to LLM ---')
+  console.log(text.substring(Math.max(0, text.length - 1000)))
+  
+  // Look for schedule-related keywords in the text
+  const scheduleKeywords = ['schedule', 'meeting', 'time', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'room', 'location', 'when', 'where']
+  const foundKeywords = scheduleKeywords.filter(keyword => 
+    text.toLowerCase().includes(keyword)
+  )
+  console.log('\nSchedule-related keywords found in text:', foundKeywords.join(', '))
+  console.log('========================\n')
   
   const prompt = `You are an expert at parsing academic syllabi. Extract course information from the following syllabus text and return ONLY a valid JSON object.
+
+CRITICAL: You MUST extract the ACTUAL class meeting times from the document. Look for sections like:
+- "Class Schedule", "Meeting Times", "Lecture Schedule", "When/Where"
+- "Days/Times", "Class Meetings", "Course Schedule"
+- Time patterns like "MWF 9:00-10:30" or "Tuesday/Thursday 2:00 PM - 3:15 PM"
+- Location patterns like "Room 123", "Building A", etc.
+
+DO NOT use placeholder or default times like "09:00-10:30". You MUST find the actual times mentioned in the document.
 
 IMPORTANT: Return ONLY valid JSON. No markdown, no backticks, no explanations, no additional text.
 
@@ -303,12 +360,19 @@ Required JSON structure:
 
 Guidelines:
 - Extract ALL courses mentioned in the syllabus
-- For each course, extract ALL scheduled meeting times
-- Convert day names to numbers: Monday=1, Tuesday=2, Wednesday=3, Thursday=4, Friday=5, Saturday=6, Sunday=0
-- Use 24-hour time format (e.g., "09:00" not "9:00 AM")
+- For each course, extract ALL scheduled meeting times FROM THE DOCUMENT
+- CAREFULLY look for class meeting times - they may be in various formats:
+  * "MWF 9:00-10:30 AM" (Monday, Wednesday, Friday)
+  * "T/Th 2:00-3:15 PM" (Tuesday, Thursday)
+  * "Monday and Wednesday from 10:00 AM to 11:30 AM"
+  * "Tuesdays 1:00 PM - 2:50 PM"
+- Convert day names/abbreviations to numbers: Monday/M=1, Tuesday/T/Tu=2, Wednesday/W=3, Thursday/Th/R=4, Friday/F=5, Saturday/Sa=6, Sunday/Su=0
+- Convert times to 24-hour format (e.g., "09:00" for 9:00 AM, "14:00" for 2:00 PM, "13:00" for 1:00 PM)
+- Extract the ACTUAL location mentioned in the document (room number, building name)
 - If location is not specified, use null
-- If credits are not specified, estimate based on typical course credit hours
+- If credits are not specified, estimate based on typical course credit hours (usually 3 or 4)
 - Include all recurring class meetings, labs, tutorials, etc.
+- Type should be "lecture" for regular classes, "lab" for laboratory sessions, "tutorial" for discussion sections, "seminar" for seminars
 
 Syllabus text:
 ${text}
@@ -322,7 +386,7 @@ Return ONLY the JSON object:`
       messages: [
         {
           role: "system",
-          content: "You are a JSON parser. Always return valid JSON only. No markdown, no backticks, no explanations."
+          content: "You are a JSON parser specialized in extracting structured data from academic syllabi. Always return valid JSON only. No markdown, no backticks, no explanations. You must extract the ACTUAL class meeting times, days, and locations from the document - never use placeholder or default values."
         },
         {
           role: "user",
@@ -334,6 +398,12 @@ Return ONLY the JSON object:`
     })
 
     let content = response.choices[0]?.message?.content || '{}'
+    
+    console.log('\n=== RAW LLM RESPONSE ===')
+    console.log('Response length:', content.length)
+    console.log('Full response:')
+    console.log(content)
+    console.log('========================\n')
     
     // Clean up the response to ensure it's valid JSON
     content = content.trim()
@@ -353,7 +423,7 @@ Return ONLY the JSON object:`
       content = content.substring(jsonStart, jsonEnd)
     }
     
-    console.log('Cleaned LLM response:', content.substring(0, 200) + '...')
+    console.log('Cleaned LLM response:', content.substring(0, 500) + '...')
     
     // Parse the JSON response
     const parsedData = JSON.parse(content)
@@ -368,6 +438,20 @@ Return ONLY the JSON object:`
     }
     
     console.log('Successfully parsed syllabus with', parsedData.courses.length, 'courses')
+    
+    // Log extracted schedule information for debugging
+    parsedData.courses.forEach((course: Course, index: number) => {
+      console.log(`Course ${index + 1}: ${course.name} (${course.code})`)
+      console.log(`  Instructor: ${course.instructor}`)
+      console.log(`  Credits: ${course.credits}`)
+      console.log(`  Location: ${course.location || 'Not specified'}`)
+      console.log(`  Schedule (${course.schedule.length} entries):`)
+      course.schedule.forEach((sched, schedIndex) => {
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        console.log(`    ${schedIndex + 1}. ${dayNames[sched.day_of_week]} ${sched.start_time}-${sched.end_time} (${sched.type}) at ${sched.location || 'TBD'}`)
+      })
+    })
+    
     return parsedData
   } catch (error) {
     console.error('Error parsing syllabus with LLM:', error)
