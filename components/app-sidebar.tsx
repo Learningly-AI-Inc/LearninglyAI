@@ -177,7 +177,7 @@ export default function AppSidebar({
 
   // Calculate average usage percentage across key metrics
   const getAverageUsage = () => {
-    if (loading) return 0;
+    if (loading || !status) return 0;
 
     const metrics = [
       { current: getCurrentUsage('documents_uploaded'), limit: getCurrentLimit('documents_uploaded') },
@@ -185,23 +185,30 @@ export default function AppSidebar({
       { current: getCurrentUsage('search_queries'), limit: getCurrentLimit('search_queries') },
     ];
 
+    console.log('📊 Sidebar Overall Usage Calculation:', {
+      planName: status?.plan?.name,
+      writing: `${metrics[1].current}/${metrics[1].limit}`,
+      documents: `${metrics[0].current}/${metrics[0].limit}`,
+      searches: `${metrics[2].current}/${metrics[2].limit}`,
+    });
+
     // Filter: only include metrics with positive limits (exclude 0 = not available, and -1 = unlimited)
     // For unlimited (-1), we don't show usage percentage since there's no limit
     const percentages = metrics
       .filter(m => m.limit > 0 && m.limit !== -1)
       .map(m => (m.current / m.limit) * 100);
 
+    console.log('📊 Filtered metrics for average:', percentages.length, 'services with limits:', percentages);
+
     if (percentages.length === 0) {
-      // If all features are unlimited, show usage based on actual numbers
-      // Use a simple formula: show low percentage if usage is present
-      const totalUsage = getCurrentUsage('writing_words') + getCurrentUsage('documents_uploaded') + getCurrentUsage('search_queries');
-      if (totalUsage === 0) return 0;
-      // For unlimited plans with usage, show a small percentage (5-10%) to indicate activity
-      return Math.min(5 + (totalUsage / 1000), 10);
+      // If all features are unlimited, show 0% or hide
+      console.log('📊 All services are unlimited, showing 0%');
+      return 0;
     }
 
     const avg = percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
-    return Math.min(avg, 100);
+    console.log('📊 Sidebar Overall Usage Result:', avg.toFixed(1) + '%', 'from', percentages.length, 'services');
+    return Math.round(avg * 10) / 10; // Round to 1 decimal place for accuracy
   };
 
   const averageUsage = getAverageUsage();
@@ -285,8 +292,8 @@ export default function AppSidebar({
       </div>
 
       <div className="p-4 border-t border-border/50 space-y-4">
-        {/* Average Usage Display */}
-        {!loading && (
+        {/* Average Usage Display - Only show if not unlimited plan or if there are limited services */}
+        {!loading && averageUsage > 0 && (
           <div className={`${sidebarCollapsed ? "px-1" : "px-3 py-3"} bg-gray-50 rounded-xl border border-gray-200`}>
             {sidebarCollapsed ? (
               <div className="flex flex-col items-center gap-1 py-2">
@@ -296,14 +303,14 @@ export default function AppSidebar({
                     style={{ height: `${averageUsage}%` }}
                   />
                 </div>
-                <span className="text-[10px] font-semibold text-gray-700">{averageUsage.toFixed(0)}%</span>
+                <span className="text-[10px] font-semibold text-gray-700">{averageUsage.toFixed(1)}%</span>
               </div>
             ) : (
               <>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold text-gray-700">Overall Usage</span>
                   <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs px-2 py-0.5">
-                    {averageUsage.toFixed(0)}%
+                    {averageUsage.toFixed(1)}%
                   </Badge>
                 </div>
                 <div className="relative w-full bg-gray-200 rounded-full h-2 overflow-hidden">
