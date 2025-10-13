@@ -184,15 +184,54 @@ Return the JSON array with ALL errors found:`;
     const response = await result.response;
     let responseText = response.text().trim();
 
+    console.log(`📊 Grammar check response length: ${responseText.length} characters`);
+
     try {
-      // Extract JSON from response text (handle potential non-JSON wrapping)
-      let jsonMatch = responseText.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        // Try to find JSON in markdown code blocks
-        const codeBlockMatch = responseText.match(/```(?:json)?\s*(\[[\s\S]*\])\s*```/);
-        if (codeBlockMatch) {
-          jsonMatch = [codeBlockMatch[1]];
+      // First, try to strip markdown code blocks if present
+      let cleanedText = responseText;
+
+      // Remove markdown code blocks (```json ... ``` or ``` ... ```)
+      // Check if response starts with markdown block but might be truncated
+      if (cleanedText.startsWith('```')) {
+        // Find the opening block
+        const startMatch = cleanedText.match(/^```(?:json)?\s*/);
+        if (startMatch) {
+          // Remove opening marker
+          cleanedText = cleanedText.substring(startMatch[0].length);
+
+          // Check if closing marker exists
+          if (cleanedText.includes('```')) {
+            // Has proper closing, extract content
+            const endIndex = cleanedText.indexOf('```');
+            cleanedText = cleanedText.substring(0, endIndex);
+          } else {
+            // No closing marker - response was truncated, just use what we have
+            console.warn('⚠️ Response appears truncated (missing closing ```)');
+          }
+          console.log('✓ Stripped markdown code blocks from response');
         }
+      }
+
+      cleanedText = cleanedText.trim();
+
+      // Try to repair incomplete JSON if needed
+      if (cleanedText.startsWith('[') && !cleanedText.endsWith(']')) {
+        console.warn('⚠️ JSON array not properly closed, attempting to repair...');
+
+        // Find the last complete object
+        let lastCompleteIndex = cleanedText.lastIndexOf('}');
+        if (lastCompleteIndex > 0) {
+          // Truncate to last complete object and close the array
+          cleanedText = cleanedText.substring(0, lastCompleteIndex + 1) + '\n]';
+          console.log('✓ Repaired incomplete JSON array');
+        }
+      }
+
+      // Now try to extract JSON array from the cleaned text
+      let jsonMatch = cleanedText.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        // If still no match, try to find it in the original response
+        jsonMatch = responseText.match(/\[[\s\S]*\]/);
       }
 
       if (jsonMatch) {
@@ -244,11 +283,50 @@ Return the JSON array with ALL errors found:`;
       }
 
       console.error('ERROR: No JSON array found in AI response');
-      console.error('Response text:', responseText.substring(0, 500));
+      console.error('Response length:', responseText.length);
+      console.error('Response text (first 500 chars):', responseText.substring(0, 500));
+      console.error('Response text (last 500 chars):', responseText.substring(Math.max(0, responseText.length - 500)));
       throw new Error('AI did not return valid JSON format');
     } catch (parseError) {
       console.error('ERROR: Failed to parse grammar check response:', parseError);
-      console.error('Response text:', responseText.substring(0, 500));
+      console.error('Response length:', responseText.length);
+      console.error('Response text (first 500 chars):', responseText.substring(0, 500));
+      console.error('Response text (last 500 chars):', responseText.substring(Math.max(0, responseText.length - 500)));
+
+      // If parsing failed, try one more time with a more aggressive cleanup
+      try {
+        console.log('🔧 Attempting aggressive JSON repair...');
+
+        // Strip all markdown formatting
+        let repairedText = responseText.replace(/```[a-z]*\n?/g, '').trim();
+
+        // If it starts with [ but doesn't end with ], try to repair it
+        if (repairedText.startsWith('[') && !repairedText.endsWith(']')) {
+          // Find the last complete object
+          const lastBraceIndex = repairedText.lastIndexOf('}');
+          if (lastBraceIndex > 0) {
+            repairedText = repairedText.substring(0, lastBraceIndex + 1) + '\n]';
+            console.log('✓ Repaired incomplete JSON array in fallback');
+          }
+        }
+
+        const lastArrayMatch = repairedText.match(/\[[\s\S]*\]/);
+        if (lastArrayMatch) {
+          const issues: Omit<GrammarIssue, 'id'>[] = JSON.parse(lastArrayMatch[0]);
+          console.log(`✓ Successfully parsed JSON after aggressive cleanup (${issues.length} issues)`);
+          return issues.map(issue => ({
+            ...issue,
+            original: issue.original.trim(),
+            suggestion: issue.suggestion.trim(),
+            type: normalizeIssueType(issue.type),
+            description: issue.description || 'Needs correction',
+            id: uuidv4()
+          }));
+        }
+      } catch (retryError) {
+        console.error('ERROR: Retry parsing also failed:', retryError);
+      }
+
       throw parseError;
     }
   } catch (error) {
