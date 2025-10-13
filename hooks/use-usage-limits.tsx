@@ -12,6 +12,12 @@ export interface UsageData {
 }
 
 export interface UsageLimits {
+  documents_uploaded?: number;
+  writing_words?: number;
+  search_queries?: number;
+  exam_sessions?: number;
+  storage_used_bytes?: number;
+  // Legacy fields (kept for backwards compatibility)
   document_uploads_per_week?: number;
   document_uploads_per_day?: number;
   writing_words_per_month?: number;
@@ -192,44 +198,38 @@ export function useUsageLimits() {
 
   // Get current limit for a specific action based on plan
   const getCurrentLimit = (action: keyof UsageData): number => {
-    // Premium plans have higher daily/weekly limits
-    const isPremium = planName.toLowerCase().includes('premium');
+    const normalizedPlanName = planName.toLowerCase();
+
+    // Check if Premium Elite / Yearly (unlimited)
+    const isPremiumElite = normalizedPlanName.includes('elite') || normalizedPlanName.includes('yearly');
+    // Check if Premium Monthly
+    const isPremium = normalizedPlanName.includes('premium') && !isPremiumElite;
 
     switch (action) {
       case 'documents_uploaded':
-        // Premium: 100/day, Free: 3/week
-        if (isPremium) {
-          return limits.document_uploads_per_day || 100;
-        }
-        return limits.document_uploads_per_week || limits.document_uploads_per_day || 3;
+        if (isPremiumElite) return -1; // Unlimited
+        if (isPremium) return limits.documents_uploaded || 3000; // 100/day = ~3000/month
+        return limits.documents_uploaded || 12; // Free: 3/week = ~12/month
 
       case 'writing_words':
-        // Premium: 25,000/day, Free: 5,000/month
-        if (isPremium) {
-          return limits.writing_words_per_day || 25000;
-        }
-        return limits.writing_words_per_month || limits.writing_words_per_day || 5000;
+        if (isPremiumElite) return -1; // Unlimited
+        if (isPremium) return limits.writing_words || 750000; // 25,000/day = ~750,000/month
+        return limits.writing_words || 5000; // Free: 5,000/month
 
       case 'search_queries':
-        // Premium: 500/day, Free: 10/week
-        if (isPremium) {
-          return limits.search_queries_per_day || 500;
-        }
-        return limits.search_queries_per_week || limits.search_queries_per_day || 10;
+        if (isPremiumElite) return -1; // Unlimited
+        if (isPremium) return limits.search_queries || 15000; // 500/day = ~15,000/month
+        return limits.search_queries || 40; // Free: 10/week = ~40/month
 
       case 'exam_sessions':
-        // Premium: 50/week, Free: 1/month
-        if (isPremium) {
-          return limits.exam_sessions_per_week || 50;
-        }
-        return limits.exam_sessions_per_month || limits.exam_sessions_per_week || 1;
+        if (isPremiumElite) return -1; // Unlimited
+        if (isPremium) return limits.exam_sessions || 200; // 50/week = ~200/month
+        return limits.exam_sessions || 1; // Free: 1/month
 
       case 'storage_used_bytes':
-        // Premium: 10GB, Free: 250MB
-        const storageMB = isPremium
-          ? (limits.storage_mb || 10240) // 10GB = 10240MB
-          : (limits.storage_mb || 250);
-        return storageMB * 1024 * 1024; // Convert MB to bytes
+        if (isPremiumElite) return 100 * 1024 * 1024 * 1024; // 100GB
+        if (isPremium) return 10 * 1024 * 1024 * 1024; // 10GB
+        return 250 * 1024 * 1024; // Free: 250MB
 
       default:
         return 0;
