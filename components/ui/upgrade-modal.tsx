@@ -17,10 +17,10 @@ const getLimitDetails = (limitType: string) => {
     case 'documents_uploaded':
       return {
         feature: 'Document Uploads',
-        freeLimit: '12 per month',
-        premiumLimit: '3,000 per month',
+        freeLimit: '3 per week',
+        premiumLimit: '100 per day',
         benefits: [
-          'Upload up to 3,000 documents per month',
+          'Upload up to 100 documents per day',
           '10GB storage space',
           'Priority processing',
           'Advanced document features'
@@ -30,9 +30,9 @@ const getLimitDetails = (limitType: string) => {
       return {
         feature: 'Exam Sessions',
         freeLimit: '1 per month',
-        premiumLimit: '200 per month',
+        premiumLimit: '50 per week',
         benefits: [
-          'Generate up to 200 exams per month',
+          'Generate up to 50 exams per week',
           'Advanced quiz customization',
           'Detailed performance analytics',
           'Export to PDF'
@@ -42,9 +42,9 @@ const getLimitDetails = (limitType: string) => {
       return {
         feature: 'AI Writing',
         freeLimit: '5,000 words/month',
-        premiumLimit: '750,000 words/month',
+        premiumLimit: '25,000 words/day',
         benefits: [
-          'Generate up to 750,000 words per month',
+          'Generate up to 25,000 words per day',
           'Advanced AI models',
           'Priority generation',
           'Longer outputs'
@@ -53,10 +53,10 @@ const getLimitDetails = (limitType: string) => {
     case 'search_queries':
       return {
         feature: 'Search Queries',
-        freeLimit: '40 per month',
-        premiumLimit: '15,000 per month',
+        freeLimit: '10 per week',
+        premiumLimit: '500 per day',
         benefits: [
-          'Perform up to 15,000 searches per month',
+          'Perform up to 500 searches per day',
           'Advanced search filters',
           'Search history',
           'Faster results'
@@ -175,7 +175,7 @@ export function UpgradeModal({
 
         {/* Pricing hint */}
         <p className="text-center text-xs text-slate-500 mt-4">
-          Starting at $9.99/month • Cancel anytime
+          Starting at $15/month • Cancel anytime
         </p>
       </div>
     </div>
