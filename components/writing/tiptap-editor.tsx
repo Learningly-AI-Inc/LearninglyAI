@@ -64,6 +64,16 @@ const TiptapEditor = forwardRef<any, TiptapEditorProps>(
         attributes: {
           class: "tiptap-content focus:outline-none",
         },
+        transformPastedHTML(html) {
+          // Strip color styling from pasted content
+          return html
+            .replace(/color:\s*[^;}"']+;?/gi, '') // Remove inline color styles
+            .replace(/style="[^"]*"/gi, (match) => {
+              // Keep other styles but remove color
+              const cleanedStyle = match.replace(/color:\s*[^;]+;?/gi, '');
+              return cleanedStyle === 'style=""' ? '' : cleanedStyle;
+            });
+        },
       },
       onUpdate: ({ editor }) => {
         const html = editor.getHTML();
