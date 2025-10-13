@@ -185,11 +185,20 @@ export default function AppSidebar({
       { current: getCurrentUsage('search_queries'), limit: getCurrentLimit('search_queries') },
     ];
 
+    // Filter: only include metrics with positive limits (exclude 0 = not available, and -1 = unlimited)
+    // For unlimited (-1), we don't show usage percentage since there's no limit
     const percentages = metrics
-      .filter(m => m.limit > 0)
+      .filter(m => m.limit > 0 && m.limit !== -1)
       .map(m => (m.current / m.limit) * 100);
 
-    if (percentages.length === 0) return 0;
+    if (percentages.length === 0) {
+      // If all features are unlimited, show usage based on actual numbers
+      // Use a simple formula: show low percentage if usage is present
+      const totalUsage = getCurrentUsage('writing_words') + getCurrentUsage('documents_uploaded') + getCurrentUsage('search_queries');
+      if (totalUsage === 0) return 0;
+      // For unlimited plans with usage, show a small percentage (5-10%) to indicate activity
+      return Math.min(5 + (totalUsage / 1000), 10);
+    }
 
     const avg = percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
     return Math.min(avg, 100);
