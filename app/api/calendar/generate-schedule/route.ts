@@ -38,7 +38,7 @@ interface Course {
 
 export async function POST(request: NextRequest) {
   try {
-    const { syllabus_document_id, semester_name, courses } = await request.json()
+    const { syllabus_document_id, semester_name, semester_start_date, semester_end_date, courses } = await request.json()
 
     if (!syllabus_document_id || !semester_name || !courses) {
       return NextResponse.json(
@@ -47,42 +47,44 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Calculate semester dates based on semester name
-    const currentYear = new Date().getFullYear()
+    // Use provided dates if available, otherwise calculate based on semester name
     let semesterStartDate: Date
     let semesterEndDate: Date
-    
-    if (semester_name.toLowerCase().includes('spring')) {
-      // Spring semester: January to May
-      const year = semester_name.includes('2025') ? 2025 : currentYear
-      semesterStartDate = new Date(`${year}-01-15`) // Spring semester start
-      semesterEndDate = new Date(`${year}-05-15`) // Spring semester end
-    } else if (semester_name.toLowerCase().includes('fall')) {
-      // Fall semester: August to December
-      const year = semester_name.includes('2024') ? 2024 : currentYear
-      semesterStartDate = new Date(`${year}-08-26`) // Fall semester start
-      semesterEndDate = new Date(`${year}-12-13`) // Fall semester end
-    } else if (semester_name.toLowerCase().includes('summer')) {
-      // Summer semester: May to August
-      const year = semester_name.includes('2025') ? 2025 : currentYear
-      semesterStartDate = new Date(`${year}-05-15`) // Summer semester start
-      semesterEndDate = new Date(`${year}-08-15`) // Summer semester end
+
+    if (semester_start_date && semester_end_date) {
+      // Use provided dates
+      semesterStartDate = new Date(semester_start_date)
+      semesterEndDate = new Date(semester_end_date)
     } else {
-      // Default to current semester
-      const now = new Date()
-      const month = now.getMonth() + 1
-      if (month >= 1 && month <= 5) {
-        // Spring
-        semesterStartDate = new Date(`${currentYear}-01-15`)
-        semesterEndDate = new Date(`${currentYear}-05-15`)
-      } else if (month >= 8 && month <= 12) {
-        // Fall
-        semesterStartDate = new Date(`${currentYear}-08-26`)
-        semesterEndDate = new Date(`${currentYear}-12-13`)
+      // Fallback: Calculate semester dates based on semester name
+      const currentYear = new Date().getFullYear()
+      
+      if (semester_name.toLowerCase().includes('spring')) {
+        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
+        semesterStartDate = new Date(`${year}-01-15`)
+        semesterEndDate = new Date(`${year}-05-15`)
+      } else if (semester_name.toLowerCase().includes('fall')) {
+        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
+        semesterStartDate = new Date(`${year}-08-26`)
+        semesterEndDate = new Date(`${year}-12-13`)
+      } else if (semester_name.toLowerCase().includes('summer')) {
+        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
+        semesterStartDate = new Date(`${year}-05-15`)
+        semesterEndDate = new Date(`${year}-08-15`)
       } else {
-        // Summer
-        semesterStartDate = new Date(`${currentYear}-05-15`)
-        semesterEndDate = new Date(`${currentYear}-08-15`)
+        // Default to current semester
+        const now = new Date()
+        const month = now.getMonth() + 1
+        if (month >= 1 && month <= 5) {
+          semesterStartDate = new Date(`${currentYear}-01-15`)
+          semesterEndDate = new Date(`${currentYear}-05-15`)
+        } else if (month >= 8 && month <= 12) {
+          semesterStartDate = new Date(`${currentYear}-08-26`)
+          semesterEndDate = new Date(`${currentYear}-12-13`)
+        } else {
+          semesterStartDate = new Date(`${currentYear}-05-15`)
+          semesterEndDate = new Date(`${currentYear}-08-15`)
+        }
       }
     }
     
@@ -93,22 +95,22 @@ export async function POST(request: NextRequest) {
     
     // Generate holidays based on semester
     const holidays = []
+    const semesterYear = semesterStartDate.getFullYear()
+    
     if (semester_name.toLowerCase().includes('spring')) {
       // Spring holidays
-      const year = semester_name.includes('2025') ? 2025 : currentYear
       holidays.push(
-        { name: "Martin Luther King Jr. Day", date: `${year}-01-20`, type: "national" },
-        { name: "Presidents' Day", date: `${year}-02-17`, type: "national" },
-        { name: "Spring Break", date: `${year}-03-17`, type: "academic" },
-        { name: "Memorial Day", date: `${year}-05-26`, type: "national" }
+        { name: "Martin Luther King Jr. Day", date: `${semesterYear}-01-20`, type: "national" },
+        { name: "Presidents' Day", date: `${semesterYear}-02-17`, type: "national" },
+        { name: "Spring Break", date: `${semesterYear}-03-17`, type: "academic" },
+        { name: "Memorial Day", date: `${semesterYear}-05-26`, type: "national" }
       )
     } else if (semester_name.toLowerCase().includes('fall')) {
       // Fall holidays
-      const year = semester_name.includes('2024') ? 2024 : currentYear
       holidays.push(
-        { name: "Labor Day", date: `${year}-09-02`, type: "national" },
-        { name: "Thanksgiving Break", date: `${year}-11-28`, type: "academic" },
-        { name: "Thanksgiving Break", date: `${year}-11-29`, type: "academic" }
+        { name: "Labor Day", date: `${semesterYear}-09-02`, type: "national" },
+        { name: "Thanksgiving Break", date: `${semesterYear}-11-28`, type: "academic" },
+        { name: "Thanksgiving Break", date: `${semesterYear}-11-29`, type: "academic" }
       )
     }
 
