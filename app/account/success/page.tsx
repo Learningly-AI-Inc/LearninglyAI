@@ -36,10 +36,42 @@ export default function SuccessPage() {
       const response = await fetch('/api/auth/user')
       if (response.ok) {
         setUserCreated(true)
-      } else {
-        setError('Payment successful but account setup is still in progress. Please try signing in.')
+        setIsLoading(false)
+        return
       }
+
+      // If not authenticated after 3 seconds, try manual reconciliation
+      console.log('User not authenticated, attempting reconciliation...')
+      const urlParams = new URLSearchParams(window.location.search)
+      const sessionId = urlParams.get('session_id')
+      
+      if (sessionId) {
+        console.log('Reconciling with session ID:', sessionId)
+        const reconcileResponse = await fetch('/api/subscriptions/reconcile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        })
+        
+        if (reconcileResponse.ok) {
+          const reconcileData = await reconcileResponse.json()
+          if (reconcileData.reconciled) {
+            console.log('Reconciliation successful')
+            // Wait a bit longer and check again
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            const finalCheck = await fetch('/api/auth/user')
+            if (finalCheck.ok) {
+              setUserCreated(true)
+              setIsLoading(false)
+              return
+            }
+          }
+        }
+      }
+      
+      setError('Payment successful but account setup is still in progress. Please try signing in.')
     } catch (err) {
+      console.error('Error checking user status:', err)
       setError('Payment successful but account setup is still in progress. Please try signing in.')
     } finally {
       setIsLoading(false)

@@ -8,12 +8,13 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
   try {
     const body = await request.text()
     const signature = request.headers.get('stripe-signature')
 
     if (!signature) {
-      console.error('Missing stripe-signature header')
+      console.error('[WEBHOOK ERROR] Missing stripe-signature header')
       return NextResponse.json(
         { error: 'Missing stripe-signature header' },
         { status: 400 }
@@ -25,14 +26,15 @@ export async function POST(request: NextRequest) {
     try {
       event = verifyWebhookSignature(body, signature)
     } catch (error) {
-      console.error('Webhook signature verification failed:', error)
+      console.error('[WEBHOOK ERROR] Signature verification failed:', error)
+      console.error('[WEBHOOK ERROR] Make sure STRIPE_WEBHOOK_SECRET is correctly set')
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 400 }
       )
     }
 
-    console.log('Received webhook event:', event.type)
+    console.log('✅ [WEBHOOK] Received event:', event.type, 'ID:', event.id)
 
     // Handle the event
     switch (event.type) {
@@ -67,14 +69,18 @@ export async function POST(request: NextRequest) {
         break
 
       default:
-        console.log(`Unhandled event type: ${event.type}`)
+        console.log(`ℹ️  [WEBHOOK] Unhandled event type: ${event.type}`)
     }
 
+    const duration = Date.now() - startTime
+    console.log(`✅ [WEBHOOK] Successfully processed ${event.type} in ${duration}ms`)
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('Webhook error:', error)
+    const duration = Date.now() - startTime
+    console.error(`❌ [WEBHOOK ERROR] Failed after ${duration}ms:`, error)
+    console.error('[WEBHOOK ERROR] Event details:', JSON.stringify(error, null, 2))
     return NextResponse.json(
-      { error: 'Webhook handler failed' },
+      { error: 'Webhook handler failed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
@@ -82,38 +88,47 @@ export async function POST(request: NextRequest) {
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   try {
-    console.log('Checkout session completed:', session.id)
-    console.log('Session mode:', session.mode)
-    console.log('Session metadata:', session.metadata)
-    console.log('Customer details:', session.customer_details)
+    console.log('🛒 [CHECKOUT] Session completed:', session.id)
+    console.log('🛒 [CHECKOUT] Mode:', session.mode)
+    console.log('🛒 [CHECKOUT] Email:', session.customer_details?.email)
+    console.log('🛒 [CHECKOUT] Customer ID:', session.customer)
+    console.log('🛒 [CHECKOUT] Subscription ID:', session.subscription)
     
     const customerId = session.customer as string
     const subscriptionId = session.subscription as string
     const customerEmail = session.customer_details?.email
     
     if (!customerId) {
-      console.error('Missing customer ID in checkout session')
+      console.error('❌ [CHECKOUT ERROR] Missing customer ID in checkout session')
+      return
+    }
+    
+    if (!customerEmail) {
+      console.error('❌ [CHECKOUT ERROR] Missing customer email in checkout session')
       return
     }
     
     // Only handle subscription mode (we don't support one-time payments)
     if (session.mode === 'subscription' && subscriptionId) {
-      console.log('Processing subscription checkout session')
+      console.log('🔄 [CHECKOUT] Processing subscription checkout...')
       const stripe = new (await import('stripe')).default(process.env.STRIPE_SECRET_KEY!)
       const subscription = await stripe.subscriptions.retrieve(subscriptionId)
       
+      console.log('👤 [CHECKOUT] Creating/linking user account for:', customerEmail)
       // Handle guest checkout by creating user account if needed
       await subscriptionService.handleGuestSubscriptionCreated(subscription, customerEmail || undefined)
+      console.log('✅ [CHECKOUT] User account created/linked successfully')
     } else {
-      console.error('Invalid checkout session mode or missing subscription ID:', {
+      console.error('❌ [CHECKOUT ERROR] Invalid checkout session:', {
         mode: session.mode,
         hasSubscription: !!subscriptionId
       })
     }
     
-    console.log('Successfully processed checkout session:', session.id)
+    console.log('✅ [CHECKOUT] Successfully processed checkout session:', session.id)
   } catch (error) {
-    console.error('Error handling checkout session completed:', error)
+    console.error('❌ [CHECKOUT ERROR] Failed to handle checkout session:', error)
+    throw error
   }
 }
 
