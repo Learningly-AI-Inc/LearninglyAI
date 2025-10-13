@@ -1,11 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { Upload, FileText, Calendar, CheckCircle, AlertCircle } from "lucide-react"
+import { Upload, FileText, Calendar, CheckCircle, AlertCircle, Edit2, Clock, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase"
 import { SyllabusDocument, Course, GeneratedSchedule } from "@/types/calendar"
@@ -18,10 +21,14 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
   const [isUploading, setIsUploading] = React.useState(false)
   const [uploadProgress, setUploadProgress] = React.useState(0)
   const [uploadedFile, setUploadedFile] = React.useState<File | null>(null)
-  const [processingStatus, setProcessingStatus] = React.useState<'idle' | 'processing' | 'completed' | 'error'>('idle')
+  const [processingStatus, setProcessingStatus] = React.useState<'idle' | 'processing' | 'completed' | 'configuring' | 'error'>('idle')
   const [extractedCourses, setExtractedCourses] = React.useState<Course[]>([])
   const [semesterName, setSemesterName] = React.useState('')
   const [isAuthenticated, setIsAuthenticated] = React.useState<boolean | null>(null)
+  const [showConfig, setShowConfig] = React.useState(false)
+  const [configuredCourses, setConfiguredCourses] = React.useState<Course[]>([])
+  const [semesterStartDate, setSemesterStartDate] = React.useState('')
+  const [semesterEndDate, setSemesterEndDate] = React.useState('')
   
   const supabase = createClient()
   const { showSuccess, showError } = useToast()
@@ -180,11 +187,36 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
       }
       
       setExtractedCourses(courses)
+      setConfiguredCourses(courses) // Initialize configured courses
       setSemesterName(semester_name)
-      setProcessingStatus('completed')
+      
+      // Calculate default semester dates based on semester name
+      const currentYear = new Date().getFullYear()
+      if (semester_name.toLowerCase().includes('spring')) {
+        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
+        setSemesterStartDate(`${year}-01-15`)
+        setSemesterEndDate(`${year}-05-15`)
+      } else if (semester_name.toLowerCase().includes('fall')) {
+        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
+        setSemesterStartDate(`${year}-08-26`)
+        setSemesterEndDate(`${year}-12-13`)
+      } else if (semester_name.toLowerCase().includes('summer')) {
+        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
+        setSemesterStartDate(`${year}-05-15`)
+        setSemesterEndDate(`${year}-08-15`)
+      } else {
+        // Default to current date + 4 months
+        const start = new Date()
+        setSemesterStartDate(start.toISOString().split('T')[0])
+        const end = new Date(start)
+        end.setMonth(end.getMonth() + 4)
+        setSemesterEndDate(end.toISOString().split('T')[0])
+      }
+      
+      setProcessingStatus('configuring')
       setUploadProgress(100)
 
-      showSuccess(`Found ${courses.length} courses for ${semesterName}`)
+      showSuccess(`Found ${courses.length} courses. Please review and configure the details.`)
 
     } catch (error) {
       console.error('Error processing syllabus:', error)
@@ -196,7 +228,10 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
   }
 
   const generateSchedule = async () => {
-    if (!extractedCourses.length || !semesterName) return
+    if (!configuredCourses.length || !semesterName || !semesterStartDate || !semesterEndDate) {
+      showError('Please complete all required fields')
+      return
+    }
 
     try {
       setIsUploading(true)
@@ -205,7 +240,7 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('User not authenticated')
 
-      // Generate schedule using the API
+      // Generate schedule using the API with configured data
       const response = await fetch('/api/calendar/generate-schedule', {
         method: 'POST',
         headers: {
@@ -214,7 +249,9 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
         body: JSON.stringify({
           syllabus_document_id: 'temp-id', // Not used in the API
           semester_name: semesterName,
-          courses: extractedCourses,
+          semester_start_date: semesterStartDate,
+          semester_end_date: semesterEndDate,
+          courses: configuredCourses,
         }),
       })
 
@@ -253,9 +290,9 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
         throw new Error(`Failed to save calendar events: ${eventsError.message}`)
       }
 
-      setProcessingStatus('completed')
+      console.log(`Successfully created ${events?.length || 0} calendar events`)
       
-      // Call the callback with the schedule data
+      // Call the callback with the schedule data to refresh the calendar
       onScheduleGenerated?.({
         id: 'temp-id',
         user_id: user.id,
@@ -267,7 +304,8 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
         created_at: new Date().toISOString()
       })
 
-      showSuccess(`Created ${events?.length || 0} calendar events for ${semesterName} with ${extractedCourses.length} courses`)
+      setProcessingStatus('completed')
+      showSuccess(`Created ${events?.length || 0} calendar events! Switch to the Calendar tab to view them.`)
 
     } catch (error) {
       console.error('Error generating schedule:', error)
@@ -278,12 +316,29 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
     }
   }
 
+  const updateCourseField = (index: number, field: string, value: any) => {
+    const updated = [...configuredCourses]
+    updated[index] = { ...updated[index], [field]: value }
+    setConfiguredCourses(updated)
+  }
+
+  const updateCourseSchedule = (courseIndex: number, scheduleIndex: number, field: string, value: any) => {
+    const updated = [...configuredCourses]
+    const updatedSchedule = [...updated[courseIndex].schedule]
+    updatedSchedule[scheduleIndex] = { ...updatedSchedule[scheduleIndex], [field]: value }
+    updated[courseIndex] = { ...updated[courseIndex], schedule: updatedSchedule }
+    setConfiguredCourses(updated)
+  }
+
   const resetUpload = () => {
     setUploadedFile(null)
     setProcessingStatus('idle')
     setUploadProgress(0)
     setExtractedCourses([])
+    setConfiguredCourses([])
     setSemesterName('')
+    setSemesterStartDate('')
+    setSemesterEndDate('')
   }
 
   return (
@@ -360,47 +415,163 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
           </div>
         )}
 
-        {processingStatus === 'completed' && (
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2 text-green-600">
+        {processingStatus === 'configuring' && (
+          <div className="space-y-6">
+            <div className="flex items-center space-x-2 text-blue-600">
               <CheckCircle className="h-5 w-5" />
-              <span className="font-semibold">Syllabus processed successfully!</span>
+              <span className="font-semibold">Syllabus processed! Please configure your schedule:</span>
             </div>
             
-            <div className="space-y-3">
-              <div>
-                <h4 className="font-medium">Semester: {semesterName}</h4>
-                <p className="text-sm text-muted-foreground">
-                  Found {extractedCourses.length} courses
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <h5 className="font-medium">Extracted Courses:</h5>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {extractedCourses.map((course, index) => (
-                    <div key={index} className="flex items-center space-x-2 p-2 border border-border rounded">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{course.name}</div>
-                        <div className="text-xs text-muted-foreground">{course.code}</div>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {course.credits} credits
-                      </Badge>
-                    </div>
-                  ))}
+            {/* Semester Configuration */}
+            <div className="space-y-4 p-4 border border-blue-200 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+              <h4 className="font-semibold flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Semester Details
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="semester-name">Semester Name</Label>
+                  <Input
+                    id="semester-name"
+                    value={semesterName}
+                    onChange={(e) => setSemesterName(e.target.value)}
+                    placeholder="Fall 2024"
+                  />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="start-date">Start Date</Label>
+                  <Input
+                    id="start-date"
+                    type="date"
+                    value={semesterStartDate}
+                    onChange={(e) => setSemesterStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="end-date">End Date</Label>
+                  <Input
+                    id="end-date"
+                    type="date"
+                    value={semesterEndDate}
+                    onChange={(e) => setSemesterEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Courses Configuration */}
+            <div className="space-y-4">
+              <h4 className="font-semibold">Configure Courses ({configuredCourses.length})</h4>
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {configuredCourses.map((course, courseIndex) => (
+                  <Card key={courseIndex} className="border-l-4 border-l-blue-500">
+                    <CardHeader className="pb-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor={`course-name-${courseIndex}`}>Course Name</Label>
+                          <Input
+                            id={`course-name-${courseIndex}`}
+                            value={course.name}
+                            onChange={(e) => updateCourseField(courseIndex, 'name', e.target.value)}
+                            placeholder="e.g., Mathematics 101"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`course-code-${courseIndex}`}>Course Code</Label>
+                          <Input
+                            id={`course-code-${courseIndex}`}
+                            value={course.code}
+                            onChange={(e) => updateCourseField(courseIndex, 'code', e.target.value)}
+                            placeholder="e.g., MATH 101"
+                          />
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="text-sm font-medium text-muted-foreground">Class Schedule:</div>
+                      {course.schedule.map((schedule, scheduleIndex) => (
+                        <div key={scheduleIndex} className="grid grid-cols-2 md:grid-cols-4 gap-2 p-2 bg-muted/50 rounded">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Day</Label>
+                            <Select
+                              value={schedule.day_of_week.toString()}
+                              onValueChange={(value) => updateCourseSchedule(courseIndex, scheduleIndex, 'day_of_week', parseInt(value))}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="0">Sunday</SelectItem>
+                                <SelectItem value="1">Monday</SelectItem>
+                                <SelectItem value="2">Tuesday</SelectItem>
+                                <SelectItem value="3">Wednesday</SelectItem>
+                                <SelectItem value="4">Thursday</SelectItem>
+                                <SelectItem value="5">Friday</SelectItem>
+                                <SelectItem value="6">Saturday</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Start Time</Label>
+                            <Input
+                              type="time"
+                              value={schedule.start_time}
+                              onChange={(e) => updateCourseSchedule(courseIndex, scheduleIndex, 'start_time', e.target.value)}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">End Time</Label>
+                            <Input
+                              type="time"
+                              value={schedule.end_time}
+                              onChange={(e) => updateCourseSchedule(courseIndex, scheduleIndex, 'end_time', e.target.value)}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Location</Label>
+                            <Input
+                              value={schedule.location || ''}
+                              onChange={(e) => updateCourseSchedule(courseIndex, scheduleIndex, 'location', e.target.value)}
+                              placeholder="Room #"
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </div>
             
             <div className="flex space-x-2">
-              <Button onClick={generateSchedule} disabled={isUploading}>
+              <Button onClick={generateSchedule} disabled={isUploading} className="bg-blue-600 hover:bg-blue-700">
                 <Calendar className="mr-2 h-4 w-4" />
                 Generate Schedule
               </Button>
               <Button variant="outline" onClick={resetUpload}>
-                Upload Another
+                Start Over
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {processingStatus === 'completed' && (
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2 text-green-600">
+              <CheckCircle className="h-5 w-5" />
+              <span className="font-semibold">Schedule generated successfully!</span>
+            </div>
+            
+            <p className="text-muted-foreground">
+              Your calendar events have been created. Switch to the Calendar tab to view them.
+            </p>
+            
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={resetUpload}>
+                Upload Another Syllabus
               </Button>
             </div>
           </div>

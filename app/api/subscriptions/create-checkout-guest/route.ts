@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
       ],
       success_url: successUrl,
       cancel_url: cancelUrl,
+      allow_promotion_codes: true, // Enable promotion codes in checkout
       // Customer will be created automatically by Stripe
       // We'll handle user creation in the webhook
       metadata: {
