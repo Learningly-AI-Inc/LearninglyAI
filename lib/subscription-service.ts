@@ -219,8 +219,8 @@ export class SubscriptionService {
                 stripe_customer_id: stripeCustomerId,
                 stripe_subscription_id: chosen.id,
                 subscription_status: chosen.status as any,
-                current_period_end: new Date((chosen as any).current_period_end * 1000),
-                cancel_at_period_end: (chosen as any).cancel_at_period_end,
+                current_period_end: chosen.current_period_end ? new Date(chosen.current_period_end * 1000) : null,
+                cancel_at_period_end: chosen.cancel_at_period_end || false,
               }, { onConflict: 'user_id', ignoreDuplicates: false })
             if (error) throw error
 
@@ -401,6 +401,13 @@ export class SubscriptionService {
 
       // Create or update subscription record for known user in user_data table
       const supabase = await this.getAdminSupabase()
+
+      console.log('📅 Subscription period data:', {
+        current_period_end: subscription.current_period_end,
+        current_period_start: subscription.current_period_start,
+        status: subscription.status
+      })
+
       const { error } = await supabase
         .from('user_data')
         .upsert({
@@ -410,8 +417,8 @@ export class SubscriptionService {
           stripe_customer_id: subscription.customer as string,
           stripe_subscription_id: subscription.id,
           subscription_status: subscription.status as any,
-          current_period_end: new Date((subscription as any).current_period_end * 1000),
-          cancel_at_period_end: (subscription as any).cancel_at_period_end,
+          current_period_end: subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : null,
+          cancel_at_period_end: subscription.cancel_at_period_end || false,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id', ignoreDuplicates: false })
 
@@ -487,6 +494,12 @@ export class SubscriptionService {
       }
 
       // Create or update subscription record in user_data table
+      console.log('📅 Guest subscription period data:', {
+        current_period_end: subscription.current_period_end,
+        current_period_start: subscription.current_period_start,
+        status: subscription.status
+      })
+
       const { error: subscriptionError } = await supabase
         .from('user_data')
         .upsert({
@@ -496,8 +509,8 @@ export class SubscriptionService {
           stripe_customer_id: subscription.customer as string,
           stripe_subscription_id: subscription.id,
           subscription_status: subscription.status as any,
-          current_period_end: new Date((subscription as any).current_period_end * 1000),
-          cancel_at_period_end: (subscription as any).cancel_at_period_end,
+          current_period_end: subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : null,
+          cancel_at_period_end: subscription.cancel_at_period_end || false,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id', ignoreDuplicates: false })
 
@@ -556,14 +569,20 @@ export class SubscriptionService {
         }
       }
 
+      console.log('📅 Updating subscription period data:', {
+        current_period_end: subscription.current_period_end,
+        current_period_start: subscription.current_period_start,
+        status: subscription.status
+      })
+
       const { error } = await supabase
         .from('user_data')
         .update({
           plan_name: planName,
           plan_price_cents: planPrice,
           subscription_status: subscription.status as any,
-          current_period_end: new Date((subscription as any).current_period_end * 1000),
-          cancel_at_period_end: (subscription as any).cancel_at_period_end,
+          current_period_end: subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : null,
+          cancel_at_period_end: subscription.cancel_at_period_end || false,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', userData.user_id)

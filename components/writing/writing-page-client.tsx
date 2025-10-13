@@ -241,6 +241,10 @@ const WritingPageClient = () => {
         setLastGrammarCheckResult('had-issues');
         setHighlightedContent("");
 
+        console.log('✅ Grammar issues state updated:', issuesWithPositions.length);
+        console.log('✅ Current activeTab:', activeTab);
+        console.log('✅ First issue:', issuesWithPositions[0]);
+
         // Show results immediately
         toast.info(`Found ${issuesWithPositions.length} grammar issue${issuesWithPositions.length > 1 ? 's' : ''} to review.`);
 
@@ -1206,7 +1210,7 @@ const WritingPageClient = () => {
       }
       aiSuggestionsPanel={
         <div className="h-full flex flex-col">
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-hidden">
             <AISuggestionsPanel
               selectedText={selectedText}
               onAccept={handleAcceptSuggestion}

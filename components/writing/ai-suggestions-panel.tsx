@@ -52,6 +52,19 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
 }) => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [expandedIssueIds, setExpandedIssueIds] = useState<Record<string, boolean>>({});
+  const grammarTabRef = React.useRef<HTMLDivElement>(null);
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🎯 AISuggestionsPanel render - grammarIssues:', grammarIssues.length, 'activeTab:', activeTab, 'isProcessing:', isProcessing);
+  }, [grammarIssues, activeTab, isProcessing]);
+
+  // Ensure grammar panel scrolls to top when loading or showing completion
+  React.useEffect(() => {
+    if (activeTab === 'grammar' && grammarTabRef.current) {
+      grammarTabRef.current.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [activeTab, isProcessing, grammarIssues.length]);
 
   const handleCopyText = async () => {
     try {
@@ -104,12 +117,13 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0 h-full min-h-0">
-        {/* Keep internal tab state but hide the visual tabs; the toolbar will control it */}
+        {/* Internal tabs; toolbar controls active value */}
         <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col min-h-0">
-          <div className="flex-1 px-4 pb-4 overflow-auto">
-            <TabsContent value="paraphrase" className="h-full m-0 flex flex-col">
+          {/* Common scrollable body wrapper for all tabs */}
+          <TabsContent value="paraphrase" hidden={activeTab !== 'paraphrase'} className={`h-full m-0 flex flex-col ${activeTab !== 'paraphrase' ? 'hidden' : ''}`}>
+            <div className="flex-1 min-h-0 overflow-auto px-4 pb-4 pt-4">
               {isProcessing ? (
-                <div className="space-y-4 p-4">
+                <div className="space-y-4">
                   <div className="flex items-center gap-2 mb-4">
                     <Skeleton className="h-4 w-4 rounded-full" />
                     <Skeleton className="h-4 w-32" />
@@ -143,24 +157,24 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                   </div>
                 </div>
               ) : suggestedText ? (
-                <div className="space-y-4 flex flex-col flex-1">
-                  <div className="bg-muted rounded-lg p-4 shadow-sm border overflow-auto flex-1">
+                <div className="flex flex-col h-full">
+                  <div className="bg-muted rounded-lg p-4 shadow-sm border flex-1 overflow-hidden flex flex-col max-h-[calc(100vh-350px)]">
                     <h4 className="text-sm font-semibold text-foreground mb-2">Suggestion</h4>
-                    <div className="overflow-auto">
+                    <div className="overflow-y-auto flex-1">
                       <MarkdownRenderer
                         content={suggestedText}
                         className="prose prose-sm max-w-none dark:prose-invert"
                       />
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 mt-4 shrink-0">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={handleCopyText}
                       className="flex-1"
                     >
-                      <Copy className="h-4 w-4 mr-2" /> 
+                      <Copy className="h-4 w-4 mr-2" />
                       {copySuccess ? "Copied!" : "Copy"}
                     </Button>
                     <Button
@@ -189,24 +203,31 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                   </div>
                 </div>
               )}
-            </TabsContent>
+            </div>
+          </TabsContent>
 
-            <TabsContent value="grammar" className="h-full m-0">
-              {isProcessing ? (
-                <div className="space-y-4 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Skeleton className="h-4 w-4 rounded-full" />
-                    <Skeleton className="h-4 w-32" />
+            <TabsContent ref={grammarTabRef} value="grammar" hidden={activeTab !== 'grammar'} className={`${activeTab !== 'grammar' ? 'hidden' : 'h-full m-0 flex flex-col'}`}>
+              <div className="flex-1 min-h-0 overflow-auto px-4 pb-4 pt-4">
+                {isProcessing ? (
+                  <div className="space-y-4">
+                    {/* status at top */}
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      <span>Checking grammar...</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-4 rounded-full" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-5/6" />
                   </div>
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-5/6" />
-                </div>
-              ) : grammarIssues.length > 0 ? (
-                <div className="space-y-3 p-3 h-full min-h-0 flex flex-col">
-                  <div className="flex items-center justify-between">
+                ) : grammarIssues.length > 0 ? (
+                  <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                  <div className="flex items-center justify-between mb-3 shrink-0">
                     <div className="flex items-center gap-2 text-sm text-foreground">
-                      <Badge variant="outline"><AlertTriangle className="mr-1" /> Found {grammarIssues.length} issues</Badge>
+                      <Badge variant="outline"><AlertTriangle className="mr-1 h-3 w-3" /> Found {grammarIssues.length} issues</Badge>
                       {grammarIssues.length > 0 && currentIssueIndex >= 0 && (
                         <Badge variant="secondary">
                           {currentIssueIndex + 1} of {grammarIssues.length}
@@ -216,18 +237,18 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                     <div className="flex items-center gap-2">
                       {grammarIssues.length > 1 && onNavigateIssue && (
                         <div className="flex items-center gap-1">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
+                          <Button
+                            size="sm"
+                            variant="outline"
                             onClick={() => onNavigateIssue('prev')}
                             className="h-7 px-2"
                             title="Previous issue"
                           >
                             ←
                           </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
+                          <Button
+                            size="sm"
+                            variant="outline"
                             onClick={() => onNavigateIssue('next')}
                             className="h-7 px-2"
                             title="Next issue"
@@ -309,22 +330,23 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                       );
                     })}
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full border-2 border-dashed border-border rounded-lg bg-muted/30">
-                  <div className="text-center">
-                    <div className="p-4 bg-green-100 dark:bg-green-900/20 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                      <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-green-700 dark:text-green-400 mb-2">Grammar Check Complete</h3>
-                    <p className="text-green-600 dark:text-green-400">No issues found in your text!</p>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="border-2 border-dashed border-border rounded-lg bg-muted/30 p-4">
+                    <div className="text-center">
+                      <div className="p-4 bg-green-100 dark:bg-green-900/20 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                        <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-green-700 dark:text-green-400 mb-2">Grammar Check Complete</h3>
+                      <p className="text-green-600 dark:text-green-400">No issues found in your text!</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </TabsContent>
 
             {/* Placeholder content for AI Detector */}
-            <TabsContent value="detector" className="h-full m-0">
+            <TabsContent value="detector" className="h-full m-0 px-4 pb-4 overflow-auto">
               <div className="flex items-center justify-center h-full border-2 border-dashed border-border rounded-lg bg-muted/30">
                 <div className="text-center">
                   <div className="p-4 bg-yellow-100 dark:bg-yellow-900/20 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
@@ -337,7 +359,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
             </TabsContent>
 
             {/* Placeholder content for AI Checker */}
-            <TabsContent value="checker" className="h-full m-0">
+            <TabsContent value="checker" className="h-full m-0 px-4 pb-4 overflow-auto">
               <div className="flex items-center justify-center h-full border-2 border-dashed border-border rounded-lg bg-card/50">
                 <div className="text-center">
                   <div className="p-4 bg-primary/10 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
@@ -349,7 +371,6 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
               </div>
             </TabsContent>
 
-          </div>
         </Tabs>
       </CardContent>
     </Card>
