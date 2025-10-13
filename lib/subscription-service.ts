@@ -311,6 +311,7 @@ export class SubscriptionService {
         mode: 'subscription',
         success_url: successUrl,
         cancel_url: cancelUrl,
+        allow_promotion_codes: true, // Enable promotion codes in checkout
         metadata: {
           user_id: userId,
         },
