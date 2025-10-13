@@ -24,10 +24,18 @@ export function UsageProgressBar({
   showValues = true,
   size = 'md'
 }: UsageProgressBarProps) {
-  const percentage = limit > 0 ? Math.min((current / limit) * 100, 100) : 0;
+  // Handle unlimited plans (-1 means unlimited)
+  const isUnlimited = limit === -1;
+  const percentage = isUnlimited ? 0 : (limit > 0 ? Math.min((current / limit) * 100, 100) : 0);
 
   // Determine color based on usage percentage
   const getStatusColor = () => {
+    if (isUnlimited) return {
+      bg: 'bg-blue-500',
+      text: 'text-blue-700',
+      badge: 'bg-blue-100 text-blue-700 border-blue-200',
+      icon: CheckCircle
+    };
     if (percentage >= 90) return {
       bg: 'bg-red-500',
       text: 'text-red-700',
@@ -73,23 +81,36 @@ export function UsageProgressBar({
         {showValues && (
           <div className="flex items-center gap-2">
             <span className={`${textSizeClasses[size]} text-gray-600`}>
-              {current.toLocaleString()} / {limit.toLocaleString()} {unit}
+              {isUnlimited
+                ? `${current.toLocaleString()} ${unit} (Unlimited)`
+                : `${current.toLocaleString()} / ${limit.toLocaleString()} ${unit}`
+              }
             </span>
-            <Badge className={`${status.badge} text-xs px-2 py-0.5`}>
-              <IconComponent className="h-3 w-3 mr-1" />
-              {percentage.toFixed(0)}%
-            </Badge>
+            {!isUnlimited && (
+              <Badge className={`${status.badge} text-xs px-2 py-0.5`}>
+                <IconComponent className="h-3 w-3 mr-1" />
+                {percentage.toFixed(0)}%
+              </Badge>
+            )}
+            {isUnlimited && (
+              <Badge className={`${status.badge} text-xs px-2 py-0.5`}>
+                <IconComponent className="h-3 w-3 mr-1" />
+                ∞
+              </Badge>
+            )}
           </div>
         )}
       </div>
 
       {/* Progress Bar */}
-      <div className="relative w-full bg-gray-200 rounded-full overflow-hidden" style={{ height: sizeClasses[size] === 'h-1.5' ? '6px' : sizeClasses[size] === 'h-2' ? '8px' : '12px' }}>
-        <div
-          className={`${status.bg} h-full rounded-full transition-all duration-500 ease-out`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
+      {!isUnlimited && (
+        <div className="relative w-full bg-gray-200 rounded-full overflow-hidden" style={{ height: sizeClasses[size] === 'h-1.5' ? '6px' : sizeClasses[size] === 'h-2' ? '8px' : '12px' }}>
+          <div
+            className={`${status.bg} h-full rounded-full transition-all duration-500 ease-out`}
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -111,8 +132,9 @@ export function UsageProgressCard({
   description,
   className = ''
 }: UsageProgressCardProps) {
-  const percentage = limit > 0 ? Math.min((current / limit) * 100, 100) : 0;
-  const remaining = Math.max(limit - current, 0);
+  const isUnlimited = limit === -1;
+  const percentage = isUnlimited ? 0 : (limit > 0 ? Math.min((current / limit) * 100, 100) : 0);
+  const remaining = isUnlimited ? Infinity : Math.max(limit - current, 0);
 
   return (
     <div className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm ${className}`}>
@@ -130,7 +152,7 @@ export function UsageProgressCard({
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
         <span className="text-xs text-gray-600">Remaining</span>
         <span className="text-sm font-semibold text-gray-900">
-          {remaining.toLocaleString()} {unit}
+          {isUnlimited ? '∞' : `${remaining.toLocaleString()} ${unit}`}
         </span>
       </div>
     </div>

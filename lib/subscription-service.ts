@@ -195,7 +195,7 @@ export class SubscriptionService {
             // Map Stripe plan to our plan names
             let planName = 'Free'
             let planPrice = 0
-            
+
             if (priceId || productId) {
               // Try to determine plan based on price
               if (price?.unit_amount) {
@@ -203,7 +203,7 @@ export class SubscriptionService {
                   planName = 'Premium (Monthly)'  // $15 is Premium Monthly
                   planPrice = 1500
                 } else if (price.unit_amount === 10000) {
-                  planName = 'Premium (Yearly)'   // $100 is Premium Yearly
+                  planName = 'Premium Elite'   // $100 is Premium Elite (Yearly)
                   planPrice = 10000
                 }
                 // Everything else is Free (default values above)
@@ -554,7 +554,7 @@ export class SubscriptionService {
       // Map subscription status to plan name
       let planName = 'Free'
       let planPrice = 0
-      
+
       if (subscription.status === 'active' || subscription.status === 'trialing') {
         const price = subscription.items.data[0]?.price
         if (price?.unit_amount) {
@@ -562,7 +562,7 @@ export class SubscriptionService {
             planName = 'Premium (Monthly)'  // $15 is Premium Monthly
             planPrice = 1500
           } else if (price.unit_amount === 10000) {
-            planName = 'Premium (Yearly)'   // $100 is Premium Yearly
+            planName = 'Premium Elite'   // $100 is Premium Elite (Yearly)
             planPrice = 10000
           }
           // Everything else is Free (default values above)
@@ -655,12 +655,12 @@ export class SubscriptionService {
       // Fallback: try to determine plan based on price amount from Stripe
       const stripe = new (await import('stripe')).default(process.env.STRIPE_SECRET_KEY!)
       const price = await stripe.prices.retrieve(priceId)
-      
+
       if (price.unit_amount) {
         if (price.unit_amount === 1500) {
           return { name: 'Premium (Monthly)', price_cents: price.unit_amount }  // $15 is Premium Monthly
         } else if (price.unit_amount === 10000) {
-          return { name: 'Premium (Yearly)', price_cents: price.unit_amount }   // $100 is Premium Yearly
+          return { name: 'Premium Elite', price_cents: price.unit_amount }   // $100 is Premium Elite (Yearly)
         }
         // Everything else is Free - return null to use default Free plan
       }
@@ -720,6 +720,7 @@ export class SubscriptionService {
     }
 
     // Check if it's Premium Elite / Yearly (unlimited)
+    // This includes "Premium (Yearly)", "Premium Elite", or anything with "elite" or "yearly"
     if (normalizedPlanName.includes('elite') || normalizedPlanName.includes('yearly')) {
       return {
         documents_uploaded: -1, // Unlimited
@@ -730,7 +731,7 @@ export class SubscriptionService {
       }
     }
 
-    // Check if it's any Premium plan (monthly or otherwise)
+    // Check if it's Premium Monthly plan
     if (normalizedPlanName.includes('premium')) {
       return {
         documents_uploaded: 3000, // 100 per day = ~3000 per month

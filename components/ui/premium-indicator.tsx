@@ -10,7 +10,7 @@ interface PremiumIndicatorProps {
 }
 
 /**
- * Premium indicator component that shows a "PRO" badge for premium users
+ * Premium indicator component that shows a "PRO" or "ELITE" badge for premium users
  * Automatically checks subscription status and plan name
  */
 export function PremiumIndicator({ className = '', size = 'sm' }: PremiumIndicatorProps) {
@@ -26,7 +26,7 @@ export function PremiumIndicator({ className = '', size = 'sm' }: PremiumIndicat
     return null
   }
 
-  return <PremiumBadge className={className} size={size} />
+  return <PremiumBadge className={className} size={size} planName={subscription?.plan?.name} />
 }
 
 /**

@@ -157,26 +157,17 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                   </div>
                 </div>
               ) : suggestedText ? (
-                <div className="flex flex-col h-full">
-                  <div className="bg-muted rounded-lg p-4 shadow-sm border flex-1 overflow-hidden flex flex-col">
+                <div className="flex flex-col gap-4">
+                  <div className="bg-muted rounded-lg p-4 shadow-sm border">
                     <h4 className="text-sm font-semibold text-foreground mb-2">Suggestion</h4>
-                    <div className="overflow-y-auto flex-1">
+                    <div className="max-h-[400px] overflow-y-auto">
                       <MarkdownRenderer
                         content={suggestedText}
                         className="prose prose-sm max-w-none dark:prose-invert"
                       />
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-4 shrink-0">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleCopyText}
-                      className="flex-1"
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      {copySuccess ? "Copied!" : "Copy"}
-                    </Button>
+                  <div className="flex gap-2">
                     <Button
                       size="sm"
                       variant="default"
