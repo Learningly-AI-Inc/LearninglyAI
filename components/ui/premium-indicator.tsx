@@ -17,10 +17,10 @@ export function PremiumIndicator({ className = '', size = 'sm' }: PremiumIndicat
   const { subscription } = useSubscription()
 
   // Show premium badge if user has active/trialing subscription with Premium plan
-  const isPremium = subscription && 
-    (subscription.status === 'active' || subscription.status === 'trialing') && 
-    subscription.plan && 
-    subscription.plan.name === 'Premium'
+  const isPremium = subscription &&
+    (subscription.status === 'active' || subscription.status === 'trialing') &&
+    subscription.plan &&
+    subscription.plan.name.includes('Premium')
 
   if (!isPremium) {
     return null
@@ -35,8 +35,8 @@ export function PremiumIndicator({ className = '', size = 'sm' }: PremiumIndicat
 export function useIsPremium() {
   const { subscription } = useSubscription()
   
-  return subscription && 
-    (subscription.status === 'active' || subscription.status === 'trialing') && 
-    subscription.plan && 
-    subscription.plan.name === 'Premium'
+  return subscription &&
+    (subscription.status === 'active' || subscription.status === 'trialing') &&
+    subscription.plan &&
+    subscription.plan.name.includes('Premium')
 }
