@@ -120,7 +120,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
         {/* Internal tabs; toolbar controls active value */}
         <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col min-h-0">
           {/* Common scrollable body wrapper for all tabs */}
-          ca          <TabsContent value="paraphrase" hidden={activeTab !== 'paraphrase'} className={`h-full m-0 flex flex-col ${activeTab !== 'paraphrase' ? 'hidden' : ''}`}>
+          <TabsContent value="paraphrase" hidden={activeTab !== 'paraphrase'} className={`h-full m-0 flex flex-col ${activeTab !== 'paraphrase' ? 'hidden' : ''}`}>
             <div className="flex-1 min-h-0 overflow-auto px-4 pb-4 pt-4">
               {isProcessing ? (
                 <div className="space-y-4">
