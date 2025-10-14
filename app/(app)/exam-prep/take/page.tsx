@@ -88,9 +88,12 @@ export default function TakeExamPage() {
   }
 
   const total = Math.max(0, exam.questions.length || 0)
-  const pct = exam?.quizMode === 'scheduled'
-    ? total > 0 ? Math.round((Object.keys(answers).length / total) * 100) : 0
-    : total > 0 ? Math.round((index / total) * 100) : 0
+  
+  // Calculate progress based on time remaining
+  const totalDurationSeconds = Math.max(1, Math.floor((exam.duration || 0) * 60))
+  const pct = secondsLeft !== null 
+    ? Math.min(100, Math.max(0, Math.round((secondsLeft / totalDurationSeconds) * 100)))
+    : 100
 
   function submit() {
     if (!q || !selected) return
