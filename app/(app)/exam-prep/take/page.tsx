@@ -138,9 +138,9 @@ export default function TakeExamPage() {
   const finished = timeUp || (exam?.quizMode === 'scheduled' ? showResult : (index + 1 >= total && showResult))
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Card className="shadow-xl border-0 overflow-hidden">
+        <Card className="shadow-xl border-0 overflow-hidden dark:bg-gray-900 dark:border dark:border-gray-800">
           <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
               <div className="flex items-center justify-between">
               <div>
@@ -159,10 +159,10 @@ export default function TakeExamPage() {
                 </div>
             </div>
             <div className="mt-4">
-              <Progress value={pct} className="h-2 bg-blue-200" />
+              <Progress value={pct} className="h-2 bg-blue-200 dark:bg-blue-950" />
             </div>
           </CardHeader>
-          <CardContent className="space-y-6 p-8">
+          <CardContent className="space-y-6 p-8 dark:bg-gray-900">
             {!finished ? (
               exam?.quizMode === 'scheduled' ? (
                 // Scheduled Mode: Show all questions vertically
@@ -190,18 +190,18 @@ export default function TakeExamPage() {
                             onClick={() => setSelected(value)}
                             className={`w-full p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-center gap-4 ${
                               isSelected 
-                                ? 'border-blue-500 bg-blue-50 shadow-md' 
-                                : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-sm'
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-600 shadow-md' 
+                                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 hover:shadow-sm'
                             }`}
                           >
                             <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm shrink-0 ${
                               isSelected 
                                 ? 'bg-blue-600 text-white' 
-                                : 'bg-gray-100 text-gray-600'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                             }`}>
                               {label}
                             </span>
-                            <span className={`flex-1 ${isSelected ? 'text-gray-900 font-medium' : 'text-gray-700'}`}>
+                            <span className={`flex-1 ${isSelected ? 'text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'}`}>
                               {opt}
                             </span>
                           </button>
@@ -226,18 +226,18 @@ export default function TakeExamPage() {
                           onClick={() => setSelected(value)}
                           className={`w-full p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-center gap-4 ${
                             isSelected 
-                              ? 'border-blue-500 bg-blue-50 shadow-md' 
-                              : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-sm'
+                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-600 shadow-md' 
+                              : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 hover:shadow-sm'
                           }`}
                         >
                           <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm shrink-0 ${
                             isSelected 
                               ? 'bg-blue-600 text-white' 
-                              : 'bg-gray-100 text-gray-600'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                           }`}>
                             {label}
                           </span>
-                          <span className={`flex-1 ${isSelected ? 'text-gray-900 font-medium' : 'text-gray-700'}`}>
+                          <span className={`flex-1 ${isSelected ? 'text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'}`}>
                             {opt}
                           </span>
                         </button>
@@ -258,7 +258,7 @@ export default function TakeExamPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <div className={`p-4 rounded-lg ${selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                      <div className={`p-4 rounded-lg ${selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'}`}>
                         <div className="font-semibold">
                           {selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? '✓ Correct!' : `✗ Incorrect. Answer: ${q?.correctAnswer}`}
                         </div>
