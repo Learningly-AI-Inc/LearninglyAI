@@ -101,6 +101,36 @@ export async function POST(request: NextRequest) {
       canUpload = true;
     }
 
+    // Check for duplicate file based on filename
+    const duplicateFileName = file ? file.name : fileName;
+    if (duplicateFileName) {
+      const { data: existingDoc, error: checkError } = await supabase
+        .from('documents')
+        .select('id, public_url, file_path, extracted_text, page_count, text_length, metadata')
+        .eq('user_id', user.id)
+        .eq('original_filename', duplicateFileName)
+        .eq('document_type', 'exam-prep')
+        .maybeSingle();
+      
+      if (!checkError && existingDoc) {
+        console.log('✅ Duplicate file detected, returning existing document:', existingDoc.id);
+        const metadata = existingDoc.metadata as any || {};
+        return NextResponse.json({
+          success: true,
+          url: existingDoc.public_url,
+          filename: duplicateFileName,
+          fileId: existingDoc.id,
+          documentId: existingDoc.id,
+          title: duplicateFileName,
+          textExtracted: (existingDoc.text_length || 0) > 10,
+          textLength: existingDoc.text_length || 0,
+          pageCount: existingDoc.page_count || 1,
+          processingNotes: ['Duplicate file - using existing upload'],
+          message: 'File already exists - using existing document'
+        });
+      }
+    }
+
     if (!canUpload) {
       console.log('❌ Upload limit exceeded for exam prep:', {
         userId: user.id,

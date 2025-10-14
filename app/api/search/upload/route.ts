@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
     
     console.log('✅ [SEARCH UPLOAD] User authenticated:', user.id)
 
+    // Check for duplicate file based on filename
     const incoming = await request.formData()
     const file = incoming.get('file') as File | null
     if (!file) {
@@ -42,6 +43,42 @@ export async function POST(request: NextRequest) {
     const fileSize = buffer.length
     const fileExtension = (fileName.split('.').pop() || '').toLowerCase()
     console.log('📁 [SEARCH UPLOAD] File details:', { fileName, fileType, fileSize, fileExtension })
+
+    // Check for duplicate file based on filename
+    const { data: existingDoc, error: checkError } = await supabase
+      .from('documents')
+      .select('id, public_url, file_path, extracted_text, page_count, text_length, metadata')
+      .eq('user_id', user.id)
+      .eq('original_filename', fileName)
+      .eq('document_type', 'reading')
+      .maybeSingle()
+    
+    if (!checkError && existingDoc) {
+      console.log('✅ [SEARCH UPLOAD] Duplicate file detected, returning existing document:', existingDoc.id)
+      const metadata = {
+        title: fileName.replace(/\.(pdf|txt|docx)$/i, ''),
+        originalFileName: fileName,
+        fileSize: 0,
+        fileType: fileExtension,
+        mimeType: fileType,
+        pages: existingDoc.page_count || 1,
+        textLength: existingDoc.text_length || 0,
+        uploadedAt: new Date().toISOString(),
+        processingNotes: ['Duplicate file - using existing upload'],
+        fileUrl: existingDoc.public_url,
+        documentId: existingDoc.id
+      }
+      
+      return NextResponse.json({
+        success: true,
+        documentId: existingDoc.id,
+        text: existingDoc.extracted_text || '',
+        metadata,
+        fileUrl: existingDoc.public_url,
+        title: metadata.title,
+        message: 'File already exists - using existing document'
+      })
+    }
 
     let serverExtractedText = ''
     let serverPageCount = 1

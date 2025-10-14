@@ -151,6 +151,40 @@ export async function POST(req: NextRequest) {
 
     console.log('✅ User authenticated:', user.id);
 
+    // Check for duplicate file based on filename
+    const { data: existingDoc, error: checkError } = await supabase
+      .from('documents')
+      .select('id, public_url, file_path, extracted_text, page_count, text_length, metadata')
+      .eq('user_id', user.id)
+      .eq('original_filename', fileName)
+      .eq('document_type', 'reading')
+      .maybeSingle();
+    
+    if (!checkError && existingDoc) {
+      console.log('✅ Duplicate file detected, returning existing document:', existingDoc.id);
+      return NextResponse.json({
+        success: true,
+        documentId: existingDoc.id,
+        text: existingDoc.extracted_text || '',
+        metadata: {
+          title: fileName.replace(/\.(pdf|txt|docx)$/i, ''),
+          originalFileName: fileName,
+          fileSize: 0,
+          fileType: existingDoc.file_path?.split('.').pop() || 'pdf',
+          mimeType: 'application/pdf',
+          pages: existingDoc.page_count || 1,
+          textLength: existingDoc.text_length || 0,
+          uploadedAt: new Date().toISOString(),
+          processingNotes: ['Duplicate file - using existing upload'],
+          fileUrl: existingDoc.public_url,
+          documentId: existingDoc.id
+        },
+        fileUrl: existingDoc.public_url,
+        title: fileName.replace(/\.(pdf|txt|docx)$/i, ''),
+        message: 'File already exists - using existing document'
+      });
+    }
+
     // Check usage limits before processing
     const canUpload = await subscriptionService.checkUsageLimit(user.id, 'documents_uploaded', 1);
     if (!canUpload) {
