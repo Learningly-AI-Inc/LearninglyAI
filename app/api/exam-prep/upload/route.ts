@@ -7,54 +7,57 @@ import { subscriptionService } from '@/lib/subscription-service';
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '100mb'
-    }
-  }
-}
+
+// Note: Body size limit is configured in vercel.json
+// Vercel free tier: 4.5MB, Pro: 4.5MB for Hobby, up to 100MB for serverless functions
+// For larger files, consider uploading directly to Supabase storage from client
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const file = formData.get('file') as File;
+    const file = formData.get('file') as File | null;
+    const fileUrl = formData.get('fileUrl') as string | null;
+    const fileName = formData.get('fileName') as string | null;
+    const fileSizeStr = formData.get('fileSize') as string | null;
     const type = formData.get('type') as string;
     const category = formData.get('category') as string;
 
-    if (!file) {
+    // Support both direct file upload and file URL (for large files uploaded directly to Supabase)
+    if (!file && !fileUrl) {
       return NextResponse.json(
-        { error: 'No file provided' },
+        { error: 'No file or fileUrl provided' },
         { status: 400 }
       );
     }
 
-    const allowedTypes = [
-      'application/pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'text/plain'
-    ];
+    // Validate file type and size (skip if using fileUrl - already uploaded and validated)
+    if (file) {
+      const allowedTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'text/plain'
+      ];
 
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Only PDF, DOCX, DOC, PPTX, and TXT files are allowed' },
-        { status: 400 }
-      );
-    }
+      if (!allowedTypes.includes(file.type)) {
+        return NextResponse.json(
+          { error: 'Only PDF, DOCX, DOC, PPTX, and TXT files are allowed' },
+          { status: 400 }
+        );
+      }
 
-    // Check file size - MUST match Supabase bucket limit
-    // To increase: Supabase Dashboard → Storage → exam-files → Settings → File size limit
-    const maxSize = 100 * 1024 * 1024; // 100MB - matches bucket limit
-    if (file.size > maxSize) {
-      return NextResponse.json(
-        {
-          error: 'File too large',
-          details: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds the maximum allowed size of 100MB. Please compress your file or split it into smaller parts.`
-        },
-        { status: 400 }
-      );
+      // Check file size - MUST match Supabase bucket limit
+      const maxSize = 100 * 1024 * 1024; // 100MB - matches bucket limit
+      if (file.size > maxSize) {
+        return NextResponse.json(
+          {
+            error: 'File too large',
+            details: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds the maximum allowed size of 100MB. Please compress your file or split it into smaller parts.`
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const supabase = await createClient();
@@ -118,20 +121,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create unique filename
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `${user.id}/${type}/${timestamp}-${file.name}`;
+    // Handle file processing based on upload method
+    let buffer: Buffer;
+    let originalFileName: string;
+    let fileSize: number;
+    let storagePath: string | null = null;
 
-    // Convert File to ArrayBuffer then to Buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    if (fileUrl) {
+      // File was uploaded directly to Supabase - extract path from URL and download
+      console.log('📥 Processing file from URL:', fileUrl);
+      originalFileName = fileName || 'document.pdf';
+      fileSize = fileSizeStr ? parseInt(fileSizeStr) : 0;
+      
+      // Extract storage path from public URL
+      const urlParts = fileUrl.split('/storage/v1/object/public/exam-files/');
+      if (urlParts.length > 1) {
+        storagePath = urlParts[1];
+        console.log('✅ Extracted storage path:', storagePath);
+      } else {
+        throw new Error('Invalid file URL format');
+      }
+
+      // Download file from Supabase to process it
+      const { data: downloadData, error: downloadError } = await supabase.storage
+        .from('exam-files')
+        .download(storagePath);
+
+      if (downloadError) {
+        throw new Error(`Failed to download file: ${downloadError.message}`);
+      }
+
+      buffer = Buffer.from(await downloadData.arrayBuffer());
+    } else {
+      // Standard file upload
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      originalFileName = file!.name;
+      fileSize = file!.size;
+      
+      // Convert File to ArrayBuffer then to Buffer
+      const arrayBuffer = await file!.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
+    }
 
     // IMPORTANT: Extract text BEFORE uploading to Supabase (fast path)
     // Use pdfjs-dist for PDFs (first 50 pages) for reliability and speed
     let extractedText = '';
     try {
-      const nameLower = (file.name || '').toLowerCase()
-      console.log('🔍 Starting local extraction BEFORE upload for:', file.name, 'Size:', file.size, 'bytes');
+      const nameLower = (originalFileName || '').toLowerCase()
+      console.log('🔍 Starting local extraction BEFORE upload for:', originalFileName, 'Size:', fileSize, 'bytes');
 
       // Helper: Extract text using pdf-parse (EXACT COPY from working reading upload)
       async function extractWithPdfParse(buf: Buffer): Promise<{ text: string; pages: number }> {
@@ -185,7 +222,7 @@ export async function POST(request: NextRequest) {
         }
       } else if (nameLower.endsWith('.docx')) {
         const mammoth = await import('mammoth')
-        const result = await mammoth.extractRawText({ arrayBuffer })
+        const result = await mammoth.extractRawText({ buffer })
         extractedText = String(result.value || '').trim()
         pageCount = Math.max(1, Math.ceil(extractedText.length / 2000))
         console.log('✅ DOCX extracted locally:', extractedText.length, 'chars');
@@ -211,60 +248,72 @@ export async function POST(request: NextRequest) {
       console.error('❌ Local extraction failed:', {
         error: localErr.message,
         stack: localErr.stack?.substring(0, 500),
-        fileName: file.name
+        fileName: originalFileName
       })
       processingNotes.push('Text extraction deferred (error occurred)')
     }
 
-    // Proceed directly to upload since bucket should exist
+    // Upload to Supabase Storage (skip if already uploaded via direct upload)
+    let finalStoragePath: string;
+    
+    if (storagePath) {
+      // File was already uploaded directly to Supabase
+      console.log('✅ File already in storage at:', storagePath);
+      finalStoragePath = storagePath;
+    } else {
+      // Upload new file to Supabase Storage
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `${user.id}/${type}/${timestamp}-${originalFileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('exam-files')
+        .upload(filename, buffer, {
+          contentType: file?.type || 'application/pdf',
+          upsert: false
+        });
 
-    // Upload to Supabase Storage
-    const { error: uploadError } = await supabase.storage
-      .from('exam-files')
-      .upload(filename, buffer, {
-        contentType: file.type,
-        upsert: false
-      });
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        console.error('Upload error details:', {
+          message: uploadError.message,
+          filename: filename,
+          fileSize: fileSize,
+          fileType: file?.type
+        });
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      console.error('Upload error details:', {
-        message: uploadError.message,
-        filename: filename,
-        fileSize: file.size,
-        fileType: file.type
-      });
+        // Check if it's a file size error from Supabase
+        const isSizeError = uploadError.message?.toLowerCase().includes('size') ||
+                           uploadError.message?.toLowerCase().includes('413') ||
+                           uploadError.message?.toLowerCase().includes('exceeded');
 
-      // Check if it's a file size error from Supabase
-      const isSizeError = uploadError.message?.toLowerCase().includes('size') ||
-                         uploadError.message?.toLowerCase().includes('413') ||
-                         uploadError.message?.toLowerCase().includes('exceeded');
+        if (isSizeError) {
+          return NextResponse.json(
+            {
+              error: 'File too large for storage',
+              details: `File size (${Math.round(fileSize / 1024 / 1024)}MB) exceeds the storage bucket limit. The Supabase bucket is configured for a maximum of 100MB per file. To upload larger files, increase the bucket limit in Supabase Dashboard → Storage → exam-files → Settings.`,
+              filename: filename
+            },
+            { status: 413 }
+          );
+        }
 
-      if (isSizeError) {
         return NextResponse.json(
           {
-            error: 'File too large for storage',
-            details: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds the storage bucket limit. The Supabase bucket is configured for a maximum of 100MB per file. To upload larger files, increase the bucket limit in Supabase Dashboard → Storage → exam-files → Settings.`,
+            error: 'Failed to upload file',
+            details: uploadError.message,
             filename: filename
           },
-          { status: 413 }
+          { status: 500 }
         );
       }
-
-      return NextResponse.json(
-        {
-          error: 'Failed to upload file',
-          details: uploadError.message,
-          filename: filename
-        },
-        { status: 500 }
-      );
+      
+      finalStoragePath = filename;
     }
 
     // Get public URL
     const { data: urlData } = supabase.storage
       .from('exam-files')
-      .getPublicUrl(filename);
+      .getPublicUrl(finalStoragePath);
 
     // Store file metadata in database with extracted text already available
     const hasValidText = extractedText && extractedText.trim().length > 10;
@@ -272,12 +321,12 @@ export async function POST(request: NextRequest) {
       .from('documents')
       .insert({
         user_id: user.id,
-        title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension for title
-        original_filename: file.name,
-        file_path: filename,
-        file_size: file.size,
-        file_type: file.type.split('/')[1] || 'unknown',
-        mime_type: file.type,
+        title: originalFileName.replace(/\.[^/.]+$/, ''), // Remove extension for title
+        original_filename: originalFileName,
+        file_path: finalStoragePath,
+        file_size: fileSize,
+        file_type: (file?.type || 'application/pdf').split('/')[1] || 'unknown',
+        mime_type: file?.type || 'application/pdf',
         document_type: 'exam-prep',
         public_url: urlData.publicUrl,
         // Save extracted text immediately (may be empty; mark completed like reading route)
@@ -309,25 +358,27 @@ export async function POST(request: NextRequest) {
     let webhookResult = null;
     try {
       webhookDebugger.info('EXAM_PREP_UPLOAD', 'Sending file to knowledge base webhook', {
-        filename: file.name,
-        fileType: file.type,
-        fileSize: file.size,
+        filename: originalFileName,
+        fileType: file?.type || 'application/pdf',
+        fileSize: fileSize,
         userId: user.id,
         uploadType: type
       });
 
-      webhookResult = await uploadKnowledgeBaseAs(file, {
-        filename: file.name,
-        userId: user.id,
-        agentId: `${type}-${category}`,
-        description: `Exam prep file upload: ${file.name} (${category})`
-      });
-
-      if (webhookResult.success) {
-        webhookDebugger.info('EXAM_PREP_UPLOAD', 'Webhook processing successful', {
-          filename: file.name,
-          webhookData: webhookResult.data
+      // Skip webhook for files uploaded directly (already in storage, text already extracted)
+      if (file && !storagePath) {
+        webhookResult = await uploadKnowledgeBaseAs(file, {
+          filename: originalFileName,
+          userId: user.id,
+          agentId: `${type}-${category}`,
+          description: `Exam prep file upload: ${originalFileName} (${category})`
         });
+
+        if (webhookResult && webhookResult.success) {
+          webhookDebugger.info('EXAM_PREP_UPLOAD', 'Webhook processing successful', {
+            filename: originalFileName,
+            webhookData: webhookResult.data
+          });
 
         // Try to get better extraction from webhook if local extraction was poor
         if (fileRecord?.id && (!extractedText || extractedText.trim().length < 100)) {
@@ -352,20 +403,23 @@ export async function POST(request: NextRequest) {
               .eq('id', fileRecord.id);
           }
         }
-      } else {
-        webhookDebugger.error('EXAM_PREP_UPLOAD', 'Webhook processing failed', {
-          filename: file.name,
-          error: webhookResult.error,
-          debugInfo: webhookResult.debugInfo
-        });
+        } else {
+          webhookDebugger.error('EXAM_PREP_UPLOAD', 'Webhook processing failed', {
+            filename: originalFileName,
+            error: webhookResult?.error,
+            debugInfo: webhookResult?.debugInfo
+          });
 
-        // Webhook failed but local extraction might have succeeded
-        console.log('⚠️ Webhook failed, relying on local extraction');
-        // No need to update - we already saved extracted text in the initial insert
+          // Webhook failed but local extraction might have succeeded
+          console.log('⚠️ Webhook failed, relying on local extraction');
+          // No need to update - we already saved extracted text in the initial insert
+        }
+      } else {
+        console.log('📝 Skipping webhook for direct upload (text already extracted)');
       }
     } catch (webhookError) {
       webhookDebugger.error('EXAM_PREP_UPLOAD', 'Webhook request failed', {
-        filename: file.name,
+        filename: originalFileName,
         error: webhookError instanceof Error ? webhookError.message : String(webhookError)
       });
       console.log('⚠️ Webhook failed, but continuing with local extraction');
@@ -384,10 +438,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       url: urlData.publicUrl,
-      filename: file.name,
+      filename: originalFileName,
       fileId: fileRecord?.id,
       documentId: fileRecord?.id, // For compatibility with StudyMaterialsUploader
-      title: file.name, // For compatibility with StudyMaterialsUploader
+      title: originalFileName, // For compatibility with StudyMaterialsUploader
       webhookProcessed: webhookResult?.success || false,
       webhookError: webhookResult?.error || null
     });

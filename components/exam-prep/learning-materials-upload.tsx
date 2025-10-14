@@ -192,23 +192,82 @@ export function LearningMaterialsUpload({
       setUploadedMaterials(prev => [...prev, newMaterial])
 
       try {
-        // Upload to real API with learning_materials category
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('type', 'exam-prep')
-        formData.append('category', 'learning_materials')
+        // For files larger than 4MB, upload directly to Supabase to bypass Vercel's body size limit
+        const isLargeFile = file.size > 4 * 1024 * 1024 // 4MB threshold
+        let result;
 
-        const response = await fetch('/api/exam-prep/upload', {
-          method: 'POST',
-          body: formData,
-        })
+        if (isLargeFile) {
+          console.log(`📦 Large file detected (${(file.size / 1024 / 1024).toFixed(2)}MB), uploading directly to Supabase...`)
+          
+          // Upload directly to Supabase storage from client
+          const { createClient } = await import('@/lib/supabase')
+          const supabase = createClient()
+          
+          // Get current user
+          const { data: { user } } = await supabase.auth.getUser()
+          if (!user) {
+            throw new Error('You must be logged in to upload files')
+          }
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.details || errorData.error || `Upload failed: ${response.statusText}`)
+          // Create unique filename
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+          const filename = `${user.id}/exam-prep/learning_materials/${timestamp}-${file.name}`
+
+          // Upload to Supabase storage
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('exam-files')
+            .upload(filename, file, {
+              cacheControl: '3600',
+              upsert: false
+            })
+
+          if (uploadError) {
+            throw new Error(`Storage upload failed: ${uploadError.message}`)
+          }
+
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('exam-files')
+            .getPublicUrl(filename)
+
+          // Send the file URL to the API for processing
+          const formData = new FormData()
+          formData.append('fileUrl', publicUrl)
+          formData.append('fileName', file.name)
+          formData.append('fileSize', file.size.toString())
+          formData.append('type', 'exam-prep')
+          formData.append('category', 'learning_materials')
+
+          const response = await fetch('/api/exam-prep/upload', {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.details || errorData.error || `Upload failed: ${response.statusText}`)
+          }
+
+          result = await response.json()
+        } else {
+          // For smaller files, use the standard upload method
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('type', 'exam-prep')
+          formData.append('category', 'learning_materials')
+
+          const response = await fetch('/api/exam-prep/upload', {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.details || errorData.error || `Upload failed: ${response.statusText}`)
+          }
+
+          result = await response.json()
         }
-
-        const result = await response.json()
 
         console.log('result exam prep upload', result)
         
