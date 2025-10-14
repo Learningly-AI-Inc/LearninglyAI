@@ -9,7 +9,7 @@ export interface CalendarEvent {
   color: string;
   location?: string;
   event_type: 'general' | 'class' | 'exam' | 'assignment' | 'study' | 'deadline' | 'personal';
-  course_id?: string;
+  course_code?: string;
   recurring_pattern?: RecurringPattern;
   created_at: string;
   updated_at: string;
@@ -56,6 +56,16 @@ export interface Course {
   schedule: CourseSchedule[];
   credits: number;
   location?: string;
+  specific_sessions?: SpecificSession[];
+}
+
+export interface SpecificSession {
+  date: string; // ISO date format
+  title: string;
+  start_time: string; // HH:MM format
+  end_time: string; // HH:MM format
+  location?: string;
+  type: 'lecture' | 'lab' | 'tutorial' | 'seminar';
 }
 
 export interface CourseSchedule {
@@ -121,7 +131,7 @@ export interface EventFormData {
   color: string;
   location?: string;
   event_type: CalendarEvent['event_type'];
-  course_id?: string;
+  course_code?: string;
   recurring_pattern?: RecurringPattern;
 }
 

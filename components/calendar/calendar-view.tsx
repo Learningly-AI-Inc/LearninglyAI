@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Header } from "@/components/ui/header"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useCalendar } from "@/hooks/use-calendar"
+import { useCalendarSettings } from "@/hooks/use-calendar-settings"
 import { CalendarEvent } from "@/types/calendar"
 import { cn } from "@/lib/utils"
 
@@ -17,7 +19,8 @@ interface CalendarViewProps {
 
 export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps) {
   const calendarHook = useCalendar()
-  
+  const { settings } = useCalendarSettings()
+
   // Defensive programming - ensure all functions exist
   if (!calendarHook) {
     return (
@@ -28,7 +31,7 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
       </div>
     )
   }
-  
+
   const {
     events,
     loading,
@@ -39,9 +42,13 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
     getEventsForDate
   } = calendarHook
 
-  const [currentDate, setCurrentDate] = React.useState(new Date())
+  // Get week start preference (0 = Sunday, 1 = Monday)
+  const weekStartDay = settings?.week_start === 'monday' ? 1 : 0
 
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  const days = weekStartDay === 1
+    ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
   const months = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
@@ -51,34 +58,56 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
   const getCalendarDates = () => {
     const year = view.date.getFullYear()
     const month = view.date.getMonth()
-    
+
     const firstDay = new Date(year, month, 1)
     const lastDay = new Date(year, month + 1, 0)
     const startDate = new Date(firstDay)
-    startDate.setDate(startDate.getDate() - firstDay.getDay())
-    
+
+    // Adjust start date based on week start preference
+    let dayOffset = firstDay.getDay() - weekStartDay
+    if (dayOffset < 0) dayOffset += 7
+    startDate.setDate(startDate.getDate() - dayOffset)
+
     const dates = []
     const current = new Date(startDate)
-    
+
     // Generate 6 weeks of dates
     for (let i = 0; i < 42; i++) {
       dates.push(new Date(current))
       current.setDate(current.getDate() + 1)
     }
-    
+
     return dates
   }
 
   const calendarDates = getCalendarDates()
   const today = new Date()
   const currentMonth = view.date.getMonth()
+  const currentYear = view.date.getFullYear()
+
+  // Generate year options (current year ± 5 years)
+  const yearOptions = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i)
+
+  const handleMonthChange = (monthIndex: string) => {
+    const newDate = new Date(view.date)
+    newDate.setMonth(parseInt(monthIndex))
+    navigateView('set', newDate)
+  }
+
+  const handleYearChange = (year: string) => {
+    const newDate = new Date(view.date)
+    newDate.setFullYear(parseInt(year))
+    navigateView('set', newDate)
+  }
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
+    const use12Hour = settings?.time_format !== '24h'
+
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
       minute: '2-digit',
-      hour12: true 
+      hour12: use12Hour
     })
   }
 
@@ -122,19 +151,45 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
         <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-b border-blue-200 dark:border-blue-800">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                size="icon" 
+              <Button
+                variant="outline"
+                size="icon"
                 className="border-border"
                 onClick={() => navigateView?.('prev')}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <h2 className="text-xl font-semibold text-blue-700 dark:text-blue-300 min-w-[200px] text-center">
-                {months[view.date.getMonth()]} {view.date.getFullYear()}
-              </h2>
-              <Button 
-                variant="outline" 
+
+              <div className="flex items-center space-x-2">
+                <Select value={currentMonth.toString()} onValueChange={handleMonthChange}>
+                  <SelectTrigger className="w-[130px] h-9 border-blue-300 dark:border-blue-700">
+                    <SelectValue>{months[currentMonth]}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((month, index) => (
+                      <SelectItem key={index} value={index.toString()}>
+                        {month}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={currentYear.toString()} onValueChange={handleYearChange}>
+                  <SelectTrigger className="w-[90px] h-9 border-blue-300 dark:border-blue-700">
+                    <SelectValue>{currentYear}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yearOptions.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                variant="outline"
                 size="icon" 
                 className="border-border"
                 onClick={() => navigateView?.('next')}
@@ -268,7 +323,11 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
                 <div className="text-sm font-medium text-muted-foreground">Time</div>
                 {days.map((day, index) => {
                   const dayDate = new Date(view.date)
-                  dayDate.setDate(dayDate.getDate() - dayDate.getDay() + index)
+                  const currentDayOfWeek = dayDate.getDay()
+                  const targetDayOfWeek = (weekStartDay + index) % 7
+                  let dayOffset = targetDayOfWeek - currentDayOfWeek
+                  if (dayOffset < 0) dayOffset += 7
+                  dayDate.setDate(dayDate.getDate() + dayOffset)
                   return (
                     <div key={day} className="text-center">
                       <div className="text-sm font-medium text-muted-foreground">{day}</div>
@@ -291,12 +350,16 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
                     </div>
                   ))}
                 </div>
-                
+
                 {days.map((_, dayIndex) => {
                   const dayDate = new Date(view.date)
-                  dayDate.setDate(dayDate.getDate() - dayDate.getDay() + dayIndex)
+                  const currentDayOfWeek = dayDate.getDay()
+                  const targetDayOfWeek = (weekStartDay + dayIndex) % 7
+                  let dayOffset = targetDayOfWeek - currentDayOfWeek
+                  if (dayOffset < 0) dayOffset += 7
+                  dayDate.setDate(dayDate.getDate() + dayOffset)
                   const dayEvents = getEventsForDate?.(dayDate) || []
-                  
+
                   return (
                     <div key={dayIndex} className="space-y-1">
                       {dayEvents.map((event, eventIndex) => (

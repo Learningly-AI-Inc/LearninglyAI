@@ -151,6 +151,40 @@ export async function POST(req: NextRequest) {
 
     console.log('✅ User authenticated:', user.id);
 
+    // Check for duplicate file based on filename
+    const { data: existingDoc, error: checkError } = await supabase
+      .from('documents')
+      .select('id, public_url, file_path, extracted_text, page_count, text_length, metadata')
+      .eq('user_id', user.id)
+      .eq('original_filename', fileName)
+      .eq('document_type', 'reading')
+      .maybeSingle();
+    
+    if (!checkError && existingDoc) {
+      console.log('✅ Duplicate file detected, returning existing document:', existingDoc.id);
+      return NextResponse.json({
+        success: true,
+        documentId: existingDoc.id,
+        text: existingDoc.extracted_text || '',
+        metadata: {
+          title: fileName.replace(/\.(pdf|txt|docx)$/i, ''),
+          originalFileName: fileName,
+          fileSize: 0,
+          fileType: existingDoc.file_path?.split('.').pop() || 'pdf',
+          mimeType: 'application/pdf',
+          pages: existingDoc.page_count || 1,
+          textLength: existingDoc.text_length || 0,
+          uploadedAt: new Date().toISOString(),
+          processingNotes: ['Duplicate file - using existing upload'],
+          fileUrl: existingDoc.public_url,
+          documentId: existingDoc.id
+        },
+        fileUrl: existingDoc.public_url,
+        title: fileName.replace(/\.(pdf|txt|docx)$/i, ''),
+        message: 'File already exists - using existing document'
+      });
+    }
+
     // Check usage limits before processing
     const canUpload = await subscriptionService.checkUsageLimit(user.id, 'documents_uploaded', 1);
     if (!canUpload) {
@@ -236,62 +270,61 @@ export async function POST(req: NextRequest) {
     // Removed Adobe OCR helpers to optimize upload speed
     // These can be re-enabled if needed for image-based PDFs
 
-    // Helper: Extract text using pdfjs-dist (OPTIMIZED - only first 50 pages for speed)
-    async function extractWithPdfJs(buffer: Buffer): Promise<{ text: string; pages: number }> {
+    // Helper: Extract text using pdf2json (reliable Node.js PDF extraction)
+    async function extractWithPdf2Json(buffer: Buffer): Promise<{ text: string; pages: number }> {
       try {
-        // Use pdf-parse as a more reliable alternative to pdfjs-dist in Node environment
-        const pdfParse = await import('pdf-parse').catch(() => null)
-
-        if (pdfParse?.default) {
-          console.log(`📄 Using pdf-parse for extraction (buffer size: ${buffer.length} bytes)`)
-          const data = await pdfParse.default(buffer)
-          const text = String(data.text || '').trim()
-          const numPages = data.numpages || 1
-          console.log(`📄 Extracted with pdf-parse: ${text.length} chars from ${numPages} pages`)
-          console.log(`📄 First 300 chars: ${text.substring(0, 300)}`)
-          return { text, pages: numPages }
-        }
-
-        // Fallback to pdfjs-dist if pdf-parse is not available
-        console.log('📄 Falling back to pdfjs-dist...')
-        const pdfjsLib: any = await import('pdfjs-dist')
-        // In Node, set worker to null per pdfjs-dist docs
-        if (pdfjsLib.GlobalWorkerOptions) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = null
-        }
-        const uint8 = new Uint8Array(buffer)
-        console.log(`📄 Loading PDF document... (buffer size: ${buffer.length} bytes)`)
-        const doc = await pdfjsLib.getDocument({ data: uint8 }).promise
-        let out = ''
-        const numPages = doc.numPages || 1
-
-        // OPTIMIZATION: Only extract first 50 pages for upload speed
-        // Full extraction will happen on-demand if needed
-        const pagesToExtract = Math.min(numPages, 50);
-        console.log(`📄 PDF loaded: ${numPages} pages, extracting ${pagesToExtract} pages`);
-
-        for (let i = 1; i <= pagesToExtract; i++) {
-          const page = await doc.getPage(i)
-          const content = await page.getTextContent()
-          const itemCount = (content.items || []).length
-          const strings = (content.items || []).map((it: any) => it.str || '')
-          const pageText = strings.join(' ')
-          console.log(`📄 Page ${i}: ${itemCount} items, ${pageText.length} chars`)
-          out += pageText + '\n\n'
-        }
-
-        // Don't over-normalize the text - preserve the content
-        let text = String(out || '').trim()
-
-        // Add note if we didn't extract all pages
-        if (pagesToExtract < numPages) {
-          text += `\n\n[Note: This is a ${numPages}-page document. First ${pagesToExtract} pages extracted for quick processing. Full text available on-demand.]`;
-        }
-
-        console.log(`📄 Extracted text length: ${text.length} chars from ${pagesToExtract} pages`)
-        console.log(`📄 First 300 chars: ${text.substring(0, 300)}`)
-
-        return { text, pages: numPages }
+        console.log(`📄 Using pdf2json for extraction (buffer size: ${buffer.length} bytes)`)
+        const PDFParser = (await import('pdf2json')).default
+        
+        return new Promise((resolve, reject) => {
+          const pdfParser = new PDFParser(null, true)
+          
+          pdfParser.on('pdfParser_dataError', (errData: any) => {
+            console.error('❌ pdf2json parsing error:', errData.parserError)
+            reject(errData.parserError)
+          })
+          
+          pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+            try {
+              const numPages = pdfData.Pages?.length || 0
+              console.log(`📄 PDF loaded: ${numPages} pages`)
+              
+              const textParts: string[] = []
+              
+              if (pdfData.Pages) {
+                for (const page of pdfData.Pages) {
+                  if (page.Texts) {
+                    for (const text of page.Texts) {
+                      if (text.R) {
+                        for (const run of text.R) {
+                          if (run.T) {
+                            try {
+                              textParts.push(decodeURIComponent(run.T))
+                            } catch (e) {
+                              textParts.push(run.T)
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  textParts.push('\n\n')
+                }
+              }
+              
+              const text = textParts.join(' ').replace(/\s+/g, ' ').trim()
+              
+              console.log(`✅ Extracted with pdf2json: ${text.length} chars from ${numPages} pages`)
+              console.log(`📄 First 300 chars: ${text.substring(0, 300)}`)
+              
+              resolve({ text, pages: numPages })
+            } catch (err) {
+              reject(err)
+            }
+          })
+          
+          pdfParser.parseBuffer(buffer)
+        })
       } catch (e: any) {
         console.error('❌ PDF extraction error:', {
           message: e?.message,
@@ -305,16 +338,16 @@ export async function POST(req: NextRequest) {
     try {
       // AGGRESSIVE OPTIMIZATION: Skip webhook, use only fast local extraction
       if (fileExtension === 'pdf' || fileType === 'application/pdf') {
-        console.log('📄 Fast PDF extraction (pdfjs-dist only)...');
+        console.log('📄 Fast PDF extraction (pdf2json)...');
 
         try {
           const cleanBuffer = Buffer.from(buffer as Buffer);
-          const viaPdfJs = await extractWithPdfJs(cleanBuffer);
+          const result = await extractWithPdf2Json(cleanBuffer);
 
-          if (viaPdfJs.text && viaPdfJs.text.trim().length > 0) {
-            serverExtractedText = viaPdfJs.text;
-            serverPageCount = viaPdfJs.pages;
-            processingNotes.push('Fast extraction: pdfjs-dist');
+          if (result.text && result.text.trim().length > 0) {
+            serverExtractedText = result.text;
+            serverPageCount = result.pages;
+            processingNotes.push('Fast extraction: pdf2json');
           } else {
             // If pdfjs fails, just mark for on-demand extraction later
             serverExtractedText = 'Text extraction pending - will be processed on first use.';

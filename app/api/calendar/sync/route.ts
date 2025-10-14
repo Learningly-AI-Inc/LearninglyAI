@@ -105,29 +105,52 @@ export async function POST(request: NextRequest) {
     // Convert Google Calendar events to our format
     const convertedEvents = events.map((event: any) => ({
       user_id: integration.user_id,
+      content_type: 'calendar_event',
       title: event.summary || 'Untitled Event',
-      description: event.description || '',
-      start_time: event.start?.dateTime || event.start?.date || new Date().toISOString(),
-      end_time: event.end?.dateTime || event.end?.date || new Date().toISOString(),
-      all_day: !event.start?.dateTime,
-      color: event.colorId ? getColorFromId(event.colorId) : '#3B82F6',
-      location: event.location || '',
-      event_type: 'general',
-      external_id: event.id,
-      external_calendar_id: integration.external_calendar_id,
+      content_data: {
+        description: event.description || '',
+        start_time: event.start?.dateTime || event.start?.date || new Date().toISOString(),
+        end_time: event.end?.dateTime || event.end?.date || new Date().toISOString(),
+        all_day: !event.start?.dateTime,
+        color: event.colorId ? getColorFromId(event.colorId) : '#3B82F6',
+        location: event.location || '',
+        event_type: 'general',
+        external_id: event.id,
+        external_calendar_id: integration.external_calendar_id,
+      }
     }))
 
     // Save events to database (upsert to avoid duplicates)
     let eventsSynced = 0
     for (const event of convertedEvents) {
-      const { error: eventError } = await supabase
-        .from('calendar_events')
-        .upsert(event, {
-          onConflict: 'user_id,external_id,external_calendar_id',
-        })
+      // Check if event already exists by external_id
+      const { data: existingEvent } = await supabase
+        .from('generated_content')
+        .select('id')
+        .eq('user_id', event.user_id)
+        .eq('content_type', 'calendar_event')
+        .eq('content_data->>external_id', event.content_data.external_id)
+        .single()
 
-      if (!eventError) {
-        eventsSynced++
+      if (existingEvent) {
+        // Update existing event
+        const { error: eventError } = await supabase
+          .from('generated_content')
+          .update(event)
+          .eq('id', existingEvent.id)
+
+        if (!eventError) {
+          eventsSynced++
+        }
+      } else {
+        // Insert new event
+        const { error: eventError } = await supabase
+          .from('generated_content')
+          .insert(event)
+
+        if (!eventError) {
+          eventsSynced++
+        }
       }
     }
 
