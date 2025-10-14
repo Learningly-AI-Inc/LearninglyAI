@@ -442,55 +442,6 @@ export default function ExamPrepPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label className="dark:text-slate-200">Specific instructions (optional)</Label>
-              <Textarea value={instructions} onChange={(e)=>setInstructions(e.target.value)} rows={3} placeholder="Any topics to emphasize, style preferences, or special constraints" className="dark:bg-gray-700 dark:border-gray-600 dark:text-slate-200 dark:placeholder-slate-400" />
-            </div>
-            <div className="space-y-2 sm:col-span-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="dark:text-slate-200">Sample questions (optional)</Label>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Upload up to 5 sample questions from your professor for better exam generation</p>
-                </div>
-                <Badge variant={sampleQuestions.length > 0 ? "secondary" : "outline"} className={sampleQuestions.length > 0 ? "dark:bg-gray-700 dark:text-slate-300" : "dark:border-gray-600 dark:text-gray-400"}>
-                  {sampleQuestions.length > 0 ? `${sampleQuestions.length}/5 files` : 'No files'}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between p-3 border border-dashed border-slate-300 dark:border-gray-600 rounded-lg bg-slate-50/50 dark:bg-gray-700/50">
-                <div className="text-sm text-slate-600 dark:text-slate-300">
-                  {sampleQuestions.length === 0 ? 'No sample questions uploaded yet.' : `${sampleQuestions.length} sample question file(s) ready.`}
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowSampleUploader(true)}
-                  disabled={sampleQuestions.length >= 5}
-                  className="dark:border-gray-600 dark:text-slate-300 dark:hover:bg-gray-700"
-                >
-                  {sampleQuestions.length >= 5 ? 'Max 5 files' : 'Upload Sample'}
-                </Button>
-              </div>
-              {sampleQuestions.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Uploaded sample questions:</p>
-                  <div className="space-y-1">
-                    {sampleQuestions.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded text-sm">
-                        <span className="text-slate-700 dark:text-slate-200">{file.name || `Sample Question ${index + 1}`}</span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setSampleQuestions(prev => prev.filter((_, i) => i !== index))}
-                          className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
             {mode === 'online' && (
               <>
                 <div className="space-y-2 sm:col-span-3">
