@@ -192,18 +192,19 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
       
       // Calculate default semester dates based on semester name
       const currentYear = new Date().getFullYear()
+      // Match any 4-digit year (more flexible than just 202x)
+      const yearMatch = semester_name.match(/\b(20\d{2}|19\d{2})\b/)
+      const extractedYear = yearMatch ? parseInt(yearMatch[0]) : currentYear
+
       if (semester_name.toLowerCase().includes('spring')) {
-        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
-        setSemesterStartDate(`${year}-01-15`)
-        setSemesterEndDate(`${year}-05-15`)
+        setSemesterStartDate(`${extractedYear}-01-15`)
+        setSemesterEndDate(`${extractedYear}-05-15`)
       } else if (semester_name.toLowerCase().includes('fall')) {
-        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
-        setSemesterStartDate(`${year}-08-26`)
-        setSemesterEndDate(`${year}-12-13`)
+        setSemesterStartDate(`${extractedYear}-08-26`)
+        setSemesterEndDate(`${extractedYear}-12-13`)
       } else if (semester_name.toLowerCase().includes('summer')) {
-        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
-        setSemesterStartDate(`${year}-05-15`)
-        setSemesterEndDate(`${year}-08-15`)
+        setSemesterStartDate(`${extractedYear}-05-15`)
+        setSemesterEndDate(`${extractedYear}-08-15`)
       } else {
         // Default to current date + 4 months
         const start = new Date()
@@ -435,7 +436,7 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
                     id="semester-name"
                     value={semesterName}
                     onChange={(e) => setSemesterName(e.target.value)}
-                    placeholder="Fall 2024"
+                    placeholder="Fall 2025"
                   />
                 </div>
                 <div className="space-y-2">
@@ -488,58 +489,80 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <div className="text-sm font-medium text-muted-foreground">Class Schedule:</div>
-                      {course.schedule.map((schedule, scheduleIndex) => (
-                        <div key={scheduleIndex} className="grid grid-cols-2 md:grid-cols-4 gap-2 p-2 bg-muted/50 rounded">
-                          <div className="space-y-1">
-                            <Label className="text-xs">Day</Label>
-                            <Select
-                              value={schedule.day_of_week.toString()}
-                              onValueChange={(value) => updateCourseSchedule(courseIndex, scheduleIndex, 'day_of_week', parseInt(value))}
-                            >
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="0">Sunday</SelectItem>
-                                <SelectItem value="1">Monday</SelectItem>
-                                <SelectItem value="2">Tuesday</SelectItem>
-                                <SelectItem value="3">Wednesday</SelectItem>
-                                <SelectItem value="4">Thursday</SelectItem>
-                                <SelectItem value="5">Friday</SelectItem>
-                                <SelectItem value="6">Saturday</SelectItem>
-                              </SelectContent>
-                            </Select>
+                      {course.specific_sessions && course.specific_sessions.length > 0 ? (
+                        <>
+                          <div className="text-sm font-medium text-muted-foreground">
+                            Specific Class Sessions ({course.specific_sessions.length} sessions):
                           </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Start Time</Label>
-                            <Input
-                              type="time"
-                              value={schedule.start_time}
-                              onChange={(e) => updateCourseSchedule(courseIndex, scheduleIndex, 'start_time', e.target.value)}
-                              className="h-8 text-xs"
-                            />
+                          <div className="text-xs text-muted-foreground mb-2">
+                            This course has a detailed schedule with specific dates. You can review the sessions below.
                           </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">End Time</Label>
-                            <Input
-                              type="time"
-                              value={schedule.end_time}
-                              onChange={(e) => updateCourseSchedule(courseIndex, scheduleIndex, 'end_time', e.target.value)}
-                              className="h-8 text-xs"
-                            />
+                          <div className="max-h-48 overflow-y-auto space-y-1">
+                            {course.specific_sessions.map((session, idx) => (
+                              <div key={idx} className="text-xs p-2 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200">
+                                <div className="font-medium">{new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                                <div className="text-muted-foreground">{session.title}</div>
+                                <div className="text-muted-foreground">{session.start_time} - {session.end_time} • {session.location || course.location}</div>
+                              </div>
+                            ))}
                           </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Location</Label>
-                            <Input
-                              value={schedule.location || ''}
-                              onChange={(e) => updateCourseSchedule(courseIndex, scheduleIndex, 'location', e.target.value)}
-                              placeholder="Room #"
-                              className="h-8 text-xs"
-                            />
-                          </div>
-                        </div>
-                      ))}
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-sm font-medium text-muted-foreground">Recurring Schedule:</div>
+                          {course.schedule.map((schedule, scheduleIndex) => (
+                            <div key={scheduleIndex} className="grid grid-cols-2 md:grid-cols-4 gap-2 p-2 bg-muted/50 rounded">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Day</Label>
+                                <Select
+                                  value={schedule.day_of_week.toString()}
+                                  onValueChange={(value) => updateCourseSchedule(courseIndex, scheduleIndex, 'day_of_week', parseInt(value))}
+                                >
+                                  <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="0">Sunday</SelectItem>
+                                    <SelectItem value="1">Monday</SelectItem>
+                                    <SelectItem value="2">Tuesday</SelectItem>
+                                    <SelectItem value="3">Wednesday</SelectItem>
+                                    <SelectItem value="4">Thursday</SelectItem>
+                                    <SelectItem value="5">Friday</SelectItem>
+                                    <SelectItem value="6">Saturday</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Start Time</Label>
+                                <Input
+                                  type="time"
+                                  value={schedule.start_time}
+                                  onChange={(e) => updateCourseSchedule(courseIndex, scheduleIndex, 'start_time', e.target.value)}
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">End Time</Label>
+                                <Input
+                                  type="time"
+                                  value={schedule.end_time}
+                                  onChange={(e) => updateCourseSchedule(courseIndex, scheduleIndex, 'end_time', e.target.value)}
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Location</Label>
+                                <Input
+                                  value={schedule.location || ''}
+                                  onChange={(e) => updateCourseSchedule(courseIndex, scheduleIndex, 'location', e.target.value)}
+                                  placeholder="Room #"
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
                     </CardContent>
                   </Card>
                 ))}

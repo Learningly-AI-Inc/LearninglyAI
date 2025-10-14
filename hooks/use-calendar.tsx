@@ -36,12 +36,14 @@ export function useCalendar() {
         .select('*')
         .eq('user_id', user.id)
         .eq('content_type', 'calendar_event')
+        .gte('content_data->>start_time', startDate.toISOString())
+        .lte('content_data->>start_time', endDate.toISOString())
         .order('created_at', { ascending: true })
 
       if (error) throw error
 
       // Transform generated_content data to calendar events format
-      const allCalendarEvents = (data || []).map(item => ({
+      const calendarEvents = (data || []).map(item => ({
         id: item.id,
         user_id: item.user_id,
         title: item.title,
@@ -58,21 +60,9 @@ export function useCalendar() {
         updated_at: item.updated_at
       }))
 
-      // Filter events by actual event dates (not creation dates)
-      const filteredEvents = allCalendarEvents.filter(event => {
-        const eventStart = new Date(event.start_time)
-        const eventEnd = new Date(event.end_time)
-
-        // Check if event overlaps with the current view period
-        return (eventStart <= endDate && eventEnd >= startDate)
-      })
-
-      console.log(`Fetched ${allCalendarEvents.length} total events, ${filteredEvents.length} events in current view`)
+      console.log(`Fetched ${calendarEvents.length} events for current view`)
       console.log(`View date range: ${startDate.toISOString()} to ${endDate.toISOString()}`)
-      if (allCalendarEvents.length > 0 && filteredEvents.length === 0) {
-        console.log('⚠️ Events exist but are outside current view. First event date:', allCalendarEvents[0]?.start_time)
-      }
-      setEvents(filteredEvents)
+      setEvents(calendarEvents)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch events')
       showError("Failed to load calendar events")
@@ -81,25 +71,66 @@ export function useCalendar() {
     }
   }, [view, supabase, showError])
 
+  // Check for event conflicts
+  const checkEventConflicts = useCallback(async (startTime: string, endTime: string, excludeEventId?: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return []
+
+      const { data, error } = await supabase
+        .from('generated_content')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('content_type', 'calendar_event')
+        .lte('content_data->>start_time', endTime)
+        .gte('content_data->>end_time', startTime)
+
+      if (error) throw error
+
+      const conflicts = (data || [])
+        .filter(item => !excludeEventId || item.id !== excludeEventId)
+        .map(item => ({
+          id: item.id,
+          title: item.title,
+          start_time: item.content_data?.start_time,
+          end_time: item.content_data?.end_time
+        }))
+
+      return conflicts
+    } catch (err) {
+      console.error('Error checking conflicts:', err)
+      return []
+    }
+  }, [supabase])
+
   // Create a new event
   const createEvent = useCallback(async (eventData: EventFormData) => {
     try {
       console.log('Creating event with data:', eventData)
-      
+
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       console.log('User authentication check:', { user: !!user, userError })
-      
+
       if (userError) {
         console.error('User authentication error:', userError)
         throw new Error(`Authentication error: ${userError.message}`)
       }
-      
+
       if (!user) {
         console.error('No user found in session')
         throw new Error('User not authenticated')
       }
 
       console.log('User authenticated, creating event for user:', user.id)
+
+      // Check for conflicts
+      const conflicts = await checkEventConflicts(eventData.start_time, eventData.end_time)
+      if (conflicts.length > 0) {
+        const conflictTitles = conflicts.map(c => c.title).join(', ')
+        console.warn('Event conflicts detected:', conflicts)
+        showError(`Warning: This event conflicts with: ${conflictTitles}`)
+        // Continue anyway - it's just a warning
+      }
 
       const { data, error } = await supabase
         .from('generated_content')
@@ -115,7 +146,7 @@ export function useCalendar() {
             color: eventData.color || '#3B82F6',
             location: eventData.location || '',
             event_type: eventData.event_type || 'general',
-            course_code: eventData.course_id || '',
+            course_code: eventData.course_code || '',
             recurring_pattern: eventData.recurring_pattern || null
           }
         }])
@@ -130,7 +161,7 @@ export function useCalendar() {
       console.log('Event created successfully:', data)
       setEvents(prev => [...prev, data])
       showSuccess("Event created successfully")
-      
+
       return data
     } catch (err) {
       console.error('Error in createEvent:', err)
@@ -138,13 +169,24 @@ export function useCalendar() {
       showError(errorMessage)
       throw err
     }
-  }, [supabase, showSuccess, showError])
+  }, [supabase, showSuccess, showError, checkEventConflicts])
 
   // Update an existing event
   const updateEvent = useCallback(async (eventId: string, eventData: Partial<EventFormData>) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('User not authenticated')
+
+      // Check for conflicts (excluding the current event)
+      if (eventData.start_time && eventData.end_time) {
+        const conflicts = await checkEventConflicts(eventData.start_time, eventData.end_time, eventId)
+        if (conflicts.length > 0) {
+          const conflictTitles = conflicts.map(c => c.title).join(', ')
+          console.warn('Event conflicts detected:', conflicts)
+          showError(`Warning: This event conflicts with: ${conflictTitles}`)
+          // Continue anyway - it's just a warning
+        }
+      }
 
       const { data, error } = await supabase
         .from('generated_content')
@@ -158,7 +200,7 @@ export function useCalendar() {
             color: eventData.color || '#3B82F6',
             location: eventData.location || '',
             event_type: eventData.event_type || 'general',
-            course_code: eventData.course_id || '',
+            course_code: eventData.course_code || '',
             recurring_pattern: eventData.recurring_pattern || null
           }
         })
@@ -171,14 +213,14 @@ export function useCalendar() {
 
       setEvents(prev => prev.map(event => event.id === eventId ? data : event))
       showSuccess("Event updated successfully")
-      
+
       return data
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update event'
       showError(errorMessage)
       throw err
     }
-  }, [supabase, showSuccess, showError])
+  }, [supabase, showSuccess, showError, checkEventConflicts])
 
   // Delete an event
   const deleteEvent = useCallback(async (eventId: string) => {
@@ -205,18 +247,29 @@ export function useCalendar() {
 
   // Get events for a specific date
   const getEventsForDate = useCallback((date: Date) => {
-    const dateStr = date.toISOString().split('T')[0]
+    // Format date as YYYY-MM-DD in local timezone
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const dateStr = `${year}-${month}-${day}`
+
     return events.filter(event => {
-      const eventDate = new Date(event.start_time).toISOString().split('T')[0]
-      return eventDate === dateStr
+      // Extract date part from event.start_time (format: YYYY-MM-DDTHH:mm:ss or YYYY-MM-DDTHH:mm:ss.sssZ)
+      const eventDateStr = event.start_time.split('T')[0]
+      return eventDateStr === dateStr
     })
   }, [events])
 
   // Navigate calendar view
-  const navigateView = useCallback((direction: 'prev' | 'next') => {
+  const navigateView = useCallback((direction: 'prev' | 'next' | 'set', date?: Date) => {
     setView(prev => {
+      // If direction is 'set', use the provided date
+      if (direction === 'set' && date) {
+        return { ...prev, date: new Date(date) }
+      }
+
       const newDate = new Date(prev.date)
-      
+
       switch (prev.type) {
         case 'month':
           newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1))
@@ -228,7 +281,7 @@ export function useCalendar() {
           newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1))
           break
       }
-      
+
       return { ...prev, date: newDate }
     })
   }, [])

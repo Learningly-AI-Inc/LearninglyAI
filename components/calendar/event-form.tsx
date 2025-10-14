@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { X, Calendar as CalendarIcon, Clock, MapPin, Tag, User } from "lucide-react"
+import { X, Calendar as CalendarIcon, Clock, MapPin, Tag, User, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -19,6 +19,7 @@ interface EventFormProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (data: EventFormData) => Promise<void>
+  onDelete?: (eventId: string) => Promise<void>
   loading?: boolean
 }
 
@@ -42,7 +43,7 @@ const colorOptions = [
   { value: '#6B7280', label: 'Gray', color: 'bg-gray-500' },
 ]
 
-export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }: EventFormProps) {
+export function EventForm({ event, isOpen, onClose, onSubmit, onDelete, loading = false }: EventFormProps) {
   const [formData, setFormData] = React.useState<EventFormData>({
     title: '',
     description: '',
@@ -61,6 +62,8 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
 
   const [errors, setErrors] = React.useState<{ [key: string]: string }>({})
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [isDeleting, setIsDeleting] = React.useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false)
 
   // Initialize form data when event changes
   React.useEffect(() => {
@@ -108,6 +111,8 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
   React.useEffect(() => {
     if (!isOpen) {
       setIsSubmitting(false)
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
       setErrors({})
     }
   }, [isOpen])
@@ -252,7 +257,7 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
 
   const handleAllDayChange = (checked: boolean) => {
     setFormData(prev => ({ ...prev, all_day: checked }))
-    
+
     if (checked) {
       // When switching to all-day, set times to start/end of day
       if (startDate) {
@@ -260,12 +265,27 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
         start.setHours(0, 0, 0, 0)
         setFormData(prev => ({ ...prev, start_time: start.toISOString() }))
       }
-      
+
       if (endDate) {
         const end = new Date(endDate)
         end.setHours(23, 59, 59, 999)
         setFormData(prev => ({ ...prev, end_time: end.toISOString() }))
       }
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!event || !onDelete) return
+
+    try {
+      setIsDeleting(true)
+      await onDelete(event.id)
+      onClose()
+    } catch (error) {
+      // Error handling is done in the parent component
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
     }
   }
 
@@ -441,13 +461,51 @@ export function EventForm({ event, isOpen, onClose, onSubmit, loading = false }:
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-end space-x-2 pt-4 border-t border-gray-200">
-              <Button type="button" variant="outline" onClick={onClose} className="px-6">
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting || loading} className="px-6">
-                {isSubmitting || loading ? 'Saving...' : (event ? 'Update Event' : 'Create Event')}
-              </Button>
+            <div className="flex justify-between pt-4 border-t border-gray-200">
+              <div>
+                {event && onDelete && (
+                  showDeleteConfirm ? (
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-destructive">Delete this event?</span>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? 'Deleting...' : 'Confirm'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowDeleteConfirm(false)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Event
+                    </Button>
+                  )
+                )}
+              </div>
+              <div className="flex space-x-2">
+                <Button type="button" variant="outline" onClick={onClose} className="px-6">
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting || loading} className="px-6">
+                  {isSubmitting || loading ? 'Saving...' : (event ? 'Update Event' : 'Create Event')}
+                </Button>
+              </div>
             </div>
           </form>
         </CardContent>

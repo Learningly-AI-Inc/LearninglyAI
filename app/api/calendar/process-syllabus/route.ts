@@ -12,11 +12,11 @@ let openai: OpenAI | null = null
 
 function getOpenAI(): OpenAI {
   if (!openai) {
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.NEXT_PUBLIC_OPENAI_API_KEY) {
       throw new Error('OpenAI API key not configured')
     }
     openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
     })
   }
   return openai
@@ -35,14 +35,45 @@ async function extractTextFromPDFBuffer(buffer: Buffer): Promise<string> {
       ExtractPDFResult
     } = await import('@adobe/pdfservices-node-sdk')
 
-    // Load credentials from the JSON file
-    const credentialsPath = '/Users/brianchen/Documents/LearninglyAI/app/pdfservices-api-credentials.json'
-    const credentialsData = JSON.parse(require('fs').readFileSync(credentialsPath, 'utf8'))
-    
-    const credentials = new ServicePrincipalCredentials({
-      clientId: credentialsData.client_credentials.client_id,
-      clientSecret: credentialsData.client_credentials.client_secret
-    })
+    // Try to load Adobe credentials from environment or file
+    let credentials
+    if (process.env.ADOBE_CLIENT_ID && process.env.ADOBE_CLIENT_SECRET) {
+      credentials = new ServicePrincipalCredentials({
+        clientId: process.env.ADOBE_CLIENT_ID,
+        clientSecret: process.env.ADOBE_CLIENT_SECRET
+      })
+    } else {
+      // Try to find credentials file in project root
+      const fs = require('fs')
+      const path = require('path')
+      const possiblePaths = [
+        path.join(process.cwd(), 'pdfservices-api-credentials.json'),
+        path.join(process.cwd(), 'app', 'pdfservices-api-credentials.json'),
+        '/Users/brianchen/Documents/LearninglyAI/app/pdfservices-api-credentials.json'
+      ]
+
+      let credentialsData = null
+      for (const credPath of possiblePaths) {
+        try {
+          if (fs.existsSync(credPath)) {
+            credentialsData = JSON.parse(fs.readFileSync(credPath, 'utf8'))
+            console.log('Found Adobe credentials at:', credPath)
+            break
+          }
+        } catch (err) {
+          console.log('Could not read credentials from:', credPath)
+        }
+      }
+
+      if (!credentialsData) {
+        throw new Error('Adobe PDF credentials not found')
+      }
+
+      credentials = new ServicePrincipalCredentials({
+        clientId: credentialsData.client_credentials.client_id,
+        clientSecret: credentialsData.client_credentials.client_secret
+      })
+    }
 
     // Create PDF Services instance
     const pdfServices = new PDFServices({ credentials })
@@ -252,6 +283,7 @@ interface CourseSchedule {
   end_time: string // HH:MM format
   location?: string
   type: 'lecture' | 'lab' | 'tutorial' | 'seminar'
+  specific_date?: string // ISO date for specific class sessions (e.g., "2024-09-20")
 }
 
 interface Course {
@@ -261,6 +293,14 @@ interface Course {
   credits: number
   location?: string
   schedule: CourseSchedule[]
+  specific_sessions?: Array<{
+    date: string // ISO date
+    title: string
+    start_time: string
+    end_time: string
+    location?: string
+    type: string
+  }>
 }
 
 async function extractTextFromPDF(fileUrl: string): Promise<string> {
@@ -325,19 +365,31 @@ async function parseSyllabusWithLLM(text: string): Promise<{ courses: Course[], 
   
   const prompt = `You are an expert at parsing academic syllabi. Extract course information from the following syllabus text and return ONLY a valid JSON object.
 
-CRITICAL: You MUST extract the ACTUAL class meeting times from the document. Look for sections like:
-- "Class Schedule", "Meeting Times", "Lecture Schedule", "When/Where"
-- "Days/Times", "Class Meetings", "Course Schedule"
-- Time patterns like "MWF 9:00-10:30" or "Tuesday/Thursday 2:00 PM - 3:15 PM"
-- Location patterns like "Room 123", "Building A", etc.
+CRITICAL RULES:
+1. ONLY extract information that is EXPLICITLY stated in the document - DO NOT make up or infer course names, codes, or details
+2. If you cannot find specific information in the document, use null or empty values
+3. DO NOT use placeholder data like "Introduction to Psychology" or "PSYCH 101"
+4. You MUST extract the ACTUAL course title, code, and instructor name from the document
+5. You MUST find the RECURRING CLASS MEETING TIMES (when the class meets every week)
+   - Look near the top of the syllabus for patterns like:
+     * "Mo/We 2:00 PM - 3:20 PM" or "MWF 9:00-10:30"
+     * "Tuesday/Thursday 2:00 PM - 3:15 PM" or "T/Th 14:00-15:15"
+     * "Meeting Times:", "Class Times:", "When:", "Schedule:"
+   - DO NOT confuse the recurring meeting times with the course syllabus/weekly schedule
+   - The "Course Schedule" section typically lists weekly topics/assignments, NOT the class meeting times
+   - Class meeting times are usually listed at the TOP of the syllabus with course info
 
-DO NOT use placeholder or default times like "09:00-10:30". You MUST find the actual times mentioned in the document.
+IMPORTANT DISTINCTION:
+- RECURRING MEETING TIMES (extract these): "Mo/We 2:00-3:20 PM in Room 204"
+- COURSE SCHEDULE (ignore these): "Week 1: Sep 20 - Introduction", "Week 2: Sep 27 - Topic 2"
+
+DO NOT use placeholder or default times like "09:00-10:30". You MUST find the actual recurring meeting times.
 
 IMPORTANT: Return ONLY valid JSON. No markdown, no backticks, no explanations, no additional text.
 
 Required JSON structure:
 {
-  "semester_name": "Fall 2024",
+  "semester_name": "Fall 2025",
   "courses": [
     {
       "name": "Course Name",
@@ -348,8 +400,26 @@ Required JSON structure:
       "schedule": [
         {
           "day_of_week": 1,
-          "start_time": "09:00",
-          "end_time": "10:30",
+          "start_time": "14:00",
+          "end_time": "15:20",
+          "location": "Room/Building",
+          "type": "lecture"
+        }
+      ],
+      "specific_sessions": [
+        {
+          "date": "2024-09-20",
+          "title": "Welcome, syllabus, and assignments",
+          "start_time": "14:00",
+          "end_time": "15:20",
+          "location": "Room/Building",
+          "type": "lecture"
+        },
+        {
+          "date": "2024-09-27",
+          "title": "Navigating the University",
+          "start_time": "14:00",
+          "end_time": "15:20",
           "location": "Room/Building",
           "type": "lecture"
         }
@@ -360,19 +430,60 @@ Required JSON structure:
 
 Guidelines:
 - Extract ALL courses mentioned in the syllabus
-- For each course, extract ALL scheduled meeting times FROM THE DOCUMENT
-- CAREFULLY look for class meeting times - they may be in various formats:
+- For each course, find the RECURRING weekly meeting pattern (NOT the weekly schedule of topics)
+- CAREFULLY look for class meeting times near the TOP of the syllabus - they may be in various formats:
+  * "Mo/We 2:00 PM - 3:20 PM" (Monday, Wednesday)
   * "MWF 9:00-10:30 AM" (Monday, Wednesday, Friday)
-  * "T/Th 2:00-3:15 PM" (Tuesday, Thursday)
+  * "T/Th 2:00-3:15 PM" or "TR 14:00-15:15" (Tuesday, Thursday)
   * "Monday and Wednesday from 10:00 AM to 11:30 AM"
   * "Tuesdays 1:00 PM - 2:50 PM"
-- Convert day names/abbreviations to numbers: Monday/M=1, Tuesday/T/Tu=2, Wednesday/W=3, Thursday/Th/R=4, Friday/F=5, Saturday/Sa=6, Sunday/Su=0
-- Convert times to 24-hour format (e.g., "09:00" for 9:00 AM, "14:00" for 2:00 PM, "13:00" for 1:00 PM)
-- Extract the ACTUAL location mentioned in the document (room number, building name)
+- Convert day abbreviations: M/Mo/Mon=1, T/Tu/Tue=2, W/We/Wed=3, Th/Thu/R=4, F/Fri=5, Sa/Sat=6, Su/Sun=0
+- Convert times to 24-hour format (e.g., "09:00" for 9:00 AM, "14:00" for 2:00 PM)
+- Extract the ACTUAL room/building from near the meeting times (e.g., "Kresge Hall 2-329", "Room 204")
 - If location is not specified, use null
 - If credits are not specified, estimate based on typical course credit hours (usually 3 or 4)
 - Include all recurring class meetings, labs, tutorials, etc.
 - Type should be "lecture" for regular classes, "lab" for laboratory sessions, "tutorial" for discussion sections, "seminar" for seminars
+
+EXAMPLE OF WHAT TO EXTRACT:
+From: "JWSH ST 101-7-1, Mo/We 2:00 PM - 3:20 PM, Room: Kresge Hall 2-329"
+Extract: [
+  {"day_of_week": 1, "start_time": "14:00", "end_time": "15:20", "location": "Kresge Hall 2-329", "type": "lecture"},
+  {"day_of_week": 3, "start_time": "14:00", "end_time": "15:20", "location": "Kresge Hall 2-329", "type": "lecture"}
+]
+
+CRITICAL: Extract ALL specific class session dates from the Course Schedule section:
+- Look for ALL date patterns throughout the document: "Sep. 20", "Oct. 02", "Nov. 15", etc.
+- Extract EVERY date you find with its topic/title
+- Convert dates to ISO format (YYYY-MM-DD) using the semester year
+- Include special locations if mentioned for that specific date
+- Use the recurring schedule times unless a different time is specified
+- Skip ONLY entries that say "No class" or similar
+- This is VERY IMPORTANT: Extract ALL dates, not just a few examples
+
+EXAMPLE:
+From Course Schedule section with many weeks:
+"Week 1: Sep. 20 – Welcome, syllabus"
+"Week 2: Sep. 25 - No class (Yom Kippur)"  ← SKIP THIS
+"Sep. 27 – Navigating the University"
+"Week 3: Oct. 02 - Brief Geopolitical Overview"
+"Oct. 04 – Daily Life in early 20th century"
+"Week 4: Oct. 09 – Daily interactions between Jews and Arabs"
+"Oct. 11 – Library instruction - We will meet at 02:00 in the main library, lower level"
+"Week 5: Oct. 16 – NO CLASS"  ← SKIP THIS
+"Oct. 18 – Art of reading"
+
+Extract as specific_sessions ALL dates (10+ entries expected):
+[
+  {"date": "2023-09-20", "title": "Welcome, syllabus", "start_time": "14:00", "end_time": "15:20", "type": "lecture"},
+  {"date": "2023-09-27", "title": "Navigating the University", "start_time": "14:00", "end_time": "15:20", "type": "lecture"},
+  {"date": "2023-10-02", "title": "Brief Geopolitical Overview", "start_time": "14:00", "end_time": "15:20", "type": "lecture"},
+  {"date": "2023-10-04", "title": "Daily Life in early 20th century", "start_time": "14:00", "end_time": "15:20", "type": "lecture"},
+  {"date": "2023-10-09", "title": "Daily interactions between Jews and Arabs", "start_time": "14:00", "end_time": "15:20", "type": "lecture"},
+  {"date": "2023-10-11", "title": "Library instruction", "start_time": "14:00", "end_time": "15:20", "location": "Main library, lower level", "type": "lecture"},
+  {"date": "2023-10-18", "title": "Art of reading", "start_time": "14:00", "end_time": "15:20", "type": "lecture"}
+  ... continue for ALL dates found
+]
 
 Syllabus text:
 ${text}
@@ -386,7 +497,7 @@ Return ONLY the JSON object:`
       messages: [
         {
           role: "system",
-          content: "You are a JSON parser specialized in extracting structured data from academic syllabi. Always return valid JSON only. No markdown, no backticks, no explanations. You must extract the ACTUAL class meeting times, days, and locations from the document - never use placeholder or default values."
+          content: "You are a JSON parser specialized in extracting structured data from academic syllabi. CRITICAL: You must ONLY extract information that is EXPLICITLY present in the document. DO NOT make up course names, codes, or any other information. If information is not found, use null. Always return valid JSON only. No markdown, no backticks, no explanations. You must extract the ACTUAL class meeting times, days, and locations from the document - never use placeholder or default values."
         },
         {
           role: "user",
@@ -434,11 +545,40 @@ Return ONLY the JSON object:`
     }
     
     if (!parsedData.semester_name) {
-      parsedData.semester_name = 'Fall 2024' // Default fallback
+      // Use current year for default
+      const currentYear = new Date().getFullYear()
+      const currentMonth = new Date().getMonth()
+      // Determine semester based on current month
+      const semester = currentMonth >= 8 ? 'Fall' : currentMonth >= 5 ? 'Summer' : 'Spring'
+      parsedData.semester_name = `${semester} ${currentYear}` // Default fallback
     }
     
     console.log('Successfully parsed syllabus with', parsedData.courses.length, 'courses')
-    
+
+    // Validate extracted data against common hallucinations
+    const commonHallucinations = [
+      'introduction to psychology',
+      'psych 101',
+      'psychology 101',
+      'intro to psych',
+      'general psychology'
+    ]
+
+    for (const course of parsedData.courses) {
+      const courseLower = course.name.toLowerCase()
+      const codeLower = course.code.toLowerCase()
+
+      if (commonHallucinations.some(halluc => courseLower.includes(halluc) || codeLower.includes(halluc))) {
+        console.warn('⚠️ POSSIBLE HALLUCINATION DETECTED:', course.name, course.code)
+        console.warn('This may indicate the LLM could not find course information in the document')
+
+        // Check if the original text contains this course name
+        if (!text.toLowerCase().includes(course.name.toLowerCase().substring(0, 15))) {
+          throw new Error(`LLM may have hallucinated course data. Could not find "${course.name}" in the original document. Please ensure the PDF text is readable.`)
+        }
+      }
+    }
+
     // Log extracted schedule information for debugging
     parsedData.courses.forEach((course: Course, index: number) => {
       console.log(`Course ${index + 1}: ${course.name} (${course.code})`)
@@ -451,7 +591,7 @@ Return ONLY the JSON object:`
         console.log(`    ${schedIndex + 1}. ${dayNames[sched.day_of_week]} ${sched.start_time}-${sched.end_time} (${sched.type}) at ${sched.location || 'TBD'}`)
       })
     })
-    
+
     return parsedData
   } catch (error) {
     console.error('Error parsing syllabus with LLM:', error)
@@ -486,13 +626,38 @@ export async function POST(request: NextRequest) {
     const extractedText = await extractTextFromPDF(file_url)
     console.log('Extracted text length:', extractedText.length)
 
-    // Step 2: Use LLM to parse the syllabus and extract course information
+    // Step 2: Validate extracted text quality
+    if (extractedText.length < 100) {
+      console.error('Extracted text is too short:', extractedText)
+      return NextResponse.json(
+        {
+          error: 'Failed to extract sufficient text from the document. The file may be an image-based PDF or corrupted.',
+          extracted_text_preview: extractedText.substring(0, 500)
+        },
+        { status: 400 }
+      )
+    }
+
+    // Step 3: Use LLM to parse the syllabus and extract course information
     const parsedData = await parseSyllabusWithLLM(extractedText)
     console.log('Parsed courses:', parsedData.courses.length)
 
+    // Step 4: Validate parsed data quality
+    if (parsedData.courses.length === 0) {
+      console.error('No courses extracted from syllabus')
+      return NextResponse.json(
+        {
+          error: 'Could not find any course information in the document. Please ensure the file contains course details.',
+          extracted_text_preview: extractedText.substring(0, 1000)
+        },
+        { status: 400 }
+      )
+    }
+
     return NextResponse.json({
       courses: parsedData.courses,
-      semester_name: parsedData.semester_name
+      semester_name: parsedData.semester_name,
+      extracted_text_preview: extractedText.substring(0, 500) // For debugging
     })
 
   } catch (error) {

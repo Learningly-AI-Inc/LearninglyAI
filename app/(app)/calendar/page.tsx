@@ -25,6 +25,7 @@ const CalendarPage = () => {
   const {
     createEvent,
     updateEvent,
+    deleteEvent,
     refreshEvents,
     error: calendarError
   } = useCalendar()
@@ -76,6 +77,15 @@ const CalendarPage = () => {
       // Error handling is done in the hook
     } finally {
       setIsCreatingEvent(false)
+    }
+  }
+
+  const handleEventDelete = async (eventId: string) => {
+    try {
+      await deleteEvent(eventId)
+      handleEventFormClose()
+    } catch (error) {
+      // Error handling is done in the hook
     }
   }
 
@@ -168,6 +178,7 @@ const CalendarPage = () => {
         isOpen={isEventFormOpen}
         onClose={handleEventFormClose}
         onSubmit={handleEventSubmit}
+        onDelete={handleEventDelete}
         loading={isCreatingEvent}
       />
     </div>

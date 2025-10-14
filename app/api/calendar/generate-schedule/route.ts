@@ -34,6 +34,14 @@ interface Course {
     type: string
     location?: string
   }>
+  specific_sessions?: Array<{
+    date: string // ISO date
+    title: string
+    start_time: string
+    end_time: string
+    location?: string
+    type: string
+  }>
 }
 
 export async function POST(request: NextRequest) {
@@ -116,53 +124,101 @@ export async function POST(request: NextRequest) {
 
     // Generate class events
     courses.forEach((course: Course) => {
-      course.schedule.forEach((schedule) => {
-        const startDate = new Date(semesterStartDate)
-        const endDate = new Date(semesterEndDate)
-        
-        // Find the first occurrence of the day of week
-        const dayOffset = (schedule.day_of_week - startDate.getDay() + 7) % 7
-        startDate.setDate(startDate.getDate() + dayOffset)
-        
-        // Generate recurring events for the semester
-        while (startDate <= endDate) {
-          const eventDate = new Date(startDate)
-          const startTime = new Date(eventDate)
-          const [hours, minutes] = schedule.start_time.split(':')
-          startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0)
-          
-          const endTime = new Date(eventDate)
-          const [endHours, endMinutes] = schedule.end_time.split(':')
-          endTime.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0)
-          
+      // If course has specific_sessions, use those instead of generating recurring events
+      if (course.specific_sessions && course.specific_sessions.length > 0) {
+        console.log(`Using specific sessions for ${course.code}:`, course.specific_sessions.length, 'sessions')
+
+        course.specific_sessions.forEach((session) => {
+          // Parse date correctly to avoid timezone issues
+          // session.date is in format "YYYY-MM-DD"
+          const [year, month, day] = session.date.split('-').map(Number)
+          const [hours, minutes] = session.start_time.split(':').map(Number)
+          const [endHours, endMinutes] = session.end_time.split(':').map(Number)
+
+          // Create dates in local timezone, then format as ISO string without timezone conversion
+          const startTime = new Date(year, month - 1, day, hours, minutes, 0, 0)
+          const endTime = new Date(year, month - 1, day, endHours, endMinutes, 0, 0)
+
+          // Format as YYYY-MM-DDTHH:mm:ss without timezone conversion
+          const formatLocalISO = (date: Date) => {
+            const pad = (n: number) => n.toString().padStart(2, '0')
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+          }
+
           events.push({
-            title: course.name,
-            description: `${course.code} - ${schedule.type}`,
-            start_time: startTime.toISOString(),
-            end_time: endTime.toISOString(),
+            title: `${course.name}: ${session.title}`,
+            description: `${course.code} - ${session.title}`,
+            start_time: formatLocalISO(startTime),
+            end_time: formatLocalISO(endTime),
             all_day: false,
-            color: getEventColor(schedule.type),
-            location: schedule.location,
-            event_type: schedule.type === 'lab' ? 'study' : 'class',
-            course_code: course.code,
-            recurring_pattern: {
-              type: 'weekly',
-              interval: 1,
-              days_of_week: [schedule.day_of_week],
-              end_date: semesterEndDate.toISOString()
-            }
+            color: getEventColor(session.type),
+            location: session.location || course.schedule[0]?.location,
+            event_type: 'class',
+            course_code: course.code
           })
-          
-          // Move to next week
-          startDate.setDate(startDate.getDate() + 7)
-        }
-      })
+        })
+      } else {
+        // Fall back to recurring events if no specific sessions
+        course.schedule.forEach((schedule) => {
+          const startDate = new Date(semesterStartDate)
+          const endDate = new Date(semesterEndDate)
+
+          // Find the first occurrence of the day of week
+          const dayOffset = (schedule.day_of_week - startDate.getDay() + 7) % 7
+          startDate.setDate(startDate.getDate() + dayOffset)
+
+          // Format as YYYY-MM-DDTHH:mm:ss without timezone conversion
+          const formatLocalISO = (date: Date) => {
+            const pad = (n: number) => n.toString().padStart(2, '0')
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+          }
+
+          // Generate recurring events for the semester
+          while (startDate <= endDate) {
+            const eventDate = new Date(startDate)
+            const startTime = new Date(eventDate)
+            const [hours, minutes] = schedule.start_time.split(':')
+            startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0)
+
+            const endTime = new Date(eventDate)
+            const [endHours, endMinutes] = schedule.end_time.split(':')
+            endTime.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0)
+
+            events.push({
+              title: course.name,
+              description: `${course.code} - ${schedule.type}`,
+              start_time: formatLocalISO(startTime),
+              end_time: formatLocalISO(endTime),
+              all_day: false,
+              color: getEventColor(schedule.type),
+              location: schedule.location,
+              event_type: schedule.type === 'lab' ? 'study' : 'class',
+              course_code: course.code,
+              recurring_pattern: {
+                type: 'weekly',
+                interval: 1,
+                days_of_week: [schedule.day_of_week],
+                end_date: semesterEndDate.toISOString()
+              }
+            })
+
+            // Move to next week
+            startDate.setDate(startDate.getDate() + 7)
+          }
+        })
+      }
     })
+
+    // Helper function to format dates without timezone conversion
+    const formatLocalISO = (date: Date) => {
+      const pad = (n: number) => n.toString().padStart(2, '0')
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+    }
 
     // Add exam periods (midterm and final)
     const midtermWeek = new Date(semesterStartDate)
     midtermWeek.setDate(midtermWeek.getDate() + 42) // ~6 weeks into semester
-    
+
     const finalWeek = new Date(semesterEndDate)
     finalWeek.setDate(finalWeek.getDate() - 7) // Week before finals
 
@@ -170,12 +226,16 @@ export async function POST(request: NextRequest) {
       // Midterm exam
       const midtermDate = new Date(midtermWeek)
       midtermDate.setDate(midtermDate.getDate() + (course.schedule[0]?.day_of_week || 1))
-      
+      midtermDate.setHours(9, 0, 0, 0) // 9 AM
+
+      const midtermEnd = new Date(midtermDate)
+      midtermEnd.setHours(11, 0, 0, 0) // 11 AM
+
       events.push({
         title: `${course.name} - Midterm Exam`,
         description: `Midterm exam for ${course.code}`,
-        start_time: new Date(midtermDate.getTime() + 9 * 60 * 60 * 1000).toISOString(), // 9 AM
-        end_time: new Date(midtermDate.getTime() + 11 * 60 * 60 * 1000).toISOString(), // 11 AM
+        start_time: formatLocalISO(midtermDate),
+        end_time: formatLocalISO(midtermEnd),
         all_day: false,
         color: '#EF4444',
         location: course.schedule[0]?.location || 'TBD',
@@ -186,12 +246,16 @@ export async function POST(request: NextRequest) {
       // Final exam
       const finalDate = new Date(finalWeek)
       finalDate.setDate(finalDate.getDate() + (course.schedule[0]?.day_of_week || 1))
-      
+      finalDate.setHours(9, 0, 0, 0) // 9 AM
+
+      const finalEnd = new Date(finalDate)
+      finalEnd.setHours(11, 0, 0, 0) // 11 AM
+
       events.push({
         title: `${course.name} - Final Exam`,
         description: `Final exam for ${course.code}`,
-        start_time: new Date(finalDate.getTime() + 9 * 60 * 60 * 1000).toISOString(), // 9 AM
-        end_time: new Date(finalDate.getTime() + 11 * 60 * 60 * 1000).toISOString(), // 11 AM
+        start_time: formatLocalISO(finalDate),
+        end_time: formatLocalISO(finalEnd),
         all_day: false,
         color: '#EF4444',
         location: course.schedule[0]?.location || 'TBD',
@@ -205,12 +269,13 @@ export async function POST(request: NextRequest) {
       for (let i = 1; i <= 5; i++) {
         const assignmentDate = new Date(semesterStartDate)
         assignmentDate.setDate(assignmentDate.getDate() + (i * 14)) // Every 2 weeks
-        
+        assignmentDate.setHours(23, 0, 0, 0) // 11 PM
+
         events.push({
           title: `${course.name} - Assignment ${i}`,
           description: `Assignment ${i} due for ${course.code}`,
-          start_time: new Date(assignmentDate.getTime() + 23 * 60 * 60 * 1000).toISOString(), // 11 PM
-          end_time: new Date(assignmentDate.getTime() + 23 * 60 * 60 * 1000).toISOString(),
+          start_time: formatLocalISO(assignmentDate),
+          end_time: formatLocalISO(assignmentDate),
           all_day: false,
           color: '#F59E0B',
           event_type: 'assignment',
