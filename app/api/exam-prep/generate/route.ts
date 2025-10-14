@@ -86,10 +86,9 @@ async function fetchTextsForExamFiles(supabase: any, fileIds: string[], userId: 
   return results
 }
 
-// Helper function for on-demand extraction
+// OPTIMIZED: Fast-only on-demand extraction (no Adobe Services)
 async function attemptOnDemandExtraction(supabase: any, document: any, userId: string): Promise<string> {
   try {
-    // Download the original file
     if (!document.file_path) {
       console.warn('⚠️ No file_path for document:', document.id)
       return ''
@@ -106,37 +105,61 @@ async function attemptOnDemandExtraction(supabase: any, document: any, userId: s
 
     const arrayBuffer = await blob.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
-    console.log(`📄 Downloaded file for extraction: ${buffer.length} bytes`)
-
     const ext = String(document.file_type || document.original_filename || '').toLowerCase()
     let extractedText = ''
 
+    // Only use fast extraction methods
     if (ext.includes('pdf')) {
-      // Try pdf-parse first (EXACT pattern from working reading upload)
       try {
-        const pdfParse = await import('pdf-parse').catch(() => null)
-        if (pdfParse?.default) {
-          const data = await pdfParse.default(buffer)
-          extractedText = String(data.text || '').trim()
-          console.log(`✅ Extracted ${extractedText.length} chars with pdf-parse`)
-        } else {
-          console.warn('⚠️ pdf-parse not available, trying Adobe fallback')
-        }
+        const PDFParser = (await import('pdf2json')).default
+        
+        extractedText = await new Promise((resolve, reject) => {
+          const pdfParser = new PDFParser(null, true)
+          
+          pdfParser.on('pdfParser_dataError', (errData: any) => {
+            reject(errData.parserError)
+          })
+          
+          pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+            try {
+              const textParts: string[] = []
+              
+              if (pdfData.Pages) {
+                for (const page of pdfData.Pages) {
+                  if (page.Texts) {
+                    for (const text of page.Texts) {
+                      if (text.R) {
+                        for (const run of text.R) {
+                          if (run.T) {
+                            // Safely decode URI-encoded text
+                            try {
+                              textParts.push(decodeURIComponent(run.T))
+                            } catch (e) {
+                              // If decoding fails, use the raw text
+                              textParts.push(run.T)
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  textParts.push('\n\n')
+                }
+              }
+              
+              const text = textParts.join(' ').replace(/\s+/g, ' ').trim()
+              resolve(text)
+            } catch (err) {
+              reject(err)
+            }
+          })
+          
+          pdfParser.parseBuffer(buffer)
+        })
+        
+        console.log(`✅ Fast extracted ${extractedText.length} chars with pdf2json`)
       } catch (pdfError) {
-        console.error('❌ pdf-parse failed:', pdfError)
-      }
-
-      // If pdf-parse didn't extract text, try Adobe fallback
-      if (!extractedText || extractedText.trim().length === 0) {
-        try {
-          const text = await adobeExportPdfToDocxExtractText(buffer)
-          if (text) {
-            extractedText = text
-            console.log(`✅ Extracted ${extractedText.length} chars with Adobe Services`)
-          }
-        } catch (adobeError) {
-          console.error('❌ Adobe extraction also failed:', adobeError)
-        }
+        console.error('❌ pdf2json extraction failed:', pdfError)
       }
     } else if (ext.includes('docx')) {
       try {
@@ -152,13 +175,11 @@ async function attemptOnDemandExtraction(supabase: any, document: any, userId: s
       console.log(`✅ Extracted ${extractedText.length} chars from TXT`)
     }
 
-    // Clean and normalize the extracted text
     extractedText = extractedText
       .replace(/\u0000/g, '')
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
       .trim()
 
-    // If extraction succeeded, update the database
     if (extractedText && extractedText.length > 50) {
       try {
         await supabase
@@ -172,12 +193,10 @@ async function attemptOnDemandExtraction(supabase: any, document: any, userId: s
           })
           .eq('id', document.id)
           .eq('user_id', userId)
-
         console.log('✅ Updated document with extracted text:', document.id)
       } catch (updateError) {
         console.error('⚠️ Failed to update document:', updateError)
       }
-
       return extractedText
     }
 
@@ -188,52 +207,6 @@ async function attemptOnDemandExtraction(supabase: any, document: any, userId: s
   }
 }
 
-// Helper: Export PDF -> DOCX using Adobe Services, then extract with mammoth
-async function adobeExportPdfToDocxExtractText(pdfBuffer: Buffer): Promise<string> {
-  try {
-    const sdk: any = await import('@adobe/pdfservices-node-sdk')
-    const mammoth = await import('mammoth')
-    const clientId = process.env.PDF_SERVICES_CLIENT_ID || process.env.ADOBE_CLIENT_ID
-    const clientSecret = process.env.PDF_SERVICES_CLIENT_SECRET || process.env.ADOBE_CLIENT_SECRET
-    if (!clientId || !clientSecret) return ''
-
-    // Convert buffer to readable stream
-    const streamMod: any = await import('node:stream').catch(() => import('stream'))
-    const ReadableAny = (streamMod as any).Readable || (streamMod as any).default?.Readable
-    const rs = ReadableAny?.from ? ReadableAny.from(pdfBuffer) : new ReadableAny({
-      read() {
-        this.push(pdfBuffer)
-        this.push(null)
-      }
-    })
-
-    const credentials = new (sdk as any).ServicePrincipalCredentials({ clientId, clientSecret })
-    const pdfServices = new (sdk as any).PDFServices({ credentials })
-    const asset = await pdfServices.upload({ readStream: rs, mimeType: (sdk as any).MimeType.PDF })
-    const params = new (sdk as any).ExportPDFParams({
-      targetFormat: (sdk as any).ExportPDFTargetFormat.DOCX,
-      ocrLocale: (sdk as any).ExportOCRLocale.EN_US
-    })
-    const job = new (sdk as any).ExportPDFJob({ inputAsset: asset, params })
-    const poll = await pdfServices.submit({ job })
-    const resp = await pdfServices.getJobResult({ pollingURL: poll, resultType: (sdk as any).ExportPDFResult })
-    const docxAsset = resp.result.asset
-    const streamAsset = await pdfServices.getContent({ asset: docxAsset })
-    const chunks: Buffer[] = []
-    const rs2: any = streamAsset.readStream
-    await new Promise<void>((resolve, reject) => {
-      rs2.on('data', (c: Buffer) => chunks.push(c))
-      rs2.on('end', () => resolve())
-      rs2.on('error', (e: any) => reject(e))
-    })
-    const docxBuffer = Buffer.concat(chunks)
-    const { value } = await mammoth.extractRawText({ buffer: docxBuffer })
-    return String(value || '').trim()
-  } catch (e) {
-    console.error('⚠️ Adobe export to DOCX failed:', e)
-    return ''
-  }
-}
 
 async function fetchTextsForReadingDocuments(supabase: any, docIds: string[], userId: string): Promise<string[]> {
   if (docIds.length === 0) return []
@@ -343,105 +316,7 @@ export async function POST(req: NextRequest) {
     })
 
     if (texts.length === 0) {
-      // Attempt on-demand re-extraction for reading documents (Adobe Services -> DOCX -> mammoth)
-      async function bufferToReadable(buf: Buffer): Promise<any> {
-        try {
-          const streamMod: any = await import('node:stream').catch(() => import('stream'))
-          const ReadableAny = (streamMod as any).Readable || (streamMod as any).default?.Readable
-          if (ReadableAny?.from) return ReadableAny.from(buf)
-          return new ReadableAny({
-            read() {
-              this.push(buf)
-              this.push(null)
-            }
-          })
-        } catch {
-          return buf as any
-        }
-      }
-      async function adobeExtractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
-        try {
-          const sdk: any = await import('@adobe/pdfservices-node-sdk')
-          const mammoth = await import('mammoth')
-          const clientId = process.env.PDF_SERVICES_CLIENT_ID || process.env.ADOBE_CLIENT_ID
-          const clientSecret = process.env.PDF_SERVICES_CLIENT_SECRET || process.env.ADOBE_CLIENT_SECRET
-          if (!clientId || !clientSecret) return ''
-          const credentials = new sdk.ServicePrincipalCredentials({ clientId, clientSecret })
-          const pdfServices = new sdk.PDFServices({ credentials })
-          const rs = await bufferToReadable(pdfBuffer)
-          const asset = await pdfServices.upload({ readStream: rs, mimeType: sdk.MimeType.PDF })
-          const params = new sdk.ExportPDFParams({ targetFormat: sdk.ExportPDFTargetFormat.DOCX, ocrLocale: sdk.ExportOCRLocale.EN_US })
-          const job = new sdk.ExportPDFJob({ inputAsset: asset, params })
-          const poll = await pdfServices.submit({ job })
-          const resp = await pdfServices.getJobResult({ pollingURL: poll, resultType: sdk.ExportPDFResult })
-          const docxAsset = resp.result.asset
-          const streamAsset = await pdfServices.getContent({ asset: docxAsset })
-          const chunks: Buffer[] = []
-          const rs2: any = streamAsset.readStream
-          await new Promise<void>((resolve, reject) => {
-            rs2.on('data', (c: Buffer) => chunks.push(c))
-            rs2.on('end', () => resolve())
-            rs2.on('error', (e: any) => reject(e))
-          })
-          const docxBuffer = Buffer.concat(chunks)
-          const { value } = await mammoth.extractRawText({ buffer: docxBuffer })
-          return String(value || '').trim()
-        } catch {
-          return ''
-        }
-      }
-
-      // For each reading document id, try to download and extract
-      const docIds = Array.isArray(body.documentIds) ? body.documentIds : []
-      for (const docId of docIds) {
-        try {
-          const { data: doc, error: docErr } = await supabase
-            .from('reading_documents')
-            .select('id, file_path, public_url, extracted_text')
-            .eq('id', docId)
-            .eq('user_id', user.id)
-            .single()
-          if (docErr || !doc) continue
-          if (doc.extracted_text && String(doc.extracted_text).trim().length > 0) continue
-          let buffer: Buffer | null = null
-          if (doc.file_path) {
-            try {
-              const { data: blob } = await supabase.storage
-                .from('reading-documents')
-                .download(doc.file_path)
-              if (blob) {
-                const ab = await blob.arrayBuffer()
-                buffer = Buffer.from(ab)
-              }
-            } catch {}
-          }
-          if (!buffer && doc.public_url) {
-            try {
-              const res = await fetch(doc.public_url)
-              if (res.ok) {
-                const ab = await res.arrayBuffer()
-                buffer = Buffer.from(ab)
-              }
-            } catch {}
-          }
-          if (!buffer) continue
-          const text = await adobeExtractTextFromPdf(buffer)
-          if (text && text.length > 50) {
-            await supabase
-              .from('reading_documents')
-              .update({ extracted_text: text, text_length: text.length, processing_status: 'completed', updated_at: new Date().toISOString() })
-              .eq('id', docId)
-          }
-        } catch {}
-      }
-
-      // Re-fetch texts after re-extraction
-      textsA = await fetchTextsForExamFiles(supabase, body.fileIds || [], user.id)
-      textsB = await fetchTextsForReadingDocuments(supabase, body.documentIds || [], user.id)
-      texts = [...textsA, ...textsB].filter(Boolean)
-      if (texts.length === 0) {
-        return NextResponse.json({ error: 'No extracted text available from uploaded documents' }, { status: 400 })
-      }
+      return NextResponse.json({ error: 'No extracted text available from uploaded documents. Please ensure your documents have been processed before generating an exam.' }, { status: 400 })
     }
 
     console.log('📚 Document extraction:', {
@@ -465,201 +340,45 @@ export async function POST(req: NextRequest) {
       preview: combined.slice(0, 1000)
     })
 
-    // Helpers for strict grounding
-    const normalize = (s: string) => String(s || '')
-      .toLowerCase()
-      .replace(/[“”„‟‶\u201C\u201D]/g, '"')
-      .replace(/[‘’‛\u2018\u2019]/g, "'")
-      .replace(/[^a-z0-9\s'"-]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
+    // OPTIMIZED: Single fast generation call instead of slow section-by-section processing
 
-    const splitIntoChunks = (text: string, size = 8000): string[] => {
-      const chunks: string[] = []
-      for (let i = 0; i < text.length; i += size) chunks.push(text.slice(i, i + size))
-      return chunks
-    }
+    // Optimized: Single efficient prompt for all questions
+    const systemPrompt = `You are an expert exam question generator. Create high-quality multiple-choice questions that test deep understanding of the provided content.
 
-    // Try to reuse the reading pipeline's context builder for higher-quality chunks
-    async function fetchReadingContextChunks(documentIds: string[]): Promise<string[]> {
-      if (!Array.isArray(documentIds) || documentIds.length === 0) return []
-      const base = req.nextUrl.origin
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'Authorization': req.headers.get('Authorization') || '',
-        'Cookie': req.headers.get('Cookie') || ''
-      }
-      const collected: string[] = []
-      for (const docId of documentIds) {
-        try {
-          const res = await fetch(`${base}/api/reading/get-context`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              documentId: docId,
-              options: { maxTokens: 8000, includeMetadata: true, chunkSize: 1200, overlap: 200, strategy: 'smart' }
-            })
-          })
-          if (!res.ok) continue
-          const data = await res.json()
-          const cs = (data?.context?.chunks || []).map((c: any) => String(c?.content || '')).filter((s: string) => s.trim().length >= 40)
-          collected.push(...cs)
-        } catch {}
-      }
-      return collected
-    }
-
-    // Much more aggressive meta-question filtering
-    const metaPattern = /(which\s+section|document\b|pdf\b|filename|table\s+of\s+contents|appendix|upload|processing|user\b|file\b|after\s+being\s+uploaded|primary\s+purpose\s+of\s+the\s+document|analyze|archived|deleted|printed|stored|saved|downloaded|drag\s+&?\s*drop|click\s+to\s+upload|choose\s+files|guidelines|status|extracted\s+content|processing\s+status)/i
-
-    // Strict, section-based generation that requires an exact quote from the section
-    const readingChunks = await fetchReadingContextChunks(body.documentIds || [])
-    const rawSections = (readingChunks.length > 0 ? readingChunks : splitIntoChunks(combined, 8000))
-    const sections = rawSections
-      .map((s) => sanitizeSourceContent(s))
-      .map((s) => {
-        // Remove any lines that look like UI/upload boilerplate
-        return s
-          .split('\n')
-          .filter(line => !/(drag\s+&?\s*drop|click\s+to\s+browse|choose\s+files|upload|processing|guidelines|status|file\s+(?:size|type|uploaded)|document\s+viewer)/i.test(line))
-          .join('\n')
-          .trim()
-      })
-      .filter(s => s && s.length > 100)
-    
-    console.log('📖 Sections for generation:', {
-      readingChunksCount: readingChunks.length,
-      totalSections: sections.length,
-      firstSectionPreview: sections[0]?.slice(0, 500)
-    })
-    
-    const normalizedSections = sections.map(c => normalize(c))
-    const perChunkBase = Math.max(1, Math.floor(count / Math.max(1, sections.length)))
-    let strictCollected: any[] = []
-
-    for (let i = 0; i < sections.length && strictCollected.length < count; i++) {
-      const remaining = count - strictCollected.length
-      const ask = Math.min(5, Math.max(1, Math.min(perChunkBase, remaining)))
-      try {
-        const sectionPrompt = `From ONLY the section below, create EXACTLY ${ask} multiple-choice questions. Each question MUST:
-- test a specific fact or concept from the section
-- include four options (A-D) and one correct answer letter
-- include an \"evidence\" field that is an exact short quote (<=120 chars) copied from the section that supports the correct answer
-
-CRITICAL RULES:
-- NEVER ask about "the document", "the file", "the PDF", or "after upload"
-- NEVER ask what should be done with documents (analyze, delete, archive, print, store)
-- ONLY ask about the actual subject matter/concepts/facts in the content below
-- If the section is about functional architecture, ask about functional architecture
-- If the section is about biology, ask about biology concepts
-- Focus on testing knowledge OF the content, not ABOUT the content
-
-Return strict JSON: {"questions":[{"id":"","type":"mcq","question":"","options":["","","",""],"correctAnswer":"A","explanation":"","topic":"","difficulty":"${difficulty}","evidence":""}]}
-
-Section:\n${sections[i]}`
-
-        const bySection = await openai.chat.completions.create({
-          model: 'gpt-4o',
-          response_format: { type: 'json_object' },
-          temperature: 0.2,
-          messages: [
-            { role: 'system', content: 'You are an exam question writer. Generate questions that test understanding of the subject matter in the provided text. NEVER create questions about documents, files, uploads, or storage. Focus ONLY on testing knowledge of the concepts and facts presented in the content.' },
-            { role: 'user', content: sectionPrompt }
-          ]
-        })
-        const secRaw = bySection.choices[0]?.message?.content || '{}'
-        let secObj: any = {}
-        try { secObj = JSON.parse(secRaw) } catch { const m = secRaw.match(/\{[\s\S]*\}/); secObj = m ? JSON.parse(m[0]) : { questions: [] } }
-        const extra = (Array.isArray(secObj?.questions) ? secObj.questions : [])
-          .filter((q: any) => q && Array.isArray(q.options))
-          .filter((q: any) => !metaPattern.test(String(q.question || '')))
-          .map((q: any, j: number) => {
-            const cleanOption = (s: any) => String(s).replace(/^[A-D][).]\s*/i, '').trim()
-            const opts = q.options.slice(0, 4).map((o: any) => cleanOption(o))
-            const letter = String(q.correctAnswer || 'A').trim().toUpperCase().charAt(0)
-            const validLetter = ['A','B','C','D'].includes(letter) ? letter : 'A'
-            return {
-              id: String(q.id || `sec_${i}_${j + 1}`),
-              type: 'mcq',
-              question: String(q.question || '').trim(),
-              options: opts,
-              correctAnswer: validLetter,
-              explanation: String(q.explanation || ''),
-              difficulty: String(q.difficulty || difficulty),
-              topic: String(q.topic || ''),
-              evidence: String((q as any).evidence || '')
-            }
-          })
-          .filter((q: any) => {
-            const ev = normalize(q.evidence || '').slice(0, 160)
-            return ev.length >= 8 && normalizedSections[i].includes(ev)
-          })
-        strictCollected = [...strictCollected, ...extra].slice(0, count)
-      } catch {}
-    }
-
-    // If strict pass already got the full requested amount, use them
-    if (strictCollected.length >= count) {
-      const exam = {
-        examTitle: body.title || 'Practice Exam',
-        instructions: body.instructions || 'Choose the best answer for each question.',
-        duration: durationMinutes,
-        questions: strictCollected.slice(0, count),
-        quizMode: body.quizMode || 'rapid-fire'
-      }
-      return NextResponse.json({ success: true, exam })
-    }
-
-    // Simple, direct generation from document content (fallback)
-    const systemPrompt = `You are an exam question generator. Your ONLY job is to create multiple-choice questions that test knowledge from the provided document content. 
-
-CRITICAL RULES:
-1. Every question MUST be about specific facts, concepts, or information found in the document
-2. Do NOT create generic questions about "helping users" or "document processing"
-3. Do NOT ask about the document itself (pages, sections, format)
-4. Focus on the actual subject matter in the document (e.g., if it's about functional architecture, ask about functional architecture concepts)
-5. Each question needs 4 options (A-D) with one correct answer
-6. Return valid JSON only
-7. Exactly ${count} questions are required. Do not produce more or fewer.`
+RULES:
+1. Questions must test specific facts, concepts, or information from the document
+2. Never ask about document format, structure, or processing
+3. Focus on actual subject matter and content
+4. Each question must have exactly 4 options (A-D) with one correct answer
+5. Provide clear, educational explanations
+6. Return valid JSON with exactly ${count} questions`
 
     // Include sample questions in the prompt if available
     const sampleQuestionsText = sampleTexts.length > 0 
-      ? `\n\nSAMPLE QUESTIONS FROM PROFESSOR (use these as style/topic reference):
-${sampleTexts.map(text => sanitizeSourceContent(text)).join('\n\n---\n\n')}`
+      ? `\n\nSAMPLE QUESTIONS (use as style reference):\n${sampleTexts.map(text => sanitizeSourceContent(text).slice(0, 2000)).join('\n\n---\n\n')}`
       : ''
 
-    const userPrompt = `Generate EXACTLY ${count} multiple-choice questions based on the following document content. 
-These questions should test understanding of the concepts and facts presented in this document.
-Difficulty: ${difficulty}
+    const userPrompt = `Create exactly ${count} multiple-choice questions from the content below.
+Difficulty level: ${difficulty}
+${sampleQuestionsText ? '\nMatch the style and format of the sample questions provided.' : ''}
 
-IMPORTANT: The questions must be about the actual content below, not about generic topics.
-${sampleQuestionsText ? 'Use the sample questions as a reference for question style, format, and topic coverage.' : ''}
+CONTENT:
+${combined.slice(0, 80000)}${sampleQuestionsText}
 
-Document Content:
-${combined.slice(0, 50000)}${sampleQuestionsText}
+Return as JSON: {"questions":[{"id":"q1","type":"mcq","question":"...","options":["A","B","C","D"],"correctAnswer":"A","explanation":"...","difficulty":"${difficulty}","topic":"..."}]}`
 
-Output format (strict JSON):
-{
-  "questions": [
-    {
-      "id": "q1",
-      "type": "mcq", 
-      "question": "...",
-      "options": ["...", "...", "...", "..."],
-      "correctAnswer": "A",
-      "explanation": "...",
-      "difficulty": "${difficulty}"
-    }
-  ]
-}`
+    console.log('🎯 Generating questions:', { 
+      promptLength: userPrompt.length, 
+      questionCount: count,
+      contentLength: combined.length,
+      difficulty 
+    })
 
-    console.log('🎯 Generating questions with prompt length:', userPrompt.length)
-
-    // Ask the model to create a clean MCQ-only exam
+    // Single optimized API call
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       response_format: { type: 'json_object' },
-      temperature: 0.3,
+      temperature: 0.4, // Slightly higher for more variety
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -680,9 +399,8 @@ Output format (strict JSON):
       firstQuestion: parsedExam?.questions?.[0]?.question
     })
 
-    // Simple normalization without filtering
+    // Simple normalization and validation
     const questions = Array.isArray(parsedExam?.questions) ? parsedExam.questions : []
-    // Seed with any grounded strict questions already collected
     const mappedQuestions = questions
       .filter((q: any) => q && Array.isArray(q.options) && q.options.length >= 4)
         .map((q: any, i: number) => {
@@ -703,91 +421,11 @@ Output format (strict JSON):
       })
         .slice(0, count)
 
-    // Merge strictCollected first to preserve well-grounded items
-    const mergedInitial = [...strictCollected, ...mappedQuestions].slice(0, count)
-
-    let normalized = {
+    const normalized = {
       examTitle: body.title || 'Practice Exam',
       instructions: body.instructions || 'Choose the best answer for each question.',
       duration: durationMinutes,
-      questions: mergedInitial
-    }
-
-    // Simple top-up if we didn't get enough questions
-    if (normalized.questions.length < count) {
-      const missing = count - normalized.questions.length
-      console.log(`📝 Need ${missing} more questions, making additional request...`)
-      
-      const topUpPrompt = `Generate EXACTLY ${missing} MORE multiple-choice questions based on the following document content.
-These questions should test understanding of the concepts and facts presented in this document.
-Difficulty: ${difficulty}
-
-IMPORTANT: Create questions about the actual subject matter in the document, not generic topics.
-
-Document Content:
-${combined.slice(0, 50000)}
-
-Output format (strict JSON):
-{
-  "questions": [
-    {
-      "id": "q1",
-      "type": "mcq",
-      "question": "...",
-      "options": ["...", "...", "...", "..."],
-      "correctAnswer": "A",
-      "explanation": "...",
-      "difficulty": "${difficulty}"
-    }
-  ]
-}`
-
-      try {
-        const topUp = await openai.chat.completions.create({
-          model: 'gpt-4o',
-          response_format: { type: 'json_object' },
-          temperature: 0.3,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: topUpPrompt }
-          ]
-        })
-        
-        const topUpRaw = topUp.choices[0]?.message?.content || '{}'
-        let topUpParsed: any = {}
-        try { 
-          topUpParsed = JSON.parse(topUpRaw) 
-        } catch { 
-          const m = topUpRaw.match(/\{[\s\S]*\}/)
-          topUpParsed = m ? JSON.parse(m[0]) : { questions: [] } 
-        }
-        
-        const extraQuestions = (Array.isArray(topUpParsed?.questions) ? topUpParsed.questions : [])
-          .filter((q: any) => q && Array.isArray(q.options) && q.options.length >= 4)
-          .map((q: any, i: number) => {
-            const cleanOption = (s: any) => String(s).replace(/^[A-D][).]\s*/i, '').trim()
-            const opts = q.options.slice(0, 4).map((o: any) => cleanOption(o))
-            const letter = String(q.correctAnswer || 'A').trim().toUpperCase().charAt(0)
-            const validLetter = ['A','B','C','D'].includes(letter) ? letter : 'A'
-            return {
-              id: String(q.id || `q_${normalized.questions.length + i + 1}`),
-              type: 'mcq',
-              question: String(q.question || '').trim(),
-              options: opts,
-              correctAnswer: validLetter,
-              explanation: String(q.explanation || ''),
-              difficulty: String(q.difficulty || difficulty),
-              topic: String(q.topic || '')
-            }
-          })
-        
-        normalized = { 
-          ...normalized, 
-          questions: [...normalized.questions, ...extraQuestions].slice(0, count) 
-        }
-      } catch (error) {
-        console.error('❌ Top-up failed:', error)
-      }
+      questions: mappedQuestions
     }
 
     const exam = { 

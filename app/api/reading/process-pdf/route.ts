@@ -155,32 +155,72 @@ export async function POST(req: NextRequest) {
     let processingNotes: string[] = [];
 
     try {
-      console.log('📄 Processing PDF...');
+      console.log('📄 Processing PDF with pdf2json...');
       
-      // Dynamic import of pdf-parse to avoid compilation issues
-      const { default: PDFParse } = await import('pdf-parse');
+      // Use pdf2json for reliable Node.js PDF extraction
+      const PDFParser = (await import('pdf2json')).default;
       
-      // Create a clean buffer without any file system references
       const cleanBuffer = Buffer.from(buffer);
       
-        // Add timeout to PDF processing to prevent hanging
-        const parsePromise = PDFParse(cleanBuffer, {
-          // Optimized options for better text extraction
-          max: 0  // No page limit
+      // Add timeout to PDF processing to prevent hanging
+      const parsePromise = new Promise<{ text: string; pages: number }>((resolve, reject) => {
+        const pdfParser = new PDFParser(null, true);
+        
+        pdfParser.on('pdfParser_dataError', (errData: any) => {
+          reject(errData.parserError || new Error('PDF parsing failed'));
         });
-
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('PDF processing timeout')), 10000); // 10 second timeout
+        
+        pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+          try {
+            const numPages = pdfData.Pages?.length || 0;
+            const textParts: string[] = [];
+            
+            if (pdfData.Pages) {
+              for (const page of pdfData.Pages) {
+                if (page.Texts) {
+                  for (const text of page.Texts) {
+                    if (text.R) {
+                      for (const run of text.R) {
+                        if (run.T) {
+                          // Safely decode URI-encoded text
+                          try {
+                            textParts.push(decodeURIComponent(run.T));
+                          } catch (e) {
+                            textParts.push(run.T);
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                textParts.push('\n\n');
+              }
+            }
+            
+            const text = textParts.join(' ').replace(/\s+/g, ' ').trim();
+            resolve({ text, pages: numPages });
+          } catch (err) {
+            reject(err);
+          }
+        });
+        
+        pdfParser.parseBuffer(cleanBuffer);
       });
 
-      const pdfData = await Promise.race([parsePromise, timeoutPromise]) as any;
-      extractedText = pdfData.text || '';
-      pageCount = pdfData.numpages || 1;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('PDF processing timeout')), 30000); // 30 second timeout
+      });
+
+      const result = await Promise.race([parsePromise, timeoutPromise]);
+      extractedText = result.text || '';
+      pageCount = result.pages || 1;
       
       if (extractedText.trim().length === 0) {
         extractedText = 'This PDF appears to be image-based or contains no extractable text. The document will display visually for reading and analysis, but AI chat features may be limited without searchable text.';
         processingNotes.push('Image-based PDF - visual display available, text extraction failed');
         console.log('ℹ️ PDF has no extractable text - likely image-based or scanned document');
+      } else {
+        processingNotes.push('Text extracted successfully with pdf2json');
       }
       
       console.log('✅ PDF processed:', {

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { uploadKnowledgeBaseAs, webhookDebugger } from '@/api-config';
 import { subscriptionService } from '@/lib/subscription-service';
 
 // Ensure large form-data uploads are handled by Node runtime and allow bigger bodies
@@ -168,25 +167,73 @@ export async function POST(request: NextRequest) {
     let extractedText = '';
     try {
       const nameLower = (originalFileName || '').toLowerCase()
-      console.log('🔍 Starting local extraction BEFORE upload for:', originalFileName, 'Size:', fileSize, 'bytes');
+      console.log('🔍 [NEW CODE v2] Starting local extraction BEFORE upload for:', originalFileName, 'Size:', fileSize, 'bytes');
 
-      // Helper: Extract text using pdf-parse (EXACT COPY from working reading upload)
-      async function extractWithPdfParse(buf: Buffer): Promise<{ text: string; pages: number }> {
+      // Helper: Extract text using pdf2json (Node.js compatible, no webpack issues)
+      async function extractWithPdf2Json(buf: Buffer): Promise<{ text: string; pages: number }> {
         try {
-          const pdfParse = await import('pdf-parse').catch(() => null)
-
-          if (pdfParse?.default) {
-            console.log(`📄 Using pdf-parse for extraction (buffer size: ${buf.length} bytes)`)
-            const data = await pdfParse.default(buf)
-            const text = String(data.text || '').trim()
-            const numPages = data.numpages || 1
-            console.log(`📄 Extracted with pdf-parse: ${text.length} chars from ${numPages} pages`)
-            console.log(`📄 First 300 chars: ${text.substring(0, 300)}`)
-            return { text, pages: numPages }
-          }
-
-          console.warn('⚠️ pdf-parse not available')
-          return { text: '', pages: 1 }
+          const PDFParser = (await import('pdf2json')).default
+          
+          console.log(`📄 Using pdf2json for extraction (buffer size: ${buf.length} bytes)`)
+          
+          return new Promise((resolve, reject) => {
+            const pdfParser = new PDFParser(null, true)
+            
+            pdfParser.on('pdfParser_dataError', (errData: any) => {
+              console.error('❌ pdf2json parsing error:', errData.parserError)
+              reject(errData.parserError)
+            })
+            
+            pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+              try {
+                const numPages = pdfData.Pages?.length || 0
+                console.log(`📄 PDF loaded: ${numPages} pages`)
+                
+                // Extract text from all pages
+                const textParts: string[] = []
+                
+                if (pdfData.Pages) {
+                  for (const page of pdfData.Pages) {
+                    if (page.Texts) {
+                      for (const text of page.Texts) {
+                        if (text.R) {
+                          for (const run of text.R) {
+                            if (run.T) {
+                              // Safely decode URI-encoded text
+                              try {
+                                textParts.push(decodeURIComponent(run.T))
+                              } catch (e) {
+                                // If decoding fails, use the raw text
+                                textParts.push(run.T)
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    textParts.push('\n\n') // Page separator
+                  }
+                }
+                
+                const text = textParts.join(' ').replace(/\s+/g, ' ').trim()
+                
+                console.log(`✅ Extracted with pdf2json: ${text.length} chars from ${numPages} pages`)
+                
+                if (text.length > 0) {
+                  console.log(`📄 First 300 chars: ${text.substring(0, 300)}`)
+                } else {
+                  console.warn('⚠️ PDF extraction returned empty text - may be image-based PDF')
+                }
+                
+                resolve({ text, pages: numPages })
+              } catch (err) {
+                reject(err)
+              }
+            })
+            
+            // Parse the buffer
+            pdfParser.parseBuffer(buf)
+          })
         } catch (e: any) {
           console.error('❌ PDF extraction error:', {
             message: e?.message,
@@ -198,27 +245,28 @@ export async function POST(request: NextRequest) {
       }
 
       if (nameLower.endsWith('.pdf')) {
-        console.log('📄 Fast PDF extraction (pdf-parse only)...');
+        console.log('📄 PDF extraction using pdf2json (Node.js optimized)...');
 
         try {
           const cleanBuffer = Buffer.from(buffer);
-          const viaPdfParse = await extractWithPdfParse(cleanBuffer);
+          const result = await extractWithPdf2Json(cleanBuffer);
 
-          if (viaPdfParse.text && viaPdfParse.text.trim().length > 0) {
-            extractedText = viaPdfParse.text;
-            pageCount = viaPdfParse.pages;
-            processingNotes.push('Fast extraction: pdf-parse');
+          if (result.text && result.text.trim().length > 0) {
+            extractedText = result.text;
+            pageCount = result.pages;
+            processingNotes.push('Extracted with pdf2json');
+            console.log(`✅ Successfully extracted ${extractedText.length} chars from ${pageCount} pages`)
           } else {
-            // If extraction fails, mark for on-demand extraction later
             extractedText = '';
             pageCount = 1;
-            processingNotes.push('Text extraction deferred for speed');
+            processingNotes.push('PDF extraction returned no text (may be image-based PDF)');
+            console.warn('⚠️ No text extracted from PDF')
           }
         } catch (err) {
-          console.error('⚠️ PDF extraction error:', err);
+          console.error('❌ PDF extraction error:', err);
           extractedText = '';
           pageCount = 1;
-          processingNotes.push('Text extraction deferred (error occurred)');
+          processingNotes.push('PDF extraction failed: ' + (err instanceof Error ? err.message : String(err)));
         }
       } else if (nameLower.endsWith('.docx')) {
         const mammoth = await import('mammoth')
@@ -354,77 +402,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Send file to webhook for additional processing (async, non-blocking)
-    let webhookResult = null;
-    try {
-      webhookDebugger.info('EXAM_PREP_UPLOAD', 'Sending file to knowledge base webhook', {
-        filename: originalFileName,
-        fileType: file?.type || 'application/pdf',
-        fileSize: fileSize,
-        userId: user.id,
-        uploadType: type
-      });
-
-      // Skip webhook for files uploaded directly (already in storage, text already extracted)
-      if (file && !storagePath) {
-        webhookResult = await uploadKnowledgeBaseAs(file, {
-          filename: originalFileName,
-          userId: user.id,
-          agentId: `${type}-${category}`,
-          description: `Exam prep file upload: ${originalFileName} (${category})`
-        });
-
-        if (webhookResult && webhookResult.success) {
-          webhookDebugger.info('EXAM_PREP_UPLOAD', 'Webhook processing successful', {
-            filename: originalFileName,
-            webhookData: webhookResult.data
-          });
-
-        // Try to get better extraction from webhook if local extraction was poor
-        if (fileRecord?.id && (!extractedText || extractedText.trim().length < 100)) {
-          console.log('Webhook result data structure:', JSON.stringify(webhookResult.data, null, 2));
-
-          let webhookText = '';
-          if (webhookResult.data && Array.isArray(webhookResult.data) && webhookResult.data.length > 0) {
-            webhookText = webhookResult.data[0].extracted_text || webhookResult.data[0].text || webhookResult.data[0].content || '';
-          } else if (webhookResult.data && typeof webhookResult.data === 'object') {
-            webhookText = webhookResult.data.extracted_text || webhookResult.data.text || webhookResult.data.content || '';
-          }
-
-          if (webhookText && webhookText.length > extractedText.length) {
-            console.log('💾 Updating with webhook extraction (better quality):', webhookText.length, 'chars');
-            await supabase
-              .from('documents')
-              .update({
-                extracted_text: webhookText,
-                processing_status: 'completed',
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', fileRecord.id);
-          }
-        }
-        } else {
-          webhookDebugger.error('EXAM_PREP_UPLOAD', 'Webhook processing failed', {
-            filename: originalFileName,
-            error: webhookResult?.error,
-            debugInfo: webhookResult?.debugInfo
-          });
-
-          // Webhook failed but local extraction might have succeeded
-          console.log('⚠️ Webhook failed, relying on local extraction');
-          // No need to update - we already saved extracted text in the initial insert
-        }
-      } else {
-        console.log('📝 Skipping webhook for direct upload (text already extracted)');
-      }
-    } catch (webhookError) {
-      webhookDebugger.error('EXAM_PREP_UPLOAD', 'Webhook request failed', {
-        filename: originalFileName,
-        error: webhookError instanceof Error ? webhookError.message : String(webhookError)
-      });
-      console.log('⚠️ Webhook failed, but continuing with local extraction');
-      // Don't fail the upload if webhook fails - local extraction might have worked
-    }
+    // No webhook needed - we extracted text locally during upload
+    console.log('✅ Text extraction completed locally, no external processing needed');
 
     // Track usage after successful upload
     try {
@@ -440,10 +419,12 @@ export async function POST(request: NextRequest) {
       url: urlData.publicUrl,
       filename: originalFileName,
       fileId: fileRecord?.id,
-      documentId: fileRecord?.id, // For compatibility with StudyMaterialsUploader
-      title: originalFileName, // For compatibility with StudyMaterialsUploader
-      webhookProcessed: webhookResult?.success || false,
-      webhookError: webhookResult?.error || null
+      documentId: fileRecord?.id,
+      title: originalFileName,
+      textExtracted: hasValidText,
+      textLength: extractedText.length,
+      pageCount: pageCount,
+      processingNotes: processingNotes
     });
 
   } catch (error) {

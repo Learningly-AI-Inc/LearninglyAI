@@ -175,12 +175,37 @@ export async function POST(request: NextRequest) {
             let ocrText = await exportPdfToDocxExtractText(ocr.searchablePdf)
             if (!ocrText) {
               try {
-                const { default: PDFParse } = await import('pdf-parse')
-                const parsed = await PDFParse(ocr.searchablePdf, { max: 0 }) as any
-                ocrText = String(parsed.text || '').trim()
-                serverPageCount = parsed.numpages || serverPageCount
+                const PDFParser = (await import('pdf2json')).default
+                const result = await new Promise<{text: string; pages: number}>((resolve, reject) => {
+                  const pdfParser = new PDFParser(null, true)
+                  pdfParser.on('pdfParser_dataError', (err: any) => reject(err.parserError))
+                  pdfParser.on('pdfParser_dataReady', (data: any) => {
+                    const textParts: string[] = []
+                    if (data.Pages) {
+                      for (const page of data.Pages) {
+                        if (page.Texts) {
+                          for (const text of page.Texts) {
+                            if (text.R) {
+                              for (const run of text.R) {
+                                if (run.T) {
+                                  try { textParts.push(decodeURIComponent(run.T)) } 
+                                  catch (e) { textParts.push(run.T) }
+                                }
+                              }
+                            }
+                          }
+                        }
+                        textParts.push('\n\n')
+                      }
+                    }
+                    resolve({ text: textParts.join(' ').replace(/\s+/g, ' ').trim(), pages: data.Pages?.length || 0 })
+                  })
+                  pdfParser.parseBuffer(Buffer.from(ocr.searchablePdf))
+                })
+                ocrText = result.text
+                serverPageCount = result.pages || serverPageCount
               } catch (e: any) {
-                processingNotes.push(`pdf-parse after OCR failed: ${e?.message || String(e)}`)
+                processingNotes.push(`pdf2json after OCR failed: ${e?.message || String(e)}`)
               }
             }
             if (ocrText) {
@@ -195,13 +220,38 @@ export async function POST(request: NextRequest) {
 
       if (!serverExtractedText) {
         try {
-          const { default: PDFParse } = await import('pdf-parse')
-          const parsed = await PDFParse(buffer, { max: 0 }) as any
-          serverExtractedText = String(parsed.text || '').trim()
-          serverPageCount = parsed.numpages || serverPageCount
-          processingNotes.push('pdf-parse fallback used')
+          const PDFParser = (await import('pdf2json')).default
+          const result = await new Promise<{text: string; pages: number}>((resolve, reject) => {
+            const pdfParser = new PDFParser(null, true)
+            pdfParser.on('pdfParser_dataError', (err: any) => reject(err.parserError))
+            pdfParser.on('pdfParser_dataReady', (data: any) => {
+              const textParts: string[] = []
+              if (data.Pages) {
+                for (const page of data.Pages) {
+                  if (page.Texts) {
+                    for (const text of page.Texts) {
+                      if (text.R) {
+                        for (const run of text.R) {
+                          if (run.T) {
+                            try { textParts.push(decodeURIComponent(run.T)) } 
+                            catch (e) { textParts.push(run.T) }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  textParts.push('\n\n')
+                }
+              }
+              resolve({ text: textParts.join(' ').replace(/\s+/g, ' ').trim(), pages: data.Pages?.length || 0 })
+            })
+            pdfParser.parseBuffer(buffer)
+          })
+          serverExtractedText = result.text
+          serverPageCount = result.pages || serverPageCount
+          processingNotes.push('pdf2json fallback used')
         } catch (e: any) {
-          processingNotes.push(`pdf-parse fallback failed: ${e?.message || String(e)}`)
+          processingNotes.push(`pdf2json fallback failed: ${e?.message || String(e)}`)
         }
       }
     } else if (fileExtension === 'docx' || fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
