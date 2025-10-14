@@ -21,7 +21,7 @@ function getOpenAI(): OpenAI {
   }
   return openai
 }
-
+//comment
 async function extractTextFromPDFBuffer(buffer: Buffer): Promise<string> {
   try {
     // Use Adobe PDF Services API for proper text extraction
