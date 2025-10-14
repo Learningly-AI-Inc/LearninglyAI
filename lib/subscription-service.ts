@@ -757,17 +757,25 @@ export class SubscriptionService {
    */
   async checkUsageLimit(userId: string, action: keyof UsageData, amount: number = 1): Promise<boolean> {
     try {
-      const supabase = await this.getSupabase()
-      const { data, error } = await supabase
-        .rpc('check_usage_limit_new', { 
-          user_uuid: userId, 
-          limit_type: action, 
-          requested_amount: amount 
-        })
-
-      if (error) throw error
+      // Get user's subscription and plan
+      const subscription = await this.getUserSubscriptionWithPlan(userId)
+      const planName = subscription?.plan_name || subscription?.subscription_plans?.name || 'Free'
       
-      return data || false
+      // Get plan limits using local logic (more reliable than Supabase function)
+      const limits = this.getPlanLimits(planName)
+      const limit = limits[action]
+      
+      // If unlimited (-1), always allow
+      if (limit === -1) {
+        return true
+      }
+      
+      // Get current usage
+      const usage = await this.getCurrentUsage(userId)
+      const currentUsage = usage[action] || 0
+      
+      // Check if adding requested amount would exceed limit
+      return (currentUsage + amount) <= limit
     } catch (error) {
       console.error('Error checking usage limit:', error)
       return false
