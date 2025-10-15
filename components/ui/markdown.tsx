@@ -45,7 +45,7 @@ export function Markdown({children}: {children: string}) {
   }
 
   return (
-    <div className="max-w-none text-slate-900">
+    <div className="max-w-none text-foreground">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[
@@ -56,33 +56,33 @@ export function Markdown({children}: {children: string}) {
         ]}
 
         components={{
-          h1: (p) => <h1 className="text-2xl font-bold mt-4 mb-2 text-slate-900" {...p} />,
-          h2: (p) => <h2 className="text-xl font-semibold mt-3 mb-2 text-slate-900" {...p} />,
-          h3: (p) => <h3 className="text-lg font-semibold mt-3 mb-2 text-slate-900" {...p} />,
-          p:  (p) => <p className="leading-relaxed mb-3 text-slate-900" {...p} />,
-          ul: (p) => <ul className="list-disc pl-6 my-3 space-y-1 text-slate-900" {...p} />,
-          ol: (p) => <ol className="list-decimal pl-6 my-3 space-y-1 text-slate-900" {...p} />,
+          h1: (p) => <h1 className="text-2xl font-bold mt-4 mb-2 text-foreground" {...p} />,
+          h2: (p) => <h2 className="text-xl font-semibold mt-3 mb-2 text-foreground" {...p} />,
+          h3: (p) => <h3 className="text-lg font-semibold mt-3 mb-2 text-foreground" {...p} />,
+          p:  (p) => <p className="leading-relaxed mb-3 text-foreground" {...p} />,
+          ul: (p) => <ul className="list-disc pl-6 my-3 space-y-1 text-foreground" {...p} />,
+          ol: (p) => <ol className="list-decimal pl-6 my-3 space-y-1 text-foreground" {...p} />,
           blockquote: (p) => (
-            <blockquote className="border-l-2 border-gray-200/70 pl-3 italic text-slate-700 my-3 bg-gray-50/40 rounded-md" {...p} />
+            <blockquote className="border-l-2 border-border pl-3 italic text-muted-foreground my-3 bg-muted/40 rounded-md" {...p} />
           ),
           a: ({href, ...props}) => (
             <a
               href={href}
               target="_blank"
               rel="noopener noreferrer nofollow"
-              className="text-blue-600 underline decoration-blue-300 hover:decoration-blue-500"
+              className="text-blue-600 dark:text-blue-400 underline decoration-blue-300 dark:decoration-blue-600 hover:decoration-blue-500 dark:hover:decoration-blue-400"
               {...props}
             />
           ),
           img: (p) => (
-            <img {...p} className="max-w-full rounded-lg border border-gray-200" />
+            <img {...p} className="max-w-full rounded-lg border border-border" />
           ),
-          hr: (p) => <hr className="my-6 border-gray-200" {...p} />,
+          hr: (p) => <hr className="my-6 border-border" {...p} />,
           code: (props: any) => {
             const { inline, className, children, ...restProps } = props;
             if (inline) {
               return (
-                <code className="bg-gray-100 px-1 py-0.5 rounded text-slate-900" {...props}>
+                <code className="bg-muted px-1 py-0.5 rounded text-foreground" {...props}>
                   {children}
                 </code>
               );
@@ -101,17 +101,17 @@ export function Markdown({children}: {children: string}) {
                     setTimeout(() => setCopied(null), 1200);
                   }}
                   className="absolute right-2 top-2 z-20 inline-flex items-center gap-1
-                             rounded-md bg-gray-800/90 text-gray-100 px-2 py-1
+                             rounded-md bg-card/90 border border-border text-foreground px-2 py-1
                              text-[11px] opacity-0 group-hover:opacity-100 transition
                              shadow-lg"
                 >
                   <Copy className="h-3.5 w-3.5" />
                   {copied === idx ? "Copied" : "Copy"}
                 </button>
-                <pre className="bg-gray-900 text-gray-100 rounded-lg overflow-x-auto p-3 relative">
-                  <code className={`${className} text-gray-100`} {...restProps}>{children}</code>
+                <pre className="bg-muted text-foreground rounded-lg overflow-x-auto p-3 relative border border-border">
+                  <code className={`${className} text-foreground`} {...restProps}>{children}</code>
                 </pre>
-                {lang && <div className="absolute right-2 bottom-2 text-[10px] text-gray-300">{lang}</div>}
+                {lang && <div className="absolute right-2 bottom-2 text-[10px] text-muted-foreground">{lang}</div>}
               </div>
             );
           },

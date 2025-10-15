@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createClient, createAdminClient } from '@/lib/supabase-server'
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,6 +13,14 @@ export async function GET(request: NextRequest) {
 
     if (!code) {
       return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/calendar?error=no_code`)
+    }
+
+    // Get the current user from the session
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/calendar?error=not_authenticated`)
     }
 
     // Exchange code for tokens
@@ -74,13 +77,12 @@ export async function GET(request: NextRequest) {
       throw new Error('No calendar found')
     }
 
-    // Save integration to database
-    // Note: In a real implementation, you would need to get the current user ID
-    // For now, we'll use a placeholder
-    const { error: dbError } = await supabase
+    // Save integration to database using admin client
+    const adminSupabase = createAdminClient()
+    const { error: dbError } = await adminSupabase
       .from('calendar_integrations')
       .insert([{
-        user_id: 'placeholder-user-id', // This should be the actual user ID
+        user_id: user.id,
         provider: 'google',
         external_calendar_id: primaryCalendar.id,
         calendar_name: primaryCalendar.summary,

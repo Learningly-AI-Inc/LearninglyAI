@@ -1263,7 +1263,7 @@ const SearchPage = () => {
                   >
                     {message.type === 'user' ? (
                       <div className="flex justify-end mb-8">
-                        <div className="bg-muted text-slate-700 rounded-2xl px-4 py-2 text-sm max-w-[80%] group/user">
+                        <div className="bg-muted text-foreground rounded-2xl px-4 py-2 text-sm max-w-[80%] group/user">
                           {/* Show attachments above the user's message bubble */}
                           {message.attachments && message.attachments.length > 0 && (
                             <div className="mb-2 flex flex-wrap gap-2">
@@ -1314,20 +1314,20 @@ const SearchPage = () => {
                             <div className="relative group/user-bubble">
                               <span>{message.content}</span>
                               {/* Action buttons positioned with better spacing to avoid overlap */}
-                              <div className="absolute -bottom-8 right-0 flex items-center gap-1 opacity-0 group-hover/user-bubble:opacity-100 transition-opacity bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm z-10">
+                              <div className="absolute -bottom-8 right-0 flex items-center gap-1 opacity-0 group-hover/user-bubble:opacity-100 transition-opacity bg-background border border-border rounded-lg px-2 py-1 shadow-sm z-10">
                                 <button
                                   onClick={() => copyToClipboard(message.content)}
-                                  className="p-1.5 rounded hover:bg-slate-100 transition-colors"
+                                  className="p-1.5 rounded hover:bg-accent transition-colors"
                                   title="Copy message"
                                 >
-                                  <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-slate-700" />
+                                  <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                                 </button>
                                 <button
                                   onClick={() => handleEditMessage(message.id, message.content)}
-                                  className="p-1.5 rounded hover:bg-slate-100 transition-colors"
+                                  className="p-1.5 rounded hover:bg-accent transition-colors"
                                   title="Edit message"
                                 >
-                                  <Edit2 className="h-3.5 w-3.5 text-muted-foreground hover:text-slate-700" />
+                                  <Edit2 className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                                 </button>
                               </div>
                             </div>
@@ -1386,13 +1386,13 @@ const SearchPage = () => {
                                   </div>
                                   
                                   {/* Simplified Message Actions - Copy only */}
-                                  <div className="flex items-center gap-0.5 mt-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg px-1.5 py-1 shadow-sm w-fit z-10">
+                                  <div className="flex items-center gap-0.5 mt-4 opacity-0 group-hover:opacity-100 transition-opacity bg-background/90 backdrop-blur-sm border border-border rounded-lg px-1.5 py-1 shadow-sm w-fit z-10">
                                     <button
                                       onClick={() => copyToClipboard(message.content)}
-                                      className="p-1.5 rounded hover:bg-slate-100 transition-colors"
+                                      className="p-1.5 rounded hover:bg-accent transition-colors"
                                       title="Copy message"
                                     >
-                                      <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-slate-700" />
+                                      <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                                     </button>
                                   </div>
                                 </>
