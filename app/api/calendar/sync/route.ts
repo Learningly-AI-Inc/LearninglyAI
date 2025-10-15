@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createClient, createAdminClient } from '@/lib/supabase-server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,11 +12,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get integration details
-    const { data: integration, error: integrationError } = await supabase
+    // Get the current user
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      )
+    }
+
+    // Get integration details using admin client
+    const adminSupabase = createAdminClient()
+    const { data: integration, error: integrationError } = await adminSupabase
       .from('calendar_integrations')
       .select('*')
       .eq('id', integration_id)
+      .eq('user_id', user.id) // Ensure user owns this integration
       .eq('is_active', true)
       .single()
 
@@ -68,7 +76,7 @@ export async function POST(request: NextRequest) {
       accessToken = refreshData.access_token
 
       // Update the token in the database
-      await supabase
+      await adminSupabase
         .from('calendar_integrations')
         .update({
           access_token: refreshData.access_token,
@@ -124,7 +132,7 @@ export async function POST(request: NextRequest) {
     let eventsSynced = 0
     for (const event of convertedEvents) {
       // Check if event already exists by external_id
-      const { data: existingEvent } = await supabase
+      const { data: existingEvent } = await adminSupabase
         .from('generated_content')
         .select('id')
         .eq('user_id', event.user_id)
@@ -134,7 +142,7 @@ export async function POST(request: NextRequest) {
 
       if (existingEvent) {
         // Update existing event
-        const { error: eventError } = await supabase
+        const { error: eventError } = await adminSupabase
           .from('generated_content')
           .update(event)
           .eq('id', existingEvent.id)
@@ -144,7 +152,7 @@ export async function POST(request: NextRequest) {
         }
       } else {
         // Insert new event
-        const { error: eventError } = await supabase
+        const { error: eventError } = await adminSupabase
           .from('generated_content')
           .insert(event)
 
