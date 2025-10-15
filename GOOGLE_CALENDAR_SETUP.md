@@ -53,8 +53,8 @@ Add the following to your `.env.local` file:
 
 ```env
 # Google Calendar Integration
-GOOGLE_CLIENT_ID=your_client_id_here
-GOOGLE_CLIENT_SECRET=your_client_secret_here
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_client_id_here
+NEXT_PUBLIC_GOOGLE_CLIENT_SECRET=your_client_secret_here
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -146,7 +146,7 @@ The integration stores calendar events in the `generated_content` table with:
 ## Troubleshooting
 
 ### "OAuth not configured" error
-- Make sure you've added `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to `.env.local`
+- Make sure you've added `NEXT_PUBLIC_GOOGLE_CLIENT_ID` and `NEXT_PUBLIC_GOOGLE_CLIENT_SECRET` to `.env.local`
 - Restart your development server after adding environment variables
 
 ### "Redirect URI mismatch" error

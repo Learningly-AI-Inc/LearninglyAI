@@ -21,7 +21,7 @@ const integrationProviders = [
     description: 'Sync with your Google Calendar',
     icon: '📅',
     color: 'bg-blue-500',
-    enabled: true
+    enabled: false // Disabled - OAuth setup incomplete
   },
   {
     id: 'outlook',

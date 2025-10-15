@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function POST(request: NextRequest) {
   try {
     // Google OAuth configuration
-    const clientId = process.env.GOOGLE_CLIENT_ID
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
     const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/calendar/google-callback`
     
     if (!clientId) {

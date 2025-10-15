@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        client_id: process.env.GOOGLE_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+        client_secret: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET!,
         code,
         grant_type: 'authorization_code',
         redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/calendar/google-callback`,
