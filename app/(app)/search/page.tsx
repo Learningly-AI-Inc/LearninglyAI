@@ -1432,7 +1432,12 @@ const SearchPage = () => {
                     <div className="flex-1 px-1 sm:px-2 py-2">
                       <textarea
                         value={currentMessage}
-                        onChange={(e) => setCurrentMessage(e.target.value)}
+                        onChange={(e) => {
+                          setCurrentMessage(e.target.value)
+                          // Auto-resize textarea
+                          e.target.style.height = 'auto'
+                          e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault()
@@ -1441,8 +1446,9 @@ const SearchPage = () => {
                         }}
                         placeholder={loading ? "Loading..." : "Message Learningly…"}
                         rows={1}
-                        className="w-full resize-none outline-none text-sm bg-transparent leading-6 max-h-40 text-foreground placeholder:text-muted-foreground"
+                        className="w-full resize-none outline-none text-sm bg-transparent leading-6 max-h-40 overflow-y-auto text-foreground placeholder:text-muted-foreground"
                         disabled={isTyping || loading || !user?.id}
+                        style={{ minHeight: '24px' }}
                       />
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-2">
                         {/* Attachment chips */}
