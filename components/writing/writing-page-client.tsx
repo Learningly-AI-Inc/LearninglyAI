@@ -1214,18 +1214,8 @@ const WritingPageClient = () => {
   };
 
   // Function to handle draft rename from drafts manager
-  const handleDraftRename = async (draftId: string, currentName: string) => {
+  const handleDraftRename = (draftId: string, currentName: string) => {
     console.log('Draft rename triggered:', { draftId, currentName });
-    
-    // Debug: Check what's in storage
-    try {
-      const debugResponse = await fetch('/api/writing/drafts/debug?userId=mock-user-id');
-      const debugData = await debugResponse.json();
-      console.log('Storage debug info:', debugData);
-    } catch (debugError) {
-      console.error('Debug fetch failed:', debugError);
-    }
-    
     setPendingDraftId(draftId);
     setCurrentDraftName(currentName);
     setShowDraftNamingDialog(true);

@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { draftStorageService } from '@/lib/draft-storage';
 
 export async function POST(req: NextRequest) {
+  let draftId: string = '';
+  let newName: string = '';
+  let userId: string = '';
+  
   try {
     const body = await req.json();
-    const { draftId, newName, userId } = body;
+    ({ draftId, newName, userId } = body);
     
     console.log('Draft rename request:', { draftId, newName, userId });
     
