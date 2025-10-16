@@ -291,7 +291,7 @@ export function DocumentListModal({ onClose }: DocumentListModalProps) {
 
       {/* Full Screen Loading Overlay */}
       {loadingDocumentId && (
-        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
           <div className="text-center max-w-md mx-auto px-6">
             <div className="relative mb-6">
               <div className="w-16 h-16 border-4 border-blue-200 rounded-full"></div>

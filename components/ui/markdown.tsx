@@ -70,7 +70,7 @@ export function Markdown({children}: {children: string}) {
               href={href}
               target="_blank"
               rel="noopener noreferrer nofollow"
-              className="text-blue-600 dark:text-blue-400 underline decoration-blue-300 dark:decoration-blue-600 hover:decoration-blue-500 dark:hover:decoration-blue-400"
+              className="text-primary hover:text-primary/80 underline"
               {...props}
             />
           ),
