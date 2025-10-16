@@ -100,11 +100,6 @@ export default function TakeExamPage() {
     const isCorrect = selected.trim().toUpperCase().startsWith(String(q.correctAnswer).trim().toUpperCase())
     if (isCorrect) setScore(s => s + 1)
     
-    // Store answer for scheduled mode
-    if (exam?.quizMode === 'scheduled') {
-      setAnswers(prev => ({ ...prev, [index]: selected }))
-    }
-    
     setShowResult(true)
   }
 
@@ -117,25 +112,13 @@ export default function TakeExamPage() {
 
   function next() {
     setShowResult(false)
-    if (exam?.quizMode === 'scheduled') {
-      setAnswers(prev => ({ ...prev, [index]: selected }))
-    }
     setSelected('')
     if (index + 1 >= total) return
     setIndex(i => i + 1)
   }
 
-  function goToQuestion(questionIndex: number) {
-    setShowResult(false)
-    if (exam?.quizMode === 'scheduled') {
-      setAnswers(prev => ({ ...prev, [index]: selected }))
-    }
-    setSelected(answers[questionIndex] || '')
-    setIndex(questionIndex)
-  }
-
   const timeUp = secondsLeft !== null && secondsLeft <= 0
-  const finished = timeUp || (exam?.quizMode === 'scheduled' ? showResult : (index + 1 >= total && showResult))
+  const finished = timeUp || showResult
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -167,7 +150,7 @@ export default function TakeExamPage() {
               exam?.quizMode === 'scheduled' ? (
                 // Scheduled Mode: Show all questions vertically
                 <>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center mb-6">
                     <div className="text-sm text-muted-foreground">
                       {Object.keys(answers).length} of {total} questions answered
                     </div>
@@ -176,38 +159,47 @@ export default function TakeExamPage() {
                     </Button>
                   </div>
 
-                  <div className="border-t pt-6">
-                    <div className="text-sm text-muted-foreground mb-4">Question {index + 1} of {total}</div>
-                    <div className="text-xl font-semibold mb-6">{q?.question}</div>
-                    <div className="grid grid-cols-1 gap-3">
-                      {q?.options?.map((opt, i) => {
-                        const label = ['A', 'B', 'C', 'D'][i] || String(i + 1)
-                        const value = `${label}`
-                        const isSelected = selected === value
-                        return (
-                          <button
-                            key={i}
-                            onClick={() => setSelected(value)}
-                            className={`w-full p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-center gap-4 ${
-                              isSelected 
-                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-600 shadow-md' 
-                                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 hover:shadow-sm'
-                            }`}
-                          >
-                            <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm shrink-0 ${
-                              isSelected 
-                                ? 'bg-blue-600 text-white' 
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                            }`}>
-                              {label}
-                            </span>
-                            <span className={`flex-1 ${isSelected ? 'text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'}`}>
-                              {opt}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
+                  <div className="space-y-8">
+                    {exam.questions.map((question, questionIndex) => {
+                      const currentAnswer = answers[questionIndex] || ''
+                      return (
+                        <div key={question.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-white dark:bg-gray-800">
+                          <div className="text-sm text-muted-foreground mb-4">Question {questionIndex + 1} of {total}</div>
+                          <div className="text-xl font-semibold mb-6">{question.question}</div>
+                          <div className="grid grid-cols-1 gap-3">
+                            {question.options.map((opt, i) => {
+                              const label = ['A', 'B', 'C', 'D'][i] || String(i + 1)
+                              const value = `${label}`
+                              const isSelected = currentAnswer === value
+                              return (
+                                <button
+                                  key={i}
+                                  onClick={() => {
+                                    setAnswers(prev => ({ ...prev, [questionIndex]: value }))
+                                  }}
+                                  className={`w-full p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-center gap-4 ${
+                                    isSelected 
+                                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-600 shadow-md' 
+                                      : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 hover:shadow-sm'
+                                  }`}
+                                >
+                                  <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm shrink-0 ${
+                                    isSelected 
+                                      ? 'bg-blue-600 text-white' 
+                                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                                  }`}>
+                                    {label}
+                                  </span>
+                                  <span className={`flex-1 ${isSelected ? 'text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'}`}>
+                                    {opt}
+                                  </span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </>
               ) : (
