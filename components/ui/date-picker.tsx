@@ -116,9 +116,9 @@ export function DatePicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-0" align="start">
-        <div className="bg-white border border-gray-200 rounded-lg shadow-lg">
+        <div className="bg-background border border-border rounded-lg shadow-lg">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between p-4 border-b border-border">
             <Button
               variant="ghost"
               size="icon"
@@ -127,7 +127,7 @@ export function DatePicker({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="font-semibold text-gray-900">
+            <h3 className="font-semibold text-foreground">
               {months[currentMonth.getMonth()]} {currentMonth.getFullYear()}
             </h3>
             <Button
@@ -143,7 +143,7 @@ export function DatePicker({
           {/* Days of week header */}
           <div className="grid grid-cols-7 gap-1 p-2">
             {days.map((day) => (
-              <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
+              <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
                 {day}
               </div>
             ))}
@@ -159,9 +159,9 @@ export function DatePicker({
                     size="sm"
                     className={cn(
                       "h-8 w-8 p-0 font-normal",
-                      isToday(date) && "bg-blue-100 text-blue-900 font-semibold",
-                      isSelected(date) && "bg-blue-600 text-white hover:bg-blue-700",
-                      !isSelected(date) && !isToday(date) && "hover:bg-gray-100"
+                      isToday(date) && "bg-primary/10 text-primary font-semibold",
+                      isSelected(date) && "bg-primary text-primary-foreground hover:bg-primary/90",
+                      !isSelected(date) && !isToday(date) && "hover:bg-accent"
                     )}
                     onClick={() => handleDateSelect(date)}
                   >
