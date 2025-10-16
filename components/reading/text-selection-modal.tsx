@@ -221,8 +221,8 @@ export function TextSelectionModal({
                 {selectedText.length} characters
               </Badge>
             </div>
-            <div className="bg-gray-50 rounded-lg p-4 border">
-              <p className="text-gray-700 leading-relaxed italic">
+            <div className="bg-muted rounded-lg p-4 border border-border">
+              <p className="text-foreground leading-relaxed italic">
                 "{selectedText}"
               </p>
             </div>

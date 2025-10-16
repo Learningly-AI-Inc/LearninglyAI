@@ -163,7 +163,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                     <div className="max-h-[400px] overflow-y-auto">
                       <MarkdownRenderer
                         content={suggestedText}
-                        className="prose prose-sm max-w-none dark:prose-invert"
+                        className="prose prose-sm max-w-none"
                       />
                     </div>
                   </div>

@@ -317,17 +317,17 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
   ]
 
   return (
-    <div className={`bg-white shadow-xl transition-all duration-200 ${className}`}>
+    <div className={`bg-background shadow-xl transition-all duration-200 ${className}`}>
              {/* Tabs */}
       <div className="p-3">
-       <div className="flex rounded-lg bg-gray-100 p-0.5 mb-3 overflow-x-auto flex-nowrap touch-pan-x overscroll-x-contain">
+       <div className="flex rounded-lg bg-muted p-0.5 mb-3 overflow-x-auto flex-nowrap touch-pan-x overscroll-x-contain">
           {tabs.map((tab) => (
                         <button
                key={tab.id}
               className={`flex-none shrink-0 whitespace-nowrap px-2 py-1.5 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
                  activeTab === tab.id 
-                   ? 'bg-white text-blue-600 shadow-sm' 
-                   : 'text-gray-600 hover:text-gray-900'
+                   ? 'bg-background text-primary shadow-sm' 
+                   : 'text-muted-foreground hover:text-foreground'
                }`}
                onClick={() => setActiveTab(tab.id)}
              >
@@ -348,21 +348,21 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
               {!currentDocument ? (
                 <div className="h-full flex items-center justify-center">
                   <div className="text-center">
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <FileText className="h-6 w-6 text-blue-600" />
+                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <FileText className="h-6 w-6 text-primary" />
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1">Notes</h3>
-                    <p className="text-xs text-gray-600">Upload a document to generate concise notes.</p>
+                    <h3 className="text-sm font-semibold text-foreground mb-1">Notes</h3>
+                    <p className="text-xs text-muted-foreground">Upload a document to generate concise notes.</p>
                   </div>
                 </div>
               ) : notes ? (
                 <div className="flex-1 overflow-hidden flex flex-col">
-                  <div className="flex items-center justify-between p-3 border-b border-gray-200">
-                    <h3 className="text-sm font-semibold text-gray-900">Document Notes</h3>
+                  <div className="flex items-center justify-between p-3 border-b border-border">
+                    <h3 className="text-sm font-semibold text-foreground">Document Notes</h3>
                     <button
                       onClick={handleGenerateNotes}
                       disabled={isGeneratingNotes}
-                      className="px-3 py-1.5 rounded-full text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 py-1.5 rounded-full text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isGeneratingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                       {isGeneratingNotes ? 'Generating...' : 'Regenerate'}
@@ -377,15 +377,15 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
               ) : notesError ? (
                 <div className="h-full flex items-center justify-center">
                   <div className="text-center">
-                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <FileText className="h-6 w-6 text-red-600" />
+                    <div className="w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <FileText className="h-6 w-6 text-destructive" />
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1">Notes Error</h3>
-                    <p className="text-xs text-red-600 mb-4">{notesError}</p>
+                    <h3 className="text-sm font-semibold text-foreground mb-1">Notes Error</h3>
+                    <p className="text-xs text-destructive mb-4">{notesError}</p>
                     <button
                       onClick={handleGenerateNotes}
                       disabled={isGeneratingNotes}
-                      className="px-3 py-2 rounded-full text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
+                      className="px-3 py-2 rounded-full text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
                     >
                       {isGeneratingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                       {isGeneratingNotes ? 'Generating...' : 'Try Again'}
@@ -395,15 +395,15 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
               ) : (
                 <div className="h-full flex items-center justify-center">
                   <div className="text-center">
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <FileText className="h-6 w-6 text-blue-600" />
+                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <FileText className="h-6 w-6 text-primary" />
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1">Ready to create notes!</h3>
-                    <p className="text-xs text-gray-600 mb-4">Generate concise, exam-friendly notes from your document.</p>
+                    <h3 className="text-sm font-semibold text-foreground mb-1">Ready to create notes!</h3>
+                    <p className="text-xs text-muted-foreground mb-4">Generate concise, exam-friendly notes from your document.</p>
                     <button
                       onClick={handleGenerateNotes}
                       disabled={isGeneratingNotes}
-                      className="px-3 py-2 rounded-full text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
+                      className="px-3 py-2 rounded-full text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
                     >
                       {isGeneratingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                       {isGeneratingNotes ? 'Generating...' : 'Generate notes'}
@@ -419,17 +419,17 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                {!currentDocument ? (
                  <div className="h-full flex items-center justify-center">
                    <div className="text-center">
-                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                       <Sparkles className="h-6 w-6 text-blue-600" />
+                     <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <Sparkles className="h-6 w-6 text-primary" />
                      </div>
-                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                     <h3 className="text-sm font-semibold text-foreground mb-1">
                        Flashcards
                      </h3>
-                     <p className="text-xs text-gray-600 mb-4">
+                     <p className="text-xs text-muted-foreground mb-4">
                        AI-generated flashcards will appear here based on your document content.
                      </p>
-                     <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                       <FileText className="h-5 w-5 text-blue-600" />
+                     <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                       <FileText className="h-5 w-5 text-primary" />
                      </div>
                    </div>
                  </div>
@@ -443,19 +443,19 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                ) : flashcardError ? (
                  <div className="h-full flex items-center justify-center">
                    <div className="text-center">
-                     <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                       <Sparkles className="h-6 w-6 text-red-600" />
+                     <div className="w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <Sparkles className="h-6 w-6 text-destructive" />
                      </div>
-                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                     <h3 className="text-sm font-semibold text-foreground mb-1">
                        Flashcard Error
                      </h3>
-                     <p className="text-xs text-red-600 mb-4">
+                     <p className="text-xs text-destructive mb-4">
                        {flashcardError}
                      </p>
                      <button
                        onClick={handleShowSettings}
                        disabled={isGeneratingFlashcards}
-                       className="px-3 py-2 rounded-full text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
+                       className="px-3 py-2 rounded-full text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
                      >
                        {isGeneratingFlashcards ? (
                          <Loader2 className="h-3 w-3 animate-spin" />
@@ -469,19 +469,19 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                ) : (
                  <div className="h-full flex items-center justify-center">
                    <div className="text-center">
-                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                       <Sparkles className="h-6 w-6 text-blue-600" />
+                     <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <Sparkles className="h-6 w-6 text-primary" />
                      </div>
-                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                     <h3 className="text-sm font-semibold text-foreground mb-1">
                        Ready to create flashcards!
                      </h3>
-                     <p className="text-xs text-gray-600 mb-4">
+                     <p className="text-xs text-muted-foreground mb-4">
                        Generate AI-powered flashcards from your document content.
                      </p>
                      <button
                        onClick={handleShowSettings}
                        disabled={isGeneratingFlashcards}
-                       className="px-3 py-2 rounded-full text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
+                       className="px-3 py-2 rounded-full text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1 font-medium disabled:opacity-50 disabled:cursor-not-allowed mx-auto"
                      >
                        {isGeneratingFlashcards ? (
                          <Loader2 className="h-3 w-3 animate-spin" />
@@ -490,7 +490,7 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                        )}
                        {isGeneratingFlashcards ? "Generating..." : "Create flashcards"}
                      </button>
-                     <div className="text-xs text-gray-500 mt-2">
+                     <div className="text-xs text-muted-foreground mt-2">
                        Click the button above to generate flashcards from &ldquo;{currentDocument.title}&rdquo;
                      </div>
                    </div>
@@ -504,17 +504,17 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                {!currentDocument ? (
                  <div className="h-full flex items-center justify-center">
                    <div className="text-center">
-                     <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                       <Brain className="h-6 w-6 text-purple-600" />
+                     <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <Brain className="h-6 w-6 text-primary" />
                      </div>
-                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                     <h3 className="text-sm font-semibold text-foreground mb-1">
                        Mindmap
                      </h3>
-                     <p className="text-xs text-gray-600 mb-4">
+                     <p className="text-xs text-muted-foreground mb-4">
                        Interactive knowledge visualization will appear here based on your document content.
                      </p>
-                     <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                       <FileText className="h-5 w-5 text-purple-600" />
+                     <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                       <FileText className="h-5 w-5 text-primary" />
                      </div>
                    </div>
                  </div>
@@ -529,13 +529,13 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                ) : mindmapError ? (
                  <div className="h-full flex items-center justify-center">
                    <div className="text-center">
-                     <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                       <Brain className="h-6 w-6 text-red-600" />
+                     <div className="w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <Brain className="h-6 w-6 text-destructive" />
                      </div>
-                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                     <h3 className="text-sm font-semibold text-foreground mb-1">
                        Mindmap Error
                      </h3>
-                     <p className="text-xs text-red-600 mb-4">
+                     <p className="text-xs text-destructive mb-4">
                        {mindmapError}
                      </p>
                      <button
@@ -555,13 +555,13 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                ) : (
                  <div className="h-full flex items-center justify-center">
                    <div className="text-center">
-                     <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                       <Brain className="h-6 w-6 text-purple-600" />
+                     <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <Brain className="h-6 w-6 text-primary" />
                      </div>
-                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                     <h3 className="text-sm font-semibold text-foreground mb-1">
                        Ready to create mindmap!
                      </h3>
-                     <p className="text-xs text-gray-600 mb-4">
+                     <p className="text-xs text-muted-foreground mb-4">
                        Generate an interactive knowledge visualization from your document content.
                      </p>
                      <button
@@ -576,7 +576,7 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                        )}
                        {isGeneratingMindmap ? "Generating..." : "Create mindmap"}
                      </button>
-                     <div className="text-xs text-gray-500 mt-2">
+                     <div className="text-xs text-muted-foreground mt-2">
                        Click the button above to generate a mindmap from &ldquo;{currentDocument.title}&rdquo;
                      </div>
                    </div>
@@ -593,10 +593,10 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                        <Archive className="h-6 w-6 text-green-600" />
                      </div>
-                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                     <h3 className="text-sm font-semibold text-foreground mb-1">
                        Document Summary
                      </h3>
-                     <p className="text-xs text-gray-600 mb-4">
+                     <p className="text-xs text-muted-foreground mb-4">
                        AI-generated summary will appear here once you upload a document.
                      </p>
                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
@@ -607,7 +607,7 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                ) : summary ? (
                  <div className="flex-1 overflow-hidden flex flex-col">
                    <div className="flex items-center justify-between p-3 border-b border-gray-200">
-                     <h3 className="text-sm font-semibold text-gray-900">
+                     <h3 className="text-sm font-semibold text-foreground">
                        Document Summary
                      </h3>
                      <button
@@ -624,7 +624,7 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                      </button>
                    </div>
                    <div className="flex-1 overflow-y-auto p-4">
-                     <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-strong:text-gray-900 prose-strong:font-semibold prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:text-gray-700">
+                     <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-strong:text-foreground prose-strong:font-semibold prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:text-gray-700">
                        <Markdown>{summary}</Markdown>
                      </div>
                    </div>
@@ -632,13 +632,13 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                ) : summaryError ? (
                  <div className="h-full flex items-center justify-center">
                    <div className="text-center">
-                     <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                       <Archive className="h-6 w-6 text-red-600" />
+                     <div className="w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <Archive className="h-6 w-6 text-destructive" />
                      </div>
-                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                     <h3 className="text-sm font-semibold text-foreground mb-1">
                        Summary Error
                      </h3>
-                     <p className="text-xs text-red-600 mb-4">
+                     <p className="text-xs text-destructive mb-4">
                        {summaryError}
                      </p>
                      <button
@@ -661,10 +661,10 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                        <Archive className="h-6 w-6 text-green-600" />
                      </div>
-                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                     <h3 className="text-sm font-semibold text-foreground mb-1">
                        Ready to generate summary!
                      </h3>
-                     <p className="text-xs text-gray-600 mb-4">
+                     <p className="text-xs text-muted-foreground mb-4">
                        Get an AI-powered summary of your document's key points and concepts.
                      </p>
                      <button
@@ -679,7 +679,7 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                        )}
                        {isSummarizing ? "Generating..." : "Summarize this document"}
                      </button>
-                     <div className="text-xs text-gray-500 mt-2">
+                     <div className="text-xs text-muted-foreground mt-2">
                        Click the button above to summarize &ldquo;{currentDocument.title}&rdquo;
                      </div>
                    </div>
@@ -694,8 +694,8 @@ export function RightDrawer({ document, className = "" }: RightDrawerProps) {
                 <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <Sparkles className="h-6 w-6 text-indigo-600" />
                 </div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-1">Custom Meme coming soon</h3>
-                <p className="text-xs text-gray-600">Were building a tailored meme generator for study topics.</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Custom Meme coming soon</h3>
+                <p className="text-xs text-muted-foreground">Were building a tailored meme generator for study topics.</p>
               </div>
             </div>
           )}

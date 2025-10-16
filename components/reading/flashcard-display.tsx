@@ -124,7 +124,7 @@ export function FlashcardDisplay({
   return (
     <FadeContent className="h-full flex flex-col">
       {/* Enhanced Header */}
-      <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+      <div className="p-4 border-b border-border bg-gradient-to-r from-primary/5 to-primary/10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
@@ -271,7 +271,7 @@ export function FlashcardDisplay({
       </div>
 
       {/* Enhanced Controls */}
-      <div className="p-4 border-t border-gray-200 bg-white">
+      <div className="p-4 border-t border-border bg-background">
         <div className="flex items-center justify-between mb-4">
           <ClickSpark>
             <Button

@@ -28,7 +28,7 @@ function Chip({ text, onClick, icon }: ChipProps) {
         variant="outline"
         size="sm"
         onClick={onClick}
-        className="rounded-full text-sm px-4 py-2.5 hover:bg-blue-50 hover:text-blue-800 border-blue-200 text-blue-700 whitespace-nowrap flex items-center gap-2 transition-all duration-200 [&:hover]:text-blue-800 hover:shadow-md hover:scale-105 font-medium"
+        className="rounded-full text-sm px-4 py-2.5 hover:bg-primary/10 hover:text-primary border-border text-primary whitespace-nowrap flex items-center gap-2 transition-all duration-200 [&:hover]:text-primary hover:shadow-md hover:scale-105 font-medium"
       >
         {icon}
         {text}
@@ -330,16 +330,16 @@ export function ChatInterface() {
                       />
                     ))}
                   </div>
-                  <p className="text-sm text-gray-500 font-medium">
+                  <p className="text-sm text-muted-foreground font-medium">
                     Or type your own question below
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <Upload className="h-5 w-5 text-blue-600" />
+                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <Upload className="h-5 w-5 text-primary" />
                   </div>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-muted-foreground">
                     No document loaded. Please upload a document to start chatting.
                   </p>
                 </div>
@@ -391,7 +391,7 @@ export function ChatInterface() {
       </div>
 
       {/* Input */}
-      <div className="border-t border-gray-200 p-4 bg-white">
+      <div className="border-t border-border p-4 bg-background">
         <form onSubmit={handleSubmit} className="flex space-x-3">
           <Input
             ref={inputRef}
@@ -399,20 +399,20 @@ export function ChatInterface() {
             onChange={(e) => setInputValue(e.target.value)}
             placeholder={document ? `Ask me anything about "${document.title}"...` : "Upload a document to start chatting"}
             disabled={!document || isLoading || isContextLoading || isSummarizing}
-            className="flex-1 text-sm rounded-xl border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 min-w-0"
+            className="flex-1 text-sm rounded-xl border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 min-w-0"
           />
           <Button
             type="submit"
             disabled={!inputValue.trim() || isLoading || isContextLoading || isSummarizing || isGeneratingFlashcards || !document}
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl shadow-sm hover:shadow-md transition-all duration-200"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-xl shadow-sm hover:shadow-md transition-all duration-200"
           >
             <Send className="h-4 w-4" />
           </Button>
         </form>
         
         {!document && (
-          <p className="text-sm text-gray-500 mt-2 text-center font-medium">
+          <p className="text-sm text-muted-foreground mt-2 text-center font-medium">
             Open a document to ask questions
           </p>
         )}
