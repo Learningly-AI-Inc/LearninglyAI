@@ -1525,9 +1525,11 @@ const SearchPage = () => {
                         value={currentMessage}
                         onChange={(e) => {
                           setCurrentMessage(e.target.value)
-                          // Auto-resize textarea
-                          e.target.style.height = 'auto'
-                          e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
+                          // Auto-resize textarea with better logic
+                          const textarea = e.target
+                          textarea.style.height = 'auto'
+                          const newHeight = Math.min(textarea.scrollHeight, 200) // Increased max height
+                          textarea.style.height = newHeight + 'px'
                         }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
@@ -1538,11 +1540,11 @@ const SearchPage = () => {
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
-                        placeholder={loading ? "Loading..." : "Message Learningly…"}
-                        rows={1}
-                        className="w-full resize-none outline-none text-sm bg-transparent leading-6 max-h-40 overflow-y-auto text-foreground placeholder:text-muted-foreground"
+                        placeholder={loading ? "Loading..." : "Message Learningly… (Shift+Enter for new line)"}
+                        rows={2}
+                        className="w-full resize-none outline-none text-sm bg-transparent leading-6 max-h-48 overflow-y-auto text-foreground placeholder:text-muted-foreground"
                         disabled={isTyping || loading || !user?.id}
-                        style={{ minHeight: '24px' }}
+                        style={{ minHeight: '48px' }}
                       />
                       {isDragOver && (
                         <div className="absolute inset-0 flex items-center justify-center bg-blue-500/10 border-2 border-dashed border-blue-500 rounded-lg pointer-events-none">
