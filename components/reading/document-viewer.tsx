@@ -527,13 +527,13 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
 
     if (isLoadingUrl) {
       return (
-        <div className="h-full w-full flex items-center justify-center">
+        <div className="h-full w-full flex items-center justify-center bg-background">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-500 font-medium">Getting document access...</p>
-            <p className="text-sm text-gray-400 mt-1">This should be fast with caching</p>
-            <div className="mt-3 w-32 h-1 bg-gray-200 rounded-full mx-auto overflow-hidden">
-              <div className="h-full bg-blue-600 rounded-full animate-pulse"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground font-medium">Getting document access...</p>
+            <p className="text-sm text-muted-foreground mt-1">This should be fast with caching</p>
+            <div className="mt-3 w-32 h-1 bg-muted rounded-full mx-auto overflow-hidden">
+              <div className="h-full bg-primary rounded-full animate-pulse"></div>
             </div>
           </div>
         </div>
@@ -554,14 +554,14 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
      return (
      <div className="h-screen flex flex-col">
        {/* Header */}
-       <div className="flex items-center justify-between gap-2 border-b px-4 py-3 bg-white shadow-sm flex-shrink-0">
+       <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3 bg-background shadow-sm flex-shrink-0">
          <div className="flex items-center gap-3">
-           <button className="xl:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-             <Menu className="h-4 w-4 text-gray-600" />
+           <button className="xl:hidden p-1.5 rounded-lg hover:bg-accent transition-colors">
+             <Menu className="h-4 w-4 text-foreground" />
            </button>
            {document?.title && (
-             <div className="text-xs text-gray-700 font-medium px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200 flex items-center gap-1.5">
-               <span className="text-blue-600">📄</span>
+             <div className="text-xs text-foreground font-medium px-3 py-1.5 bg-primary/10 rounded-lg border border-primary/20 flex items-center gap-1.5">
+               <span className="text-primary">📄</span>
                <span className="truncate max-w-[200px]">{document.title}</span>
              </div>
            )}
@@ -569,7 +569,7 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
              variant="outline" 
              size="sm"
              onClick={() => router.push('/reading')}
-             className="text-gray-600 hover:text-gray-900 flex items-center gap-2 px-3 py-1.5 h-8"
+             className="text-foreground hover:text-foreground flex items-center gap-2 px-3 py-1.5 h-8"
              title="Load another document"
            >
              <Upload className="h-3 w-3" />
@@ -579,23 +579,23 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
          
          <div className="flex items-center gap-3">
            {/* Zoom Controls */}
-           <div className="flex items-center gap-1 bg-gray-100 rounded-lg px-2 py-1">
+           <div className="flex items-center gap-1 bg-muted rounded-lg px-2 py-1">
              <button
                onClick={() => setZoomLevel(prev => Math.max(25, prev - 25))}
-               className="p-1 rounded hover:bg-gray-200 transition-colors"
+               className="p-1 rounded hover:bg-accent transition-colors"
                title="Zoom Out"
              >
-               <ChevronDown className="h-3 w-3 text-gray-600" />
+               <ChevronDown className="h-3 w-3 text-foreground" />
              </button>
-             <span className="text-xs font-medium text-gray-700 min-w-[40px] text-center">
+             <span className="text-xs font-medium text-foreground min-w-[40px] text-center">
                {zoomLevel}%
              </span>
              <button
                onClick={() => setZoomLevel(prev => Math.min(200, prev + 25))}
-               className="p-1 rounded hover:bg-gray-200 transition-colors"
+               className="p-1 rounded hover:bg-accent transition-colors"
                title="Zoom In"
              >
-               <ChevronUp className="h-3 w-3 text-gray-600" />
+               <ChevronUp className="h-3 w-3 text-foreground" />
              </button>
            </div>
            
@@ -660,11 +660,11 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
                     })()}
                    </div>
                  ) : (
-                   <div className="h-full w-full flex items-center justify-center text-gray-500">
+                   <div className="h-full w-full flex items-center justify-center text-muted-foreground">
                     <div className="text-center">
-                      <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                      <p className="text-lg font-medium">No document loaded</p>
-                      <p className="text-sm text-gray-400">Upload a document to get started</p>
+                      <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
+                      <p className="text-lg font-medium text-foreground">No document loaded</p>
+                      <p className="text-sm text-muted-foreground">Upload a document to get started</p>
                     </div>
                   </div>
                 )}
@@ -675,7 +675,7 @@ export function DocumentViewer({ documentUrl = "/sample-document.pdf", documentT
           {/* Right Panel - Chat/Tools Drawer */}
           {!isFocusMode && (
             <Allotment.Pane>
-              <div className="h-full border-l bg-white">
+              <div className="h-full border-l border-border bg-background">
                 <RightDrawer 
                   isOpen={true}
                   onClose={() => {}}

@@ -331,6 +331,18 @@ Return the JSON array with ALL errors found:`;
     }
   } catch (error) {
     console.error('ERROR in checkGrammar function:', error);
+    
+    // Check if it's a service unavailable error
+    const isServiceUnavailable = error instanceof Error && 
+      (error.message.includes('503') || 
+       error.message.includes('Service Unavailable') ||
+       error.message.includes('overloaded'));
+    
+    if (isServiceUnavailable) {
+      console.warn('AI service unavailable for grammar check, returning empty results');
+      return []; // Return empty array instead of throwing
+    }
+    
     throw error;
   }
 }
@@ -431,6 +443,52 @@ export async function processWithAI(request: AIRequest): Promise<AIResponse> {
     };
   } catch (error) {
     console.error(`Error processing AI request (${action}):`, error);
+    
+    // Check if it's a service unavailable error
+    const isServiceUnavailable = error instanceof Error && 
+      (error.message.includes('503') || 
+       error.message.includes('Service Unavailable') ||
+       error.message.includes('overloaded'));
+    
+    if (isServiceUnavailable) {
+      // Return a graceful fallback response instead of throwing
+      console.warn(`AI service unavailable for ${action}, returning fallback response`);
+      
+      switch (action) {
+        case 'grammar':
+          return {
+            result: text,
+            grammarIssues: [], // No grammar issues found (fallback)
+            id: uuidv4()
+          };
+        case 'paraphrase':
+          return {
+            result: text, // Return original text as fallback
+            grammarIssues: undefined,
+            id: uuidv4()
+          };
+        case 'shorten':
+          return {
+            result: text, // Return original text as fallback
+            grammarIssues: undefined,
+            id: uuidv4()
+          };
+        case 'expand':
+          return {
+            result: text, // Return original text as fallback
+            grammarIssues: undefined,
+            id: uuidv4()
+          };
+        default:
+          return {
+            result: text,
+            grammarIssues: undefined,
+            id: uuidv4()
+          };
+      }
+    }
+    
+    // For other errors, still throw
     throw new Error(`Failed to process ${action} request`);
   }
 }

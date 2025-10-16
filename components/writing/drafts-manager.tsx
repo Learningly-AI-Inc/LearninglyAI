@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileText, Clock, Edit, Trash2, Loader2 } from "lucide-react";
+import { FileText, Clock, Edit, Trash2, Loader2, Pencil } from "lucide-react";
 
 interface Draft {
   id: string;
@@ -20,9 +20,10 @@ interface Draft {
 interface DraftsManagerProps {
   userId: string;
   onLoadDraft: (draftId: string) => void;
+  onRenameDraft?: (draftId: string, newName: string) => void;
 }
 
-const DraftsManager: React.FC<DraftsManagerProps> = ({ userId, onLoadDraft }) => {
+const DraftsManager: React.FC<DraftsManagerProps> = ({ userId, onLoadDraft, onRenameDraft }) => {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +123,16 @@ const DraftsManager: React.FC<DraftsManagerProps> = ({ userId, onLoadDraft }) =>
                         Updated {formatDate(draft.updatedAt)}
                       </div>
                       <div className="flex gap-2">
+                        {onRenameDraft && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onRenameDraft(draft.id, draft.title)}
+                            className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"

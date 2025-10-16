@@ -152,25 +152,25 @@ export function LoadingFacts({ isLoading, loadingType = 'thinking', className = 
 
   return (
     <div className={`flex justify-start mb-6 ${className}`}>
-      <div className="max-w-[95%] rounded-2xl px-4 py-3 bg-white border border-gray-200 shadow-sm">
+      <div className="max-w-[95%] rounded-2xl px-4 py-3 bg-background border border-border shadow-sm">
         <div className="flex items-center space-x-3">
-          <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-sm">
-            <Sparkles className="h-3 w-3 text-white" />
+          <div className="w-6 h-6 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-sm">
+            <Sparkles className="h-3 w-3 text-primary-foreground" />
           </div>
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-600 font-medium">
+              <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+              <span className="text-sm text-muted-foreground font-medium">
                 {loadingMessage}
               </span>
             </div>
             
             {/* Fact Display */}
             <div className="flex items-start space-x-2">
-              <IconComponent className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+              <IconComponent className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
               <div className="flex-1">
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  <span className="font-medium text-blue-600">Did you know?</span> {currentFact.text}
+                <p className="text-sm text-foreground leading-relaxed">
+                  <span className="font-medium text-primary">Did you know?</span> {currentFact.text}
                 </p>
                 <div className="flex items-center mt-1">
                   <div className="flex space-x-1">
@@ -178,7 +178,7 @@ export function LoadingFacts({ isLoading, loadingType = 'thinking', className = 
                       <div
                         key={index}
                         className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
-                          index === currentFactIndex ? 'bg-blue-500' : 'bg-gray-300'
+                          index === currentFactIndex ? 'bg-primary' : 'bg-muted-foreground/30'
                         }`}
                       />
                     ))}

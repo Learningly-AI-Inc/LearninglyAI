@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Send, Bot, Copy, ThumbsUp, ThumbsDown, RotateCcw, Sparkles, Search, Plus, Trash2, Mic, Square, ChevronRight, Zap, Brain, X, Menu, FileText, Edit2, Save, Check, XCircle, Loader2 } from "lucide-react"
+import { Send, Bot, Copy, ThumbsUp, ThumbsDown, RotateCcw, Sparkles, Search, Plus, Trash2, Mic, Square, ChevronRight, Zap, Brain, X, Menu, FileText, Edit2, Save, Check, XCircle, Loader2, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { motion, AnimatePresence } from "framer-motion"
@@ -68,6 +68,7 @@ const SearchPage = () => {
   const [searchQuery, setSearchQuery] = React.useState('')
   const [searchResults, setSearchResults] = React.useState<Conversation[]>([])
   const [isSearching, setIsSearching] = React.useState(false)
+  const [isDragOver, setIsDragOver] = React.useState(false)
   const scrollAreaRef = React.useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -461,6 +462,96 @@ const SearchPage = () => {
     document.addEventListener('keydown', handleEscape)
     return () => document.removeEventListener('keydown', handleEscape)
   }, [showModelMenu])
+
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length === 0) return
+
+    // Process each file
+    for (const file of files) {
+      await handleFileUpload(file)
+    }
+  }
+
+  const handleFileUpload = async (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    
+    try {
+      // Add a temporary uploading chip
+      const tempId = `temp-${Date.now()}`
+      setAttachedDocs(prev => [
+        ...prev,
+        { id: tempId, name: file.name, url: '', status: 'uploading' }
+      ])
+      
+      console.log('📤 [SEARCH PAGE] Starting upload:', file.name)
+      const res = await fetch('/api/search/upload', { 
+        method: 'POST', 
+        body: form,
+        signal: AbortSignal.timeout(120000) // 2 minute timeout
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Upload failed')
+      }
+      const data = await res.json()
+      console.log('✅ [SEARCH PAGE] Upload successful:', data)
+      
+      // Capture uploaded doc for attachment chip and context
+      if (data?.documentId) {
+        console.log('📎 [SEARCH PAGE] Adding document to attachments:', {
+          documentId: data.documentId,
+          title: data.title,
+          fileUrl: data.fileUrl,
+          status: 'ready'
+        })
+        setAttachedDocs(prev => {
+          const filtered = prev.filter(d => d.id !== tempId)
+          const newDoc = { id: data.documentId, name: data.title || file.name, url: data.fileUrl || '', status: 'ready' as const }
+          const updated = [...filtered, newDoc]
+          console.log('📎 [SEARCH PAGE] Updated attachments:', updated)
+          return updated
+        })
+      } else {
+        console.error('❌ [SEARCH PAGE] No documentId in response:', data)
+      }
+      toast.success('Document uploaded successfully')
+    } catch (err: any) {
+      console.error('❌ [SEARCH PAGE] Upload failed:', err)
+      
+      // Mark the temp chip as error
+      setAttachedDocs(prev => prev.map(d => d.status === 'uploading' ? { ...d, status: 'error' } : d))
+      
+      let errorMessage = 'Failed to upload'
+      if (err.name === 'TimeoutError') {
+        errorMessage = 'Upload timed out. Please try a smaller file or check your connection.'
+      } else if (err.name === 'AbortError') {
+        errorMessage = 'Upload was cancelled'
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+      
+      toast.error(errorMessage)
+    }
+  }
 
   const handleSendMessage = () => {
     if (!currentMessage.trim() || isTyping || loading || !user?.id) return
@@ -1429,7 +1520,7 @@ const SearchPage = () => {
               <div className="mx-auto max-w-3xl pointer-events-auto">
                 <div className="bg-background/95 border border-border rounded-[28px] px-4 py-3 shadow-sm">
                   <div className="flex items-end gap-3">
-                    <div className="flex-1 px-1 sm:px-2 py-2">
+                    <div className="flex-1 px-1 sm:px-2 py-2 relative">
                       <textarea
                         value={currentMessage}
                         onChange={(e) => {
@@ -1444,12 +1535,25 @@ const SearchPage = () => {
                             handleSendMessage()
                           }
                         }}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
                         placeholder={loading ? "Loading..." : "Message Learningly…"}
                         rows={1}
                         className="w-full resize-none outline-none text-sm bg-transparent leading-6 max-h-40 overflow-y-auto text-foreground placeholder:text-muted-foreground"
                         disabled={isTyping || loading || !user?.id}
                         style={{ minHeight: '24px' }}
                       />
+                      {isDragOver && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-blue-500/10 border-2 border-dashed border-blue-500 rounded-lg pointer-events-none">
+                          <div className="text-center">
+                            <Upload className="h-6 w-6 text-blue-500 mx-auto mb-1" />
+                            <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                              Drop file here to upload
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-2">
                         {/* Attachment chips */}
                         {attachedDocs.length > 0 && (

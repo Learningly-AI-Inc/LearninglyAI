@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { draftStorageService } from '@/lib/draft-storage';
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,23 +14,36 @@ export async function GET(req: NextRequest) {
       );
     }
     
-    // Mock implementation - in production, this would fetch from the database
+    // Get all drafts for this user from storage
+    const allDrafts = draftStorageService.getUserDrafts(userId);
     
-    // Mock response with a list of drafts
-    const mockDrafts = Array(Math.min(limit, 5)).fill(null).map((_, index) => ({
-      id: `mock-draft-id-${index + offset}`,
-      userId,
-      title: `Draft ${index + offset + 1}`,
-      excerpt: `This is a preview of draft ${index + offset + 1}...`,
-      tone: index % 2 === 0 ? 'formal' : 'casual',
-      versionNumber: Math.floor(Math.random() * 5) + 1,
-      createdAt: new Date(Date.now() - (index * 86400000)).toISOString(), // Days ago
-      updatedAt: new Date(Date.now() - (index * 43200000)).toISOString(), // Half days ago
-    }));
+    // Apply pagination
+    const paginatedDrafts = allDrafts.slice(offset, offset + limit);
+    
+    // Format drafts for response
+    const formattedDrafts = paginatedDrafts.map(draft => {
+      // Create excerpt from content (strip HTML and limit length)
+      const excerpt = draft.content
+        .replace(/<[^>]*>/g, '') // Remove HTML tags
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim()
+        .substring(0, 100) + (draft.content.length > 100 ? '...' : '');
+      
+      return {
+        id: draft.id,
+        userId: draft.userId,
+        title: draft.title,
+        excerpt,
+        tone: draft.tone,
+        versionNumber: draft.versionNumber,
+        createdAt: draft.createdAt,
+        updatedAt: draft.updatedAt,
+      };
+    });
     
     return NextResponse.json({
-      drafts: mockDrafts,
-      total: 20, // Mock total count
+      drafts: formattedDrafts,
+      total: allDrafts.length,
       limit,
       offset
     });

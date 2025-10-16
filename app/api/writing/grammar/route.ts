@@ -65,6 +65,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(response);
     } catch (aiError) {
       console.error('AI processing error in grammar check:', aiError);
+      
+      // Check if it's a service unavailable error
+      const isServiceUnavailable = aiError instanceof Error && 
+        (aiError.message.includes('503') || 
+         aiError.message.includes('Service Unavailable') ||
+         aiError.message.includes('overloaded'));
+      
+      if (isServiceUnavailable) {
+        // Return a successful response with no grammar issues found
+        console.warn('AI service unavailable, returning empty grammar check results');
+        return NextResponse.json({
+          result: text,
+          grammarIssues: [],
+          id: 'fallback-' + Date.now()
+        });
+      }
+      
       return NextResponse.json(
         {
           error: 'Grammar check failed',

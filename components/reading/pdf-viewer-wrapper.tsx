@@ -69,28 +69,28 @@ export const PDFDocument: React.FC<PDFDocumentProps> = ({
   }, [file])
 
   const defaultLoading = (
-    <div className="flex items-center justify-center p-8 h-96">
+    <div className="flex items-center justify-center p-8 h-96 bg-background">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-        <p className="text-gray-600 font-medium">Loading PDF document...</p>
-        <p className="text-sm text-gray-500 mt-1">Using browser's native PDF viewer</p>
-        <div className="mt-3 w-48 h-1 bg-gray-200 rounded-full mx-auto overflow-hidden">
-          <div className="h-full bg-blue-600 rounded-full animate-pulse"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+        <p className="text-foreground font-medium">Loading PDF document...</p>
+        <p className="text-sm text-muted-foreground mt-1">Using browser's native PDF viewer</p>
+        <div className="mt-3 w-48 h-1 bg-muted rounded-full mx-auto overflow-hidden">
+          <div className="h-full bg-primary rounded-full animate-pulse"></div>
         </div>
-        <p className="text-xs text-gray-400 mt-2">Loading in under 1 second</p>
+        <p className="text-xs text-muted-foreground mt-2">Loading in under 1 second</p>
       </div>
     </div>
   )
 
   const defaultError = (
-    <div className="flex items-center justify-center p-8 h-96">
-      <div className="text-center text-red-600">
-        <AlertCircle className="w-12 h-12 mx-auto text-red-500 mb-2" />
+    <div className="flex items-center justify-center p-8 h-96 bg-background">
+      <div className="text-center text-destructive">
+        <AlertCircle className="w-12 h-12 mx-auto text-destructive mb-2" />
         <p className="font-medium">Failed to load PDF</p>
-        <p className="text-sm text-gray-500 mt-1">The document might be corrupted or unavailable</p>
+        <p className="text-sm text-muted-foreground mt-1">The document might be corrupted or unavailable</p>
         <button
           onClick={handleRetry}
-          className="mt-3 px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center gap-2 mx-auto"
+          className="mt-3 px-4 py-2 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90 flex items-center gap-2 mx-auto transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
           Try Again
@@ -108,11 +108,11 @@ export const PDFDocument: React.FC<PDFDocumentProps> = ({
   }
 
   return (
-    <div className="w-full h-full bg-white">
+    <div className="w-full h-full bg-background">
       <iframe
         ref={iframeRef}
         src={file}
-        className="w-full h-full border-0"
+        className="w-full h-full border-0 bg-background"
         title="PDF Document"
         onLoad={handleLoadSuccess}
         onError={handleLoadError}
@@ -144,24 +144,24 @@ export const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = ({
   }
 
   return (
-    <div className={`flex flex-col h-full ${className}`}>
+    <div className={`flex flex-col h-full bg-background ${className}`}>
       {/* Simple toolbar with refresh option */}
-      <div className="flex items-center justify-between p-2 bg-gray-100 border-b">
+      <div className="flex items-center justify-between p-2 bg-muted border-b border-border">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-700 ps-2">
+          <span className="text-sm text-foreground ps-2">
             PDF Document - Using Browser Viewer
           </span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 pe-2">
+          <span className="text-xs text-muted-foreground pe-2">
             Native browser PDF controls available
           </span>
         </div>
       </div>
 
       {/* PDF Content */}
-      <div className="flex-1 overflow-hidden bg-white">
+      <div className="flex-1 overflow-hidden bg-background">
         <PDFDocument
           file={file}
           onLoadSuccess={handleLoadSuccess}
@@ -182,9 +182,9 @@ export const PDFPage: React.FC<{
 }> = ({ loading }) => {
   // Native viewer handles all pages automatically
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full bg-background">
       {/* Native browser PDF viewer shows all pages automatically */}
-      <p className="text-center text-gray-500 p-4">
+      <p className="text-center text-muted-foreground p-4">
         PDF is displayed using the native browser viewer
       </p>
     </div>

@@ -293,12 +293,12 @@ export function EventForm({ event, isOpen, onClose, onSubmit, onDelete, loading 
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-gray-200">
-          <CardTitle className="text-xl font-semibold text-gray-900">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-background border-border">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-border">
+          <CardTitle className="text-xl font-semibold text-foreground">
             {event ? 'Edit Event' : 'Create Event'}
           </CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-gray-100">
+          <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-accent">
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
@@ -461,7 +461,7 @@ export function EventForm({ event, isOpen, onClose, onSubmit, onDelete, loading 
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-between pt-4 border-t border-gray-200">
+            <div className="flex justify-between pt-4 border-t border-border">
               <div>
                 {event && onDelete && (
                   showDeleteConfirm ? (
