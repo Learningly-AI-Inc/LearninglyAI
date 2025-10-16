@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { draftStorageService } from '@/lib/draft-storage';
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,23 +13,51 @@ export async function GET(req: NextRequest) {
       );
     }
     
-    // Mock implementation - in production, this would fetch from the database
-    // If draftId is provided, fetch that specific draft
-    // If not, fetch the most recent draft for the user
-    
-    // Mock response
-    const mockDraft = {
-      id: draftId || 'mock-draft-id',
-      userId,
-      content: '<p>This is a sample draft content that would be loaded from the database.</p>',
-      rawContent: { /* draft-js raw content structure */ },
-      tone: 'formal',
-      versionNumber: 1,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    return NextResponse.json(mockDraft);
+    if (draftId) {
+      // Load specific draft
+      const draft = draftStorageService.getDraft(draftId);
+      if (!draft || draft.userId !== userId) {
+        return NextResponse.json(
+          { error: 'Draft not found' },
+          { status: 404 }
+        );
+      }
+      
+      return NextResponse.json({
+        id: draft.id,
+        userId: draft.userId,
+        title: draft.title,
+        content: draft.content,
+        rawContent: draft.rawContent,
+        tone: draft.tone,
+        versionNumber: draft.versionNumber,
+        createdAt: draft.createdAt,
+        updatedAt: draft.updatedAt
+      });
+    } else {
+      // Load most recent draft for user
+      const userDrafts = draftStorageService.getUserDrafts(userId);
+      
+      if (userDrafts.length === 0) {
+        return NextResponse.json(
+          { error: 'No drafts found' },
+          { status: 404 }
+        );
+      }
+      
+      const mostRecentDraft = userDrafts[0];
+      return NextResponse.json({
+        id: mostRecentDraft.id,
+        userId: mostRecentDraft.userId,
+        title: mostRecentDraft.title,
+        content: mostRecentDraft.content,
+        rawContent: mostRecentDraft.rawContent,
+        tone: mostRecentDraft.tone,
+        versionNumber: mostRecentDraft.versionNumber,
+        createdAt: mostRecentDraft.createdAt,
+        updatedAt: mostRecentDraft.updatedAt
+      });
+    }
   } catch (error) {
     console.error('Error loading draft:', error);
     return NextResponse.json(

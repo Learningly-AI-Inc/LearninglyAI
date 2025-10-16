@@ -49,6 +49,34 @@ const WritingPageClient = () => {
   const [activeTab, setActiveTab] = useState<string>("paraphrase")
   const [lastSelectedText, setLastSelectedText] = useState<string>("") // Backup for selected text
   
+  // Auto-save state
+  const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null)
+  const [isAutoSaving, setIsAutoSaving] = useState<boolean>(false)
+
+  // Helper function to safely serialize editor raw content
+  const serializeEditorRawContent = (rawContent: any) => {
+    if (!rawContent) return null;
+    
+    try {
+      if (rawContent.getJSON) {
+        return rawContent.getJSON();
+      } else if (typeof rawContent === 'object' && rawContent !== null) {
+        const { getJSON, ...safeContent } = rawContent;
+        if (getJSON) {
+          return getJSON();
+        } else {
+          return {
+            type: 'doc',
+            content: []
+          };
+        }
+      }
+    } catch (error) {
+      console.warn('Could not serialize editorRawContent:', error);
+    }
+    return null;
+  };
+  
   // Using Sonner toast directly
   
   // Function to handle paraphrasing (optionally re-paraphrase an existing suggestion)
@@ -273,7 +301,13 @@ const WritingPageClient = () => {
         setLastProcessedFeature("Grammar Check (No issues)");
         setLastGrammarCheckHash(currentContentHash);
         setLastGrammarCheckResult('no-issues');
-        toast.success('No grammar issues found. Your text looks great!');
+        
+        // Check if this was a fallback response (AI service unavailable)
+        if (data.id && data.id.startsWith('fallback-')) {
+          toast.info("AI service is temporarily unavailable. Grammar check completed with basic validation.");
+        } else {
+          toast.success('No grammar issues found. Your text looks great!');
+        }
       }
 
       setIsProcessing(false);
@@ -875,12 +909,15 @@ const WritingPageClient = () => {
     toast.info("Saving draft...");
     
     try {
+      // Safely serialize editorRawContent to avoid circular references
+      const serializedRawContent = serializeEditorRawContent(editorRawContent);
+
       const response = await fetch('/api/writing/drafts/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           content: editorContent,
-          rawContent: editorRawContent,
+          rawContent: serializedRawContent,
           tone,
           userId: "mock-user-id", // In production, this would be the actual user ID
           draftId: currentDraftId // This will be null for new drafts
@@ -888,7 +925,9 @@ const WritingPageClient = () => {
       });
       
       if (!response.ok) {
-        throw new Error('Draft saving failed');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`;
+        throw new Error(errorMessage);
       }
       
       const data = await response.json();
@@ -898,10 +937,18 @@ const WritingPageClient = () => {
         setCurrentDraftId(data.id);
       }
       
+      // Also save to localStorage for immediate persistence
+      saveToLocalStorage(editorContent, editorRawContent, tone, data.id);
+      
       toast.success(`Draft ${data.isNewDraft ? 'created' : 'updated'} successfully!`);
+      
+      // Trigger a refresh of the drafts list by updating the editor key
+      // This will cause the DraftsManager to re-fetch the list
+      setEditorKey(prev => prev + 1);
     } catch (error) {
       console.error("Error saving draft:", error);
-      toast.error("Error saving draft. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      toast.error(`Error saving draft: ${errorMessage}`);
     }
   };
 
@@ -1138,6 +1185,9 @@ const WritingPageClient = () => {
       setCurrentDraftId(data.id);
       setEditorKey(prev => prev + 1); // Force editor re-render
       
+      // Save to localStorage for persistence
+      saveToLocalStorage(data.content, data.rawContent, data.tone, data.id);
+      
       toast.success("Draft loaded successfully!");
     } catch (error) {
       console.error("Error loading draft:", error);
@@ -1146,7 +1196,132 @@ const WritingPageClient = () => {
       setIsProcessing(false);
     }
   };
+
+  // Function to save content to localStorage
+  const saveToLocalStorage = (content: string, rawContent: any, tone: string, draftId: string | null) => {
+    try {
+      // Safely serialize rawContent to avoid circular references
+      const serializedRawContent = serializeEditorRawContent(rawContent);
+
+      const draftData = {
+        content,
+        rawContent: serializedRawContent,
+        tone,
+        draftId,
+        timestamp: new Date().toISOString(),
+        lastModified: Date.now()
+      };
+      localStorage.setItem('writing-draft-autosave', JSON.stringify(draftData));
+      setLastAutoSave(new Date());
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+    }
+  };
+
+  // Function to load content from localStorage
+  const loadFromLocalStorage = () => {
+    try {
+      const saved = localStorage.getItem('writing-draft-autosave');
+      if (saved) {
+        const draftData = JSON.parse(saved);
+        // Only load if the data is less than 24 hours old
+        const isRecent = Date.now() - draftData.lastModified < 24 * 60 * 60 * 1000;
+        if (isRecent && draftData.content) {
+          setEditorContent(draftData.content);
+          setEditorRawContent(draftData.rawContent || null);
+          setTone(draftData.tone || "Formal");
+          setCurrentDraftId(draftData.draftId);
+          setEditorKey(prev => prev + 1);
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading from localStorage:', error);
+    }
+    return false;
+  };
+
+  // Auto-save function
+  const autoSave = async () => {
+    if (!editorContent.trim() || isAutoSaving) return;
+    
+    setIsAutoSaving(true);
+    try {
+      // Save to localStorage immediately
+      saveToLocalStorage(editorContent, editorRawContent, tone, currentDraftId);
+      
+      // Safely serialize editorRawContent for auto-save
+      const serializedRawContent = serializeEditorRawContent(editorRawContent);
+
+      // Always save to server (create new draft if needed, update if exists)
+      const response = await fetch('/api/writing/drafts/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          content: editorContent,
+          rawContent: serializedRawContent,
+          tone,
+          userId: "mock-user-id",
+          draftId: currentDraftId
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Update current draft ID if this was a new draft
+        if (data.isNewDraft && !currentDraftId) {
+          setCurrentDraftId(data.id);
+        }
+      }
+    } catch (error) {
+      console.error('Auto-save error:', error);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  };
   
+  // Load content from localStorage on component mount
+  useEffect(() => {
+    const loaded = loadFromLocalStorage();
+    if (loaded) {
+      toast.info("Restored your previous work from auto-save");
+    }
+  }, []);
+
+  // Auto-save effect - save to localStorage whenever content changes
+  useEffect(() => {
+    if (editorContent.trim()) {
+      const timeoutId = setTimeout(() => {
+        saveToLocalStorage(editorContent, editorRawContent, tone, currentDraftId);
+      }, 2000); // Auto-save after 2 seconds of inactivity
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [editorContent, editorRawContent, tone, currentDraftId]);
+
+  // Auto-save to server every 30 seconds if content exists
+  useEffect(() => {
+    if (!editorContent.trim()) return;
+
+    const intervalId = setInterval(() => {
+      autoSave();
+    }, 30000); // Auto-save every 30 seconds
+
+    return () => clearInterval(intervalId);
+  }, [editorContent, editorRawContent, tone, currentDraftId]);
+
+  // Save before page unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (editorContent.trim()) {
+        saveToLocalStorage(editorContent, editorRawContent, tone, currentDraftId);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [editorContent, editorRawContent, tone, currentDraftId]);
+
   // Add event listener for text selection
   useEffect(() => {
     if (typeof document === 'undefined') return; // SSR guard
@@ -1164,9 +1339,26 @@ const WritingPageClient = () => {
     };
   }, []);
 
+  // Auto-save indicator component
+  const AutoSaveIndicator = () => (
+    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      {isAutoSaving ? (
+        <>
+          <div className="h-2 w-2 bg-yellow-500 rounded-full animate-pulse" />
+          <span>Auto-saving...</span>
+        </>
+      ) : lastAutoSave ? (
+        <>
+          <div className="h-2 w-2 bg-green-500 rounded-full" />
+          <span>Saved {lastAutoSave.toLocaleTimeString()}</span>
+        </>
+      ) : null}
+    </div>
+  );
+
   return (
     <ImprovedWritingPage
-      header={null}
+      header={<AutoSaveIndicator />}
       draftsManager={
         <DraftsManager
           userId={getMockUserId()}
