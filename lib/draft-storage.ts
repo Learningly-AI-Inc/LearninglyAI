@@ -1,6 +1,14 @@
 // Simple in-memory storage for drafts
 // In production, this would be replaced with a proper database
-const draftStorage = new Map<string, any>();
+// Use a global variable to ensure persistence across API calls
+declare global {
+  var __draftStorage: Map<string, any> | undefined;
+}
+
+const draftStorage = globalThis.__draftStorage ?? new Map<string, any>();
+if (!globalThis.__draftStorage) {
+  globalThis.__draftStorage = draftStorage;
+}
 
 // Add some debugging
 console.log('Draft storage initialized, current size:', draftStorage.size);

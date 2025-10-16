@@ -9,6 +9,7 @@ import AISuggestionsPanel from "@/components/writing/ai-suggestions-panel"
 import DraftsManager from "@/components/writing/drafts-manager"
 import WordCounter from "@/components/writing/word-counter"
 import LengthAdjustDialog from "@/components/writing/length-adjust-dialog"
+import { DraftNamingDialog } from "@/components/writing/draft-naming-dialog"
 import { getMockUserId } from "@/lib/mock-user"
 import { openInGoogleDocs, downloadFile } from "@/components/writing/google-docs-export"
 import { toast } from "sonner"
@@ -52,6 +53,12 @@ const WritingPageClient = () => {
   // Auto-save state
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null)
   const [isAutoSaving, setIsAutoSaving] = useState<boolean>(false)
+  
+  // Draft naming dialog state
+  const [showDraftNamingDialog, setShowDraftNamingDialog] = useState<boolean>(false)
+  const [pendingDraftId, setPendingDraftId] = useState<string | null>(null)
+  const [isEditingDraftName, setIsEditingDraftName] = useState<boolean>(false)
+  const [currentDraftName, setCurrentDraftName] = useState<string>("")
 
   // Helper function to safely serialize editor raw content
   const serializeEditorRawContent = (rawContent: any) => {
@@ -935,12 +942,20 @@ const WritingPageClient = () => {
       // Update the current draft ID if this is a new draft
       if (data.isNewDraft) {
         setCurrentDraftId(data.id);
+        // Show naming dialog for new drafts
+        setPendingDraftId(data.id);
+        setShowDraftNamingDialog(true);
+        setIsEditingDraftName(false);
       }
       
       // Also save to localStorage for immediate persistence
       saveToLocalStorage(editorContent, editorRawContent, tone, data.id);
       
-      toast.success(`Draft ${data.isNewDraft ? 'created' : 'updated'} successfully!`);
+      if (!data.isNewDraft) {
+        toast.success('Draft updated successfully!');
+      } else {
+        toast.success('Draft created! Please name your draft.');
+      }
       
       // Trigger a refresh of the drafts list by updating the editor key
       // This will cause the DraftsManager to re-fetch the list
@@ -1164,6 +1179,59 @@ const WritingPageClient = () => {
     }
   };
 
+  // Function to handle draft name updates
+  const handleDraftNameSave = async (newName: string) => {
+    if (!pendingDraftId || !newName.trim()) return;
+
+    try {
+      console.log('Attempting to rename draft:', { draftId: pendingDraftId, newName: newName.trim() });
+      
+      const response = await fetch('/api/writing/drafts/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          draftId: pendingDraftId,
+          newName: newName.trim(),
+          userId: "mock-user-id"
+        })
+      });
+
+      const responseData = await response.json();
+      console.log('Rename response:', { status: response.status, data: responseData });
+
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to update draft name');
+      }
+
+      toast.success('Draft name updated successfully!');
+      
+      // Refresh the drafts list
+      setEditorKey(prev => prev + 1);
+    } catch (error) {
+      console.error('Error updating draft name:', error);
+      toast.error(`Failed to update draft name: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Function to handle draft rename from drafts manager
+  const handleDraftRename = async (draftId: string, currentName: string) => {
+    console.log('Draft rename triggered:', { draftId, currentName });
+    
+    // Debug: Check what's in storage
+    try {
+      const debugResponse = await fetch('/api/writing/drafts/debug?userId=mock-user-id');
+      const debugData = await debugResponse.json();
+      console.log('Storage debug info:', debugData);
+    } catch (debugError) {
+      console.error('Debug fetch failed:', debugError);
+    }
+    
+    setPendingDraftId(draftId);
+    setCurrentDraftName(currentName);
+    setShowDraftNamingDialog(true);
+    setIsEditingDraftName(true);
+  };
+
   // Function to handle loading a draft
   const handleLoadDraft = async (draftId: string) => {
     toast.info("Loading draft...");
@@ -1339,30 +1407,29 @@ const WritingPageClient = () => {
     };
   }, []);
 
-  // Auto-save indicator component
-  const AutoSaveIndicator = () => (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-      {isAutoSaving ? (
-        <>
-          <div className="h-2 w-2 bg-yellow-500 rounded-full animate-pulse" />
-          <span>Auto-saving...</span>
-        </>
-      ) : lastAutoSave ? (
-        <>
-          <div className="h-2 w-2 bg-green-500 rounded-full" />
-          <span>Saved {lastAutoSave.toLocaleTimeString()}</span>
-        </>
-      ) : null}
-    </div>
-  );
-
   return (
+    <>
     <ImprovedWritingPage
-      header={<AutoSaveIndicator />}
+      header={
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {isAutoSaving ? (
+            <>
+              <div className="h-2 w-2 bg-yellow-500 rounded-full animate-pulse" />
+              <span>Auto-saving...</span>
+            </>
+          ) : lastAutoSave ? (
+            <>
+              <div className="h-2 w-2 bg-green-500 rounded-full" />
+              <span>Saved {lastAutoSave.toLocaleTimeString()}</span>
+            </>
+          ) : null}
+        </div>
+      }
       draftsManager={
         <DraftsManager
           userId={getMockUserId()}
           onLoadDraft={handleLoadDraft}
+          onRenameDraft={handleDraftRename}
         />
       }
       writingToolbar={
@@ -1423,6 +1490,19 @@ const WritingPageClient = () => {
         </div>
       }
     />
+    
+    <DraftNamingDialog
+      isOpen={showDraftNamingDialog}
+      onClose={() => {
+        setShowDraftNamingDialog(false);
+        setPendingDraftId(null);
+        setIsEditingDraftName(false);
+      }}
+      onSave={handleDraftNameSave}
+      currentName={isEditingDraftName ? currentDraftName : ""}
+      isEditing={isEditingDraftName}
+    />
+    </>
   )
 }
 
