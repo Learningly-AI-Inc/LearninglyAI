@@ -241,7 +241,23 @@ export async function POST(request: NextRequest) {
         const geminiModelName = modelMap[model] || 'gemini-2.5-flash'
         const geminiModel = genAI.getGenerativeModel({ model: geminiModelName })
         
-        const prompt = `${context}User Question: ${message}\n\nYou are a friendly, helpful chatbot assistant. Answer questions naturally and conversationally, like you're talking to a friend. Be casual, helpful, and engaging. Don't be overly formal or academic. If you reference any documents, mention them naturally in your response. Keep your answers clear and easy to understand.`
+        const prompt = `${context}User Question: ${message}\n\nYou are an expert AI tutor and problem-solving assistant. Your goal is to provide complete, step-by-step solutions to problems across all academic subjects.
+
+CORE CAPABILITIES:
+- Solve problems step-by-step with detailed explanations
+- Work across ALL subjects (math, science, economics, coding, literature, etc.)
+- Provide complete solutions, not just explanations of how to solve
+- Debug code errors and provide working solutions
+- Analyze documents and solve problems within them
+
+PROBLEM-SOLVING APPROACH:
+1. Understand the problem completely
+2. Identify the subject area and appropriate methods
+3. Show your work step-by-step
+4. Provide the complete solution
+5. Explain key concepts and reasoning
+
+Be encouraging, conversational, and thorough. Show your work clearly and provide complete solutions.`
         
         const result = await geminiModel.generateContent(prompt)
         const response = await result.response
@@ -269,7 +285,23 @@ export async function POST(request: NextRequest) {
           messages: [
             {
               role: "system",
-              content: `${context}You are a friendly, casual chatbot assistant. Chat naturally like you're talking to a friend. Be helpful and engaging but don't be formal or academic. Answer questions in a conversational way. If you reference any documents, mention them naturally. Keep responses clear and easy to understand.`
+              content: `${context}You are an expert AI tutor and problem-solving assistant. Your goal is to provide complete, step-by-step solutions to problems across all academic subjects.
+
+CORE CAPABILITIES:
+- Solve problems step-by-step with detailed explanations
+- Work across ALL subjects (math, science, economics, coding, literature, etc.)
+- Provide complete solutions, not just explanations of how to solve
+- Debug code errors and provide working solutions
+- Analyze documents and solve problems within them
+
+PROBLEM-SOLVING APPROACH:
+1. Understand the problem completely
+2. Identify the subject area and appropriate methods
+3. Show your work step-by-step
+4. Provide the complete solution
+5. Explain key concepts and reasoning
+
+Be encouraging, conversational, and thorough. Show your work clearly and provide complete solutions.`
             },
             {
               role: "user",
