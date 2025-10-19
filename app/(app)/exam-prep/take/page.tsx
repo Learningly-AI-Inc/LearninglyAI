@@ -30,6 +30,8 @@ export default function TakeExamPage() {
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [score, setScore] = useState(0)
   const [showResult, setShowResult] = useState(false)
+  const [showReview, setShowReview] = useState(false)
+  const [showOnlyIncorrect, setShowOnlyIncorrect] = useState(false)
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -69,6 +71,15 @@ export default function TakeExamPage() {
       }
     })
     return correctCount
+  }, [exam, answers])
+
+  // Check if a specific answer is correct
+  const isAnswerCorrect = useCallback((questionIndex: number) => {
+    if (!exam) return false
+    const question = exam.questions[questionIndex]
+    const userAnswer = answers[questionIndex]
+    if (!userAnswer || !question) return false
+    return userAnswer.trim().toUpperCase().startsWith(String(question.correctAnswer).trim().toUpperCase())
   }, [exam, answers])
 
   if (!exam) {
@@ -270,6 +281,142 @@ export default function TakeExamPage() {
                   )}
                 </>
               )
+            ) : showReview ? (
+              <div className="py-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-foreground">Review Answers</h2>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={showOnlyIncorrect}
+                        onChange={(e) => setShowOnlyIncorrect(e.target.checked)}
+                        className="rounded border-gray-300"
+                      />
+                      Show only incorrect answers
+                    </label>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowReview(false)}
+                      className="flex items-center gap-2"
+                    >
+                      ← Back to Results
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Summary Stats */}
+                <div className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white py-4 px-6 rounded-xl shadow-lg mb-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-lg font-semibold">Exam Summary</div>
+                      <div className="text-sm opacity-90">
+                        {score} correct out of {total} questions ({Math.round((score / total) * 100)}%)
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold">{score}/{total}</div>
+                      <div className="text-sm opacity-90">Score</div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Filter Info */}
+                {showOnlyIncorrect && (
+                  <div className="bg-yellow-50 border border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-800 rounded-lg p-3 mb-4">
+                    <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                      Showing {exam.questions.filter((_, i) => !isAnswerCorrect(i)).length} incorrect answers out of {total} total questions
+                    </div>
+                  </div>
+                )}
+                
+                <div className="space-y-6">
+                  {exam.questions
+                    .map((question, questionIndex) => ({ question, questionIndex }))
+                    .filter(({ questionIndex }) => !showOnlyIncorrect || !isAnswerCorrect(questionIndex))
+                    .map(({ question, questionIndex }) => {
+                    const userAnswer = answers[questionIndex] || 'Not answered'
+                    const isCorrect = isAnswerCorrect(questionIndex)
+                    const correctAnswer = question.correctAnswer
+                    
+                    return (
+                      <Card key={questionIndex} className={`border-2 ${isCorrect ? 'border-green-300 bg-green-50 dark:border-green-600 dark:bg-green-950/30' : 'border-red-300 bg-red-50 dark:border-red-600 dark:bg-red-950/30'}`}>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <CardTitle className="text-lg font-semibold text-foreground">
+                              Question {questionIndex + 1}
+                            </CardTitle>
+                            <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                              isCorrect 
+                                ? 'bg-green-200 text-green-900 dark:bg-green-800 dark:text-green-100' 
+                                : 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100'
+                            }`}>
+                              {isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="text-foreground font-medium">
+                            {question.question}
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium text-muted-foreground">Your Answer:</div>
+                            <div className={`p-3 rounded-lg border ${
+                              isCorrect 
+                                ? 'bg-green-100 border-green-300 text-green-900 dark:bg-green-900/50 dark:border-green-600 dark:text-green-100' 
+                                : 'bg-red-100 border-red-300 text-red-900 dark:bg-red-900/50 dark:border-red-600 dark:text-red-100'
+                            }`}>
+                              {userAnswer}
+                            </div>
+                          </div>
+                          
+                          {!isCorrect && (
+                            <div className="space-y-2">
+                              <div className="text-sm font-medium text-muted-foreground">Correct Answer:</div>
+                              <div className="p-3 rounded-lg bg-green-100 border border-green-300 text-green-900 dark:bg-green-900/50 dark:border-green-600 dark:text-green-100">
+                                {correctAnswer}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {question.explanation && (
+                            <div className="space-y-2">
+                              <div className="text-sm font-medium text-muted-foreground">Explanation:</div>
+                              <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 dark:bg-blue-950/30 dark:border-blue-700 dark:text-blue-100">
+                                {question.explanation}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+                
+                <div className="flex gap-3 justify-center mt-8">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setIndex(0);
+                      setScore(0);
+                      setShowResult(false);
+                      setShowReview(false);
+                      setSelected('');
+                      setAnswers({});
+                    }}
+                    className="border-2"
+                  >
+                    Retry Exam
+                  </Button>
+                  <Button 
+                    onClick={() => router.push('/exam-prep')} 
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  >
+                    Back to Exam Prep
+                  </Button>
+                </div>
+              </div>
             ) : (
               <div className="text-center py-10">
                 <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white py-6 px-8 rounded-xl shadow-lg mb-6">
@@ -280,14 +427,30 @@ export default function TakeExamPage() {
                   </div>
                 </div>
                 <div className="flex gap-3 justify-center">
-                  <Button variant="outline" className="border-2" onClick={() => {
-                    setIndex(0);
-                    setScore(0);
-                    setShowResult(false);
-                    setSelected('');
-                    setAnswers({});
-                  }}>Retry</Button>
-                  <Button onClick={() => router.push('/exam-prep')} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                  <Button 
+                    variant="outline" 
+                    className="border-2" 
+                    onClick={() => setShowReview(true)}
+                  >
+                    Review Answers
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="border-2" 
+                    onClick={() => {
+                      setIndex(0);
+                      setScore(0);
+                      setShowResult(false);
+                      setSelected('');
+                      setAnswers({});
+                    }}
+                  >
+                    Retry
+                  </Button>
+                  <Button 
+                    onClick={() => router.push('/exam-prep')} 
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  >
                     Back to Exam Prep
                   </Button>
                 </div>
