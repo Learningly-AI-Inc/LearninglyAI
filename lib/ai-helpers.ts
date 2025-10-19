@@ -65,15 +65,17 @@ async function paraphraseText(text: string, tone: string = 'formal'): Promise<st
   try {
     const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9\s]/g, '').trim();
 
-    const systemPrompt = `You are a professional paraphraser. Rewrite text while preserving meaning.
+    const systemPrompt = `You are a professional paraphraser. Rewrite text while preserving meaning and structure.
 Requirements:
-- Keep a ${tone} tone.
-- Do not copy any sentence verbatim; restructure phrasing.
-- Maintain roughly the same length.
-- IMPORTANT: Preserve all paragraph breaks and line breaks from the original text. Use double newlines (\\n\\n) to separate paragraphs.
-- Output plain text only (no quotes, no lists, no headings, no markdown formatting).`;
+- Keep a ${tone} tone throughout.
+- Do not copy any sentence verbatim; restructure phrasing and word choice.
+- EXPAND the content by 20-30% - add more descriptive details, examples, and elaboration.
+- CRITICAL: Preserve ALL paragraph breaks from the original text. Use double newlines (\\n\\n) to separate paragraphs.
+- Maintain the same logical flow and structure as the original.
+- Output plain text only (no quotes, no lists, no headings, no markdown formatting).
+- Make the output more engaging and detailed than the original.`;
 
-    const userPrompt = `Paraphrase this:
+    const userPrompt = `Paraphrase and expand this text while preserving paragraph structure:
 ${text}`;
 
     const openai = getOpenAIClient();
@@ -83,7 +85,8 @@ ${text}`;
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
-      max_completion_tokens: 2000
+      max_completion_tokens: 3000, // Increased for longer output
+      temperature: 0.7 // Slightly higher for more creative paraphrasing
     });
 
     let result = completion.choices[0]?.message?.content?.trim() || '';
@@ -93,7 +96,7 @@ ${text}`;
 
     // If the result is effectively identical to the input, try a Gemini fallback
     if (normalize(result) === normalize(text)) {
-      const fallbackPrompt = `Rewrite the following text in a ${tone} tone. Do not repeat sentences verbatim. Change wording and sentence structure while keeping the same meaning. Return plain text only.\n\n${text}`;
+      const fallbackPrompt = `Rewrite and expand the following text in a ${tone} tone. Add more descriptive details and examples while keeping the same meaning and paragraph structure. Make it 20-30% longer than the original. Return plain text only.\n\n${text}`;
       const geminiRes = await geminiModel.generateContent(fallbackPrompt);
       const geminiText = (await geminiRes.response.text()).trim();
       if (geminiText && normalize(geminiText) !== normalize(text)) {

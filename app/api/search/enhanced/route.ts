@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
     // Prepare system prompt with user personalization
     // Use only the explicitly attached documents for personalization
     const hasImageAttachments = smartContextDocs.some((doc: any) => doc.isImage)
-    const systemPrompt = buildSystemPrompt(userRecord, smartContextDocs || [], hasImageAttachments)
+    const systemPrompt = buildSystemPrompt(userRecord, smartContextDocs || [], hasImageAttachments, message)
 
     // Build conversation context with model-specific style hints
     const modelStyleHint = (() => {
@@ -290,7 +290,21 @@ export async function POST(request: NextRequest) {
 
     if (smartContextSections.length > 0) {
       const joined = smartContextSections.slice(0, 20).map((c, i) => `[Section ${i + 1}]\n${c}`).join('\n\n')
-      messages.push({ role: 'system', content: `Use ONLY the following document sections as ground truth unless the user asks for general knowledge. Cite sections when helpful.\n\n${joined}` })
+      messages.push({ role: 'system', content: `DOCUMENT ANALYSIS INSTRUCTIONS:
+Use the following document sections to solve problems step-by-step. When the user asks questions about problems in these documents:
+
+1. Extract the specific problem or question from the document
+2. Identify what type of problem it is (math, science, economics, etc.)
+3. Solve the problem completely with all steps shown
+4. Don't just explain how to solve it - actually solve it
+5. Use the document data/numbers in your solution
+6. Show your work clearly
+7. Provide the final answer
+
+Document sections:
+${joined}
+
+Remember: Solve the problems, don't just explain how to solve them.` })
     }
 
     // Add recent conversation history (last 10 messages to manage context)
@@ -450,34 +464,224 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Build personalized system prompt
+ * Detect subject area from user message
  */
-function buildSystemPrompt(userRecord: any, userContent: any[], hasImages: boolean = false): string {
+function detectSubject(message: string): string {
+  const messageLower = message.toLowerCase()
+  
+  // Math indicators
+  if (messageLower.match(/\b(calculate|solve|equation|formula|algebra|calculus|geometry|trigonometry|statistics|probability|derivative|integral|matrix|vector|function|graph|plot)\b/)) {
+    return 'mathematics'
+  }
+  
+  // Science indicators
+  if (messageLower.match(/\b(physics|chemistry|biology|experiment|reaction|molecule|atom|cell|organism|evolution|photosynthesis|respiration|force|energy|motion|gravity|electricity|magnetism)\b/)) {
+    return 'science'
+  }
+  
+  // Economics indicators
+  if (messageLower.match(/\b(economics|economy|supply|demand|market|price|cost|revenue|profit|inflation|gdp|unemployment|fiscal|monetary|policy|trade|export|import|budget|investment)\b/)) {
+    return 'economics'
+  }
+  
+  // Coding indicators
+  if (messageLower.match(/\b(code|coding|programming|function|variable|loop|array|object|class|method|debug|error|syntax|algorithm|data structure|python|javascript|java|c\+\+|html|css|sql|api|bug|fix|exception|traceback|runtime error|compile error|undefined|null|typeerror|referenceerror|syntaxerror)\b/)) {
+    return 'programming'
+  }
+  
+  // Literature indicators
+  if (messageLower.match(/\b(poem|poetry|novel|story|character|theme|symbol|metaphor|literature|author|book|chapter|plot|setting|analysis|essay|writing)\b/)) {
+    return 'literature'
+  }
+  
+  // History indicators
+  if (messageLower.match(/\b(history|historical|war|battle|revolution|empire|ancient|medieval|renaissance|world war|civil war|timeline|chronology|historical event)\b/)) {
+    return 'history'
+  }
+  
+  return 'general'
+}
+
+/**
+ * Detect if the message contains code or coding problems
+ */
+function detectCodingProblem(message: string): boolean {
+  const messageLower = message.toLowerCase()
+  
+  // Check for code blocks
+  if (messageLower.includes('```') || messageLower.includes('`')) {
+    return true
+  }
+  
+  // Check for common error messages
+  const errorPatterns = [
+    /error:/i,
+    /exception:/i,
+    /traceback/i,
+    /undefined/i,
+    /null/i,
+    /typeerror/i,
+    /referenceerror/i,
+    /syntaxerror/i,
+    /runtime error/i,
+    /compile error/i,
+    /cannot read property/i,
+    /is not defined/i,
+    /unexpected token/i,
+    /unexpected end of input/i
+  ]
+  
+  return errorPatterns.some(pattern => pattern.test(message))
+}
+
+/**
+ * Get subject-specific instructions
+ */
+function getSubjectSpecificInstructions(subject: string): string {
+  switch (subject) {
+    case 'mathematics':
+      return `MATHEMATICS SPECIALIZATION:
+- Show all steps clearly with proper mathematical notation
+- Use LaTeX formatting for equations: $inline$ and $$block$$
+- Explain the reasoning behind each step
+- Check your work and verify solutions
+- Provide alternative methods when applicable
+- Use appropriate units and significant figures`
+    
+    case 'science':
+      return `SCIENCE SPECIALIZATION:
+- Use proper scientific notation and units
+- Show calculations with clear formulas
+- Explain scientific principles and concepts
+- Include relevant diagrams or visualizations when helpful
+- Reference scientific laws and theories
+- Consider experimental design and methodology`
+    
+    case 'economics':
+      return `ECONOMICS SPECIALIZATION:
+- Use economic models and graphs when appropriate
+- Show calculations for economic indicators
+- Explain economic concepts and theories
+- Consider both micro and macro perspectives
+- Use proper economic terminology
+- Analyze cause-and-effect relationships`
+    
+    case 'programming':
+      return `PROGRAMMING SPECIALIZATION:
+- Provide working, tested code solutions
+- Explain the logic and algorithm clearly
+- Use proper code formatting and comments
+- Debug errors systematically and explain fixes
+- Consider edge cases and error handling
+- Suggest best practices and optimizations
+- When debugging: identify the error type, explain why it occurs, show the fix, and test the solution
+- For code errors: provide the corrected code with explanations of what was wrong and how it's fixed
+- Always test your solutions and verify they work`
+    
+    case 'literature':
+      return `LITERATURE SPECIALIZATION:
+- Provide detailed textual analysis
+- Support arguments with specific examples
+- Explain literary devices and techniques
+- Consider themes, symbols, and motifs
+- Analyze character development and relationships
+- Connect to broader literary contexts`
+    
+    case 'history':
+      return `HISTORY SPECIALIZATION:
+- Provide accurate historical context
+- Use primary and secondary sources when possible
+- Explain cause-and-effect relationships
+- Consider multiple perspectives
+- Use proper historical terminology
+- Connect events to broader historical themes`
+    
+    default:
+      return `GENERAL ACADEMIC APPROACH:
+- Use clear, logical structure
+- Support arguments with evidence
+- Explain concepts thoroughly
+- Use appropriate academic language
+- Consider multiple perspectives
+- Provide examples and illustrations`
+  }
+}
+
+/**
+ * Build personalized system prompt with enhanced problem-solving capabilities
+ */
+function buildSystemPrompt(userRecord: any, userContent: any[], hasImages: boolean = false, userMessage?: string): string {
   const userName = userRecord.full_name || 'User'
   const hasDocuments = userContent && userContent.length > 0
 
-  let prompt = `You are a helpful AI assistant talking to ${userName}. `
+  // Detect subject area if user message is provided
+  const subject = userMessage ? detectSubject(userMessage) : 'general'
+  const isCodingProblem = userMessage ? detectCodingProblem(userMessage) : false
+  const subjectInstructions = getSubjectSpecificInstructions(subject)
+
+  let prompt = `You are an expert AI tutor and problem-solving assistant talking to ${userName}. `
+
+  // Enhanced problem-solving instructions
+  prompt += `CORE CAPABILITIES:
+- Solve problems step-by-step with detailed explanations
+- Work across ALL academic subjects (math, science, economics, coding, literature, etc.)
+- Provide complete solutions, not just explanations of how to solve
+- Debug code errors and provide working solutions
+- Analyze documents and solve problems within them
+- Break down complex problems into manageable steps
+
+PROBLEM-SOLVING APPROACH:
+1. Understand the problem completely
+2. Identify the subject area and appropriate methods
+3. Show your work step-by-step
+4. Provide the complete solution
+5. Explain key concepts and reasoning
+6. Offer additional practice or related problems when helpful
+
+${subjectInstructions}
+
+${isCodingProblem ? `
+CODING ERROR DETECTED - SPECIAL INSTRUCTIONS:
+- This appears to be a coding problem or error
+- Identify the specific error type and cause
+- Provide the corrected code with clear explanations
+- Show before/after code comparison
+- Explain why the error occurred and how the fix resolves it
+- Test the solution to ensure it works
+- Provide best practices to prevent similar errors
+` : ''}
+
+`
 
   if (hasImages) {
-    prompt += `IMPORTANT: You have vision capabilities and can see and analyze images. `
-    prompt += `${userName} has attached ${userContent.filter((doc: any) => doc.isImage).length} image(s) to this conversation. `
-    prompt += `You can see these images directly and should analyze them when answering questions about them. `
-    prompt += `Describe what you see in the images clearly and answer questions about their content. `
+    prompt += `VISION CAPABILITIES: You can see and analyze images. `
+    prompt += `${userName} has attached ${userContent.filter((doc: any) => doc.isImage).length} image(s). `
+    prompt += `Analyze images thoroughly and solve problems shown in them. `
+    prompt += `For charts, graphs, or diagrams, extract data and solve related problems. `
   }
 
   if (hasDocuments) {
     const textDocs = userContent.filter((doc: any) => !doc.isImage)
     if (textDocs.length > 0) {
-      prompt += `You also have access to ${textDocs.length} text document(s) that ${userName} has uploaded. `
-      prompt += `When answering questions, reference these documents when relevant and helpful. `
+      prompt += `DOCUMENT ANALYSIS: You have access to ${textDocs.length} document(s). `
+      prompt += `When solving problems from documents, extract the relevant information and provide complete solutions. `
+      prompt += `Don't just explain how to solve - actually solve the problems step-by-step. `
     }
     if (!hasImages) {
-      prompt += `If the information isn't in their documents, provide a general helpful response. `
+      prompt += `If information isn't in the documents, use your knowledge to provide complete solutions. `
     }
   }
 
-  prompt += `Be conversational, friendly, and helpful. Keep responses clear and engaging. `
-  prompt += `Remember the conversation context and build upon previous exchanges naturally.`
+  prompt += `
+COMMUNICATION STYLE:
+- Be encouraging and supportive
+- Use clear, step-by-step explanations
+- Show your work and reasoning
+- Provide complete solutions, not just hints
+- Use appropriate notation for each subject (math symbols, code formatting, etc.)
+- Be conversational but thorough
+
+Remember: Your goal is to help ${userName} learn by providing complete, step-by-step solutions to their problems.`
 
   return prompt
 }

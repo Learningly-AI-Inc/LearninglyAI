@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Sparkles, CheckCircle, X, RefreshCw, Eraser, Copy, AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import MarkdownRenderer from "@/components/ui/markdown-renderer";
 import { Badge } from "@/components/ui/badge";
@@ -160,22 +161,56 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                 <div className="flex flex-col gap-4">
                   <div className="bg-muted rounded-lg p-4 shadow-sm border">
                     <h4 className="text-sm font-semibold text-foreground mb-2">Suggestion</h4>
-                    <div className="max-h-[400px] overflow-y-auto">
-                      <MarkdownRenderer
-                        content={suggestedText}
-                        className="prose prose-sm max-w-none"
-                      />
+                    <div className="max-h-[500px] overflow-y-auto">
+                      <div className="prose prose-sm max-w-none text-foreground">
+                        {suggestedText.split(/\n\s*\n/).map((paragraph, index) => (
+                          <p key={index} className="mb-4 leading-relaxed last:mb-0">
+                            {paragraph.trim()}
+                          </p>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={() => onTryAgain?.()}
-                      className="flex-1"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" /> Try Again
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => onTryAgain?.()}
+                            className="flex-1"
+                            disabled={isProcessing}
+                          >
+                            <RefreshCw className="h-4 w-4 mr-2" /> 
+                            {isProcessing ? 'Reparaphrasing...' : 'Reparaphrase'}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Generate a new paraphrase with different wording</p>
+                          <p className="text-xs text-muted-foreground mt-1">Ctrl+Shift+R</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onTryAgain?.()}
+                            disabled={isProcessing}
+                            className="px-3"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Quick reparaphrase</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
               ) : (
