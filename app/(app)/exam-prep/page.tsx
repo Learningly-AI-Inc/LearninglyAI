@@ -136,11 +136,18 @@ export default function ExamPrepPage() {
       const data = await res.json() as { success: boolean; exam: GeneratedExam }
 
       if (mode === 'pdf') {
-        // Generate PDF and show in modal with preview
-        const blob = await generatePDF(data.exam)
-        setPdfBlob(blob)
+        // OPTIMIZED: Generate PDF asynchronously to avoid blocking UI
         setGeneratedExamData(data.exam)
         setShowPdfModal(true)
+        setPdfBlob(null) // Show loading state
+        
+        // Generate PDF in background
+        generatePDF(data.exam).then(blob => {
+          setPdfBlob(blob)
+        }).catch(error => {
+          console.error('PDF generation failed:', error)
+          setShowPdfModal(false)
+        })
       } else {
         // Online quiz mode - save to localStorage and redirect
         localStorage.setItem('generatedExam', JSON.stringify(data.exam))
