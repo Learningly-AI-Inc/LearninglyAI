@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { draftStorageService } from '@/lib/draft-storage';
 
 export async function POST(req: NextRequest) {
-  let draftId: string = '';
-  let newName: string = '';
-  let userId: string = '';
+  let draftId: string | undefined;
+  let newName: string | undefined;
+  let userId: string | undefined;
   
   try {
     const body = await req.json();
-    ({ draftId, newName, userId } = body);
+    const { draftId: extractedDraftId, newName: extractedNewName, userId: extractedUserId } = body;
+    draftId = extractedDraftId;
+    newName = extractedNewName;
+    userId = extractedUserId;
     
     console.log('Draft rename request:', { draftId, newName, userId });
     
@@ -111,6 +114,11 @@ export async function POST(req: NextRequest) {
     // If it's a storage issue, try to create a new draft with the new name
     try {
       console.log('Attempting fallback: creating new draft with new name');
+      
+      if (!draftId || !newName || !userId) {
+        throw new Error('Required parameters not available for fallback');
+      }
+      
       const fallbackDraft = {
         id: draftId,
         userId,

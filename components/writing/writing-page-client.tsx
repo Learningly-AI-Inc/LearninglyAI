@@ -90,6 +90,7 @@ const WritingPageClient = () => {
   const handleParaphrase = async (sourceText?: string) => {
     // Use provided source text (e.g., current suggestion) or entire editor content
     let textToParaphrase = sourceText ?? editorContent;
+    const isReparaphrase = !!sourceText && sourceText === suggestedText;
 
     // Ensure textToParaphrase is a string
     if (typeof textToParaphrase !== 'string') {
@@ -117,7 +118,7 @@ const WritingPageClient = () => {
       return;
     }
 
-    // Auto-switch to paraphrase tab
+    // Auto-switch to paraphrase tabå
     setActiveTab("paraphrase");
     setIsProcessing(true);
     setProcessingAction('paraphrase');
@@ -147,7 +148,10 @@ const WritingPageClient = () => {
       setLastProcessedFeature("Paraphrase");
       setIsProcessing(false);
       setProcessingAction(null);
-      toast.success(`Entire content paraphrased successfully in ${tone} tone!`);
+      toast.success(isReparaphrase 
+        ? `Content reparaphrased successfully in ${tone} tone!` 
+        : `Entire content paraphrased successfully in ${tone} tone!`
+      );
     } catch (error) {
       console.error("Error during paraphrasing:", error);
       setIsProcessing(false);
@@ -1367,6 +1371,22 @@ const WritingPageClient = () => {
 
     return () => clearInterval(intervalId);
   }, [editorContent, editorRawContent, tone, currentDraftId]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + Shift + R for reparaphrase
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'R') {
+        e.preventDefault();
+        if (suggestedText && !isProcessing) {
+          handleParaphrase(suggestedText);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [suggestedText, isProcessing]);
 
   // Save before page unload
   useEffect(() => {
