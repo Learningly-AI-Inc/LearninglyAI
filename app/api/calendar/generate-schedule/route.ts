@@ -67,31 +67,32 @@ export async function POST(request: NextRequest) {
       // Fallback: Calculate semester dates based on semester name
       const currentYear = new Date().getFullYear()
       
+      // Extract year from semester name (support 20xx format)
+      const yearMatch = semester_name.match(/\b(20\d{2})\b/)
+      const extractedYear = yearMatch ? parseInt(yearMatch[0]) : currentYear
+      
       if (semester_name.toLowerCase().includes('spring')) {
-        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
-        semesterStartDate = new Date(`${year}-01-15`)
-        semesterEndDate = new Date(`${year}-05-15`)
+        semesterStartDate = new Date(`${extractedYear}-01-15`)
+        semesterEndDate = new Date(`${extractedYear}-05-15`)
       } else if (semester_name.toLowerCase().includes('fall')) {
-        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
-        semesterStartDate = new Date(`${year}-08-26`)
-        semesterEndDate = new Date(`${year}-12-13`)
+        semesterStartDate = new Date(`${extractedYear}-08-26`)
+        semesterEndDate = new Date(`${extractedYear}-12-13`)
       } else if (semester_name.toLowerCase().includes('summer')) {
-        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
-        semesterStartDate = new Date(`${year}-05-15`)
-        semesterEndDate = new Date(`${year}-08-15`)
+        semesterStartDate = new Date(`${extractedYear}-05-15`)
+        semesterEndDate = new Date(`${extractedYear}-08-15`)
       } else {
-        // Default to current semester
+        // Default to current semester based on current date
         const now = new Date()
         const month = now.getMonth() + 1
         if (month >= 1 && month <= 5) {
-          semesterStartDate = new Date(`${currentYear}-01-15`)
-          semesterEndDate = new Date(`${currentYear}-05-15`)
+          semesterStartDate = new Date(`${extractedYear}-01-15`)
+          semesterEndDate = new Date(`${extractedYear}-05-15`)
         } else if (month >= 8 && month <= 12) {
-          semesterStartDate = new Date(`${currentYear}-08-26`)
-          semesterEndDate = new Date(`${currentYear}-12-13`)
+          semesterStartDate = new Date(`${extractedYear}-08-26`)
+          semesterEndDate = new Date(`${extractedYear}-12-13`)
         } else {
-          semesterStartDate = new Date(`${currentYear}-05-15`)
-          semesterEndDate = new Date(`${currentYear}-08-15`)
+          semesterStartDate = new Date(`${extractedYear}-05-15`)
+          semesterEndDate = new Date(`${extractedYear}-08-15`)
         }
       }
     }
@@ -173,38 +174,33 @@ export async function POST(request: NextRequest) {
             return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
           }
 
-          // Generate recurring events for the semester
-          while (startDate <= endDate) {
-            const eventDate = new Date(startDate)
-            const startTime = new Date(eventDate)
-            const [hours, minutes] = schedule.start_time.split(':')
-            startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0)
+          // Create a single recurring event instead of multiple individual events
+          const eventDate = new Date(startDate)
+          const startTime = new Date(eventDate)
+          const [hours, minutes] = schedule.start_time.split(':')
+          startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0)
 
-            const endTime = new Date(eventDate)
-            const [endHours, endMinutes] = schedule.end_time.split(':')
-            endTime.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0)
+          const endTime = new Date(eventDate)
+          const [endHours, endMinutes] = schedule.end_time.split(':')
+          endTime.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0)
 
-            events.push({
-              title: course.name,
-              description: `${course.code} - ${schedule.type}`,
-              start_time: formatLocalISO(startTime),
-              end_time: formatLocalISO(endTime),
-              all_day: false,
-              color: getEventColor(schedule.type),
-              location: schedule.location,
-              event_type: schedule.type === 'lab' ? 'study' : 'class',
-              course_code: course.code,
-              recurring_pattern: {
-                type: 'weekly',
-                interval: 1,
-                days_of_week: [schedule.day_of_week],
-                end_date: semesterEndDate.toISOString()
-              }
-            })
-
-            // Move to next week
-            startDate.setDate(startDate.getDate() + 7)
-          }
+          events.push({
+            title: course.name,
+            description: `${course.code} - ${schedule.type}`,
+            start_time: formatLocalISO(startTime),
+            end_time: formatLocalISO(endTime),
+            all_day: false,
+            color: getEventColor(schedule.type),
+            location: schedule.location,
+            event_type: schedule.type === 'lab' ? 'study' : 'class',
+            course_code: course.code,
+            recurring_pattern: {
+              type: 'weekly',
+              interval: 1,
+              days_of_week: [schedule.day_of_week],
+              end_date: semesterEndDate.toISOString()
+            }
+          })
         })
       }
     })
