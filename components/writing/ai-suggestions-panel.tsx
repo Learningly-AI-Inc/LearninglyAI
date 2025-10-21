@@ -160,7 +160,28 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
               ) : suggestedText ? (
                 <div className="flex flex-col gap-4">
                   <div className="bg-muted rounded-lg p-4 shadow-sm border">
-                    <h4 className="text-sm font-semibold text-foreground mb-2">Suggestion</h4>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-foreground">Suggestion</h4>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onTryAgain?.()}
+                              disabled={isProcessing}
+                              className="h-7 px-2 text-xs"
+                            >
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Re-paraphrase
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Generate a new paraphrase</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                     <div className="max-h-[500px] overflow-y-auto">
                       <div className="prose prose-sm max-w-none text-foreground">
                         {suggestedText.split(/\n\s*\n/).map((paragraph, index) => (
@@ -183,7 +204,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                             disabled={isProcessing}
                           >
                             <RefreshCw className="h-4 w-4 mr-2" /> 
-                            {isProcessing ? 'Reparaphrasing...' : 'Reparaphrase'}
+                            {isProcessing ? 'Reparaphrasing...' : 'Re-paraphrase'}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -207,7 +228,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Quick reparaphrase</p>
+                          <p>Quick re-paraphrase</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
