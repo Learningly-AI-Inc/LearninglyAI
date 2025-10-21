@@ -18,14 +18,28 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
+//commented out for now
+//commented out for now
+
+  ``
 
 export function SubscriptionStatus() {
   const { subscription, loading, createPortalSession, cancelSubscription, refresh } = useSubscription()
   const [isLoading, setIsLoading] = useState(false)
   const [isCanceling, setIsCanceling] = useState(false)
 
-  const handleManageSubscription = () => {
-    window.location.href = '/pricing'
+  const handleManageSubscription = async () => {
+    setIsLoading(true)
+    try {
+      const portalUrl = await createPortalSession()
+      if (portalUrl) {
+        window.location.href = portalUrl
+      }
+    } catch (error) {
+      console.error('Error opening customer portal:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleRefresh = async () => {
@@ -161,14 +175,15 @@ export function SubscriptionStatus() {
         <div className="pt-4 border-t space-y-3">
           <Button
             onClick={handleManageSubscription}
+            disabled={isLoading}
             className="w-full"
             variant="outline"
           >
             <Settings className="h-4 w-4 mr-2" />
-            Manage Subscription
+            {isLoading ? 'Loading...' : 'Manage Subscription'}
           </Button>
 
-          {subscription.status === 'active' && !subscription.cancel_at_period_end && subscription.current_period_end && (
+          {subscription.status === 'active' && !subscription.cancel_at_period_end && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
