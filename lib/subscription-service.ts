@@ -351,64 +351,6 @@ export class SubscriptionService {
   }
 
   /**
-   * Cancel a subscription
-   */
-  async cancelSubscription(
-    userId: string,
-    subscriptionId: string,
-    immediately: boolean = false
-  ): Promise<void> {
-    try {
-      ensureStripeConfig()
-
-      if (immediately) {
-        // Cancel immediately - ends subscription right away
-        await stripe.subscriptions.cancel(subscriptionId)
-      } else {
-        // Cancel at period end - user keeps access until billing period ends
-        await stripe.subscriptions.update(subscriptionId, {
-          cancel_at_period_end: true,
-        })
-      }
-
-      // Update local database to reflect cancellation status
-      const supabase = await this.getAdminSupabase()
-
-      if (immediately) {
-        // Update to canceled status immediately
-        const { error } = await supabase
-          .from('user_data')
-          .update({
-            subscription_status: 'canceled',
-            cancel_at_period_end: false,
-            plan_name: 'Free',
-            plan_price_cents: 0,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', userId)
-
-        if (error) throw error
-      } else {
-        // Mark for cancellation at period end
-        const { error } = await supabase
-          .from('user_data')
-          .update({
-            cancel_at_period_end: true,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', userId)
-
-        if (error) throw error
-      }
-
-      console.log(`Subscription ${immediately ? 'canceled immediately' : 'scheduled for cancellation'} for user ${userId}`)
-    } catch (error) {
-      console.error('Error canceling subscription:', error)
-      throw new Error('Failed to cancel subscription')
-    }
-  }
-
-  /**
    * Get Stripe customer ID for user
    */
   private async getStripeCustomerId(userId: string): Promise<string | null> {

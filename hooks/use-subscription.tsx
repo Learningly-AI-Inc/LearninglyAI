@@ -200,32 +200,6 @@ export function useSubscription() {
     }
   }
 
-  const cancelSubscription = async (immediately: boolean = false): Promise<boolean> => {
-    if (!user) return false
-
-    try {
-      const response = await fetch('/api/subscriptions/cancel', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ immediately }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to cancel subscription')
-      }
-
-      // Refresh subscription data after cancellation
-      await fetchSubscription()
-      return true
-    } catch (err) {
-      console.error('Error canceling subscription:', err)
-      throw err
-    }
-  }
-
   const canUseFeature = (feature: keyof SubscriptionPlan['features'], requestedAmount: number = 1): boolean => {
     if (!subscription) return false
 
@@ -260,7 +234,6 @@ export function useSubscription() {
     incrementUsage,
     createCheckoutSession,
     createPortalSession,
-    cancelSubscription,
     canUseFeature,
     getUsagePercentage,
   }
