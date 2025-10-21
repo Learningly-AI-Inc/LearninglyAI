@@ -14,7 +14,6 @@ import { useAuthContext } from "@/components/auth/auth-provider"
 import { getUserMetadata, getAuthProviderFromUser } from "@/types/auth"
 import { getSupabaseClient } from "@/lib/supabase-client"
 import { toast } from "sonner"
-import { SubscriptionStatus } from "@/components/subscription/subscription-status"
 
 const ProfilePage = () => {
   // ALL HOOKS MUST BE CALLED FIRST - NO EXCEPTIONS
@@ -93,9 +92,6 @@ const ProfilePage = () => {
       />
 
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Subscription Status Card */}
-        <SubscriptionStatus />
-
         {/* Main Profile Card */}
         <Card className="border-border dark:bg-gray-800 dark:border-gray-700">
           <CardHeader className="flex flex-row items-center justify-between">

@@ -3,26 +3,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, CreditCard, Settings, AlertCircle, RefreshCw, XCircle } from 'lucide-react'
+import { Calendar, CreditCard, Settings, AlertCircle, RefreshCw } from 'lucide-react'
 import { useSubscription } from '@/hooks/use-subscription'
 import { useState } from 'react'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
-import { toast } from 'sonner'
 
 export function SubscriptionStatus() {
-  const { subscription, loading, createPortalSession, cancelSubscription, refresh } = useSubscription()
+  const { subscription, loading, createPortalSession, refresh } = useSubscription()
   const [isLoading, setIsLoading] = useState(false)
-  const [isCanceling, setIsCanceling] = useState(false)
 
   const handleManageSubscription = async () => {
     setIsLoading(true)
@@ -40,19 +27,6 @@ export function SubscriptionStatus() {
 
   const handleRefresh = async () => {
     await refresh()
-  }
-
-  const handleCancelSubscription = async () => {
-    setIsCanceling(true)
-    try {
-      await cancelSubscription(false) // Cancel at period end, not immediately
-      toast.success('Subscription will be canceled at the end of your billing period')
-    } catch (error) {
-      console.error('Error canceling subscription:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to cancel subscription')
-    } finally {
-      setIsCanceling(false)
-    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -178,44 +152,9 @@ export function SubscriptionStatus() {
             <Settings className="h-4 w-4 mr-2" />
             {isLoading ? 'Loading...' : 'Manage Subscription'}
           </Button>
-
-          {subscription.status === 'active' && !subscription.cancel_at_period_end && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  className="w-full"
-                  disabled={isCanceling}
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  {isCanceling ? 'Canceling...' : 'Cancel Subscription'}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Your subscription will be canceled at the end of your current billing period on{' '}
-                    <strong>{formatDate(subscription.current_period_end)}</strong>.
-                    You'll continue to have access to premium features until then.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleCancelSubscription}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    Cancel Subscription
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-
-          <Button
+          <Button 
             onClick={handleRefresh}
-            variant="ghost"
+            variant="ghost" 
             size="sm"
             className="w-full"
             disabled={loading}
