@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Moon, Sun, Monitor } from "lucide-react"
+import { Moon, Sun } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useTheme } from "@/components/theme-provider"
 
@@ -18,6 +18,19 @@ export function ThemeToggle() {
     }
   }
 
+  const SystemIcon = () => (
+    <div className="relative h-[1.2rem] w-[1.2rem]">
+      {/* Left half - Sun (Light) */}
+      <div className="absolute left-0 top-0 h-full w-1/2 overflow-hidden">
+        <Sun className="h-[1.2rem] w-[1.2rem]" />
+      </div>
+      {/* Right half - Moon (Dark) */}
+      <div className="absolute right-0 top-0 h-full w-1/2 overflow-hidden">
+        <Moon className="h-[1.2rem] w-[1.2rem]" />
+      </div>
+    </div>
+  )
+
   const getIcon = () => {
     switch (theme) {
       case "light":
@@ -25,7 +38,7 @@ export function ThemeToggle() {
       case "dark":
         return <Moon className="h-[1.2rem] w-[1.2rem]" />
       case "system":
-        return <Monitor className="h-[1.2rem] w-[1.2rem]" />
+        return <SystemIcon />
       default:
         return <Sun className="h-[1.2rem] w-[1.2rem]" />
     }
