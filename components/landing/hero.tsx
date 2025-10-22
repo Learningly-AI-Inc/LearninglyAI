@@ -60,7 +60,7 @@ export function LandingHero() {
               size="lg"
               className="rounded-full bg-white font-semibold text-black hover:bg-gray-200"
             >
-              <Link href="/dashboard">Start Learning Now</Link>
+              <Link href="/account">Start Learning Now</Link>
             </Button>
           </motion.div>
         </motion.div>

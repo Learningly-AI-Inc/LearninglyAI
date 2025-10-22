@@ -193,7 +193,7 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
       // Calculate default semester dates based on semester name
       const currentYear = new Date().getFullYear()
       // Match any 4-digit year (more flexible than just 202x)
-      const yearMatch = semester_name.match(/\b(20\d{2}|19\d{2})\b/)
+      const yearMatch = semester_name.match(/\b(20\d{2})\b/)
       const extractedYear = yearMatch ? parseInt(yearMatch[0]) : currentYear
 
       if (semester_name.toLowerCase().includes('spring')) {
@@ -206,12 +206,19 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
         setSemesterStartDate(`${extractedYear}-05-15`)
         setSemesterEndDate(`${extractedYear}-08-15`)
       } else {
-        // Default to current date + 4 months
-        const start = new Date()
-        setSemesterStartDate(start.toISOString().split('T')[0])
-        const end = new Date(start)
-        end.setMonth(end.getMonth() + 4)
-        setSemesterEndDate(end.toISOString().split('T')[0])
+        // Default to current semester based on current date
+        const now = new Date()
+        const month = now.getMonth() + 1
+        if (month >= 1 && month <= 5) {
+          setSemesterStartDate(`${extractedYear}-01-15`)
+          setSemesterEndDate(`${extractedYear}-05-15`)
+        } else if (month >= 8 && month <= 12) {
+          setSemesterStartDate(`${extractedYear}-08-26`)
+          setSemesterEndDate(`${extractedYear}-12-13`)
+        } else {
+          setSemesterStartDate(`${extractedYear}-05-15`)
+          setSemesterEndDate(`${extractedYear}-08-15`)
+        }
       }
       
       setProcessingStatus('configuring')
@@ -280,6 +287,18 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
           recurring_pattern: event.recurring_pattern
         }
       }))
+
+      // First, delete any existing calendar events for this user to prevent duplicates
+      const { error: deleteError } = await supabase
+        .from('generated_content')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('content_type', 'calendar_event')
+
+      if (deleteError) {
+        console.warn('Warning: Could not delete existing events:', deleteError.message)
+        // Continue anyway - we'll just insert new events
+      }
 
       const { data: events, error: eventsError } = await supabase
         .from('generated_content')
