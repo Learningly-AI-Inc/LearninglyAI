@@ -229,7 +229,26 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
     } catch (error) {
       console.error('Error processing syllabus:', error)
       setProcessingStatus('error')
-      showError(error instanceof Error ? error.message : 'An unexpected error occurred')
+      
+      // Provide user-friendly error messages for common issues
+      let errorMessage = 'An unexpected error occurred'
+      if (error instanceof Error) {
+        if (error.message.includes('429 Request too large') || error.message.includes('token limit')) {
+          errorMessage = 'The syllabus file is too large to process. Please try uploading a smaller file or split it into multiple documents.'
+        } else if (error.message.includes('Failed to extract sufficient text')) {
+          errorMessage = 'Could not extract text from the document. The file may be an image-based PDF or corrupted. Please try a different file.'
+        } else if (error.message.includes('Could not find any course information')) {
+          errorMessage = 'No course information found in the document. Please ensure the file contains course details and schedules.'
+        } else if (error.message.includes('Authentication error')) {
+          errorMessage = 'Please log in again to upload syllabus files.'
+        } else if (error.message.includes('File too large')) {
+          errorMessage = 'File is too large. Please upload a file smaller than 10MB.'
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
+      showError(errorMessage)
     } finally {
       setIsUploading(false)
     }
@@ -390,8 +409,11 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
                 <p className="text-muted-foreground">
                   Upload a PDF or Word document to automatically generate your semester schedule
                 </p>
-                <div className="text-sm text-muted-foreground">
-                  Supported formats: PDF, DOC, DOCX (Max 10MB)
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <div>Supported formats: PDF, DOC, DOCX (Max 10MB)</div>
+                  <div className="text-xs">
+                    💡 For best results, use files under 5MB. Large files may take longer to process.
+                  </div>
                 </div>
               </div>
               
