@@ -70,7 +70,7 @@ export function UserMenu() {
         toast.error('Error signing out')
       } else {
         toast.success('Signed out successfully')
-        router.push('/')
+        router.push('/account')
       }
     } catch (error) {
       toast.error('An unexpected error occurred')
