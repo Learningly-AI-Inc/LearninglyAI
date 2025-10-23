@@ -312,16 +312,12 @@ async function extractTextFromPDF(fileUrl: string): Promise<string> {
     }
     
     const contentType = response.headers.get('content-type') || ''
+    const buffer = await response.arrayBuffer()
     
     if (contentType.includes('application/pdf')) {
-      // For PDF files, use pdf-parse to extract text
-      const pdfBuffer = await response.arrayBuffer()
-      const buffer = Buffer.from(pdfBuffer)
-      
+      // For PDF files, use Adobe PDF Services or fallback method
       try {
-        // Use a simpler approach for PDF text extraction
-        // Convert PDF buffer to text using a basic method
-        const extractedText = await extractTextFromPDFBuffer(buffer)
+        const extractedText = await extractTextFromPDFBuffer(Buffer.from(buffer))
         
         if (!extractedText || extractedText.trim().length < 50) {
           throw new Error('PDF text extraction yielded insufficient content')
@@ -333,9 +329,27 @@ async function extractTextFromPDF(fileUrl: string): Promise<string> {
         console.error('PDF parsing failed:', pdfError)
         throw new Error(`Failed to parse PDF: ${pdfError}`)
       }
+    } else if (contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document') || 
+               contentType.includes('application/msword')) {
+      // For DOCX/DOC files, use mammoth to extract text
+      try {
+        const mammoth = await import('mammoth')
+        const result = await mammoth.extractRawText({ buffer: Buffer.from(buffer) })
+        const extractedText = result.value
+        
+        if (!extractedText || extractedText.trim().length < 10) {
+          throw new Error('DOCX text extraction yielded insufficient content')
+        }
+        
+        console.log('Successfully extracted text from DOCX/DOC, length:', extractedText.length)
+        return extractedText
+      } catch (docxError) {
+        console.error('DOCX parsing failed:', docxError)
+        throw new Error(`Failed to parse DOCX/DOC: ${docxError}`)
+      }
     } else {
-      // For non-PDF files (like Word docs, text files), read as text
-      const text = await response.text()
+      // For other files (like text files), read as text
+      const text = new TextDecoder().decode(buffer)
       if (!text || text.trim().length < 10) {
         throw new Error('File appears to be empty or unreadable')
       }
@@ -578,8 +592,9 @@ CRITICAL RULES:
 1. ONLY extract information EXPLICITLY stated in the document
 2. DO NOT make up course names, codes, or details
 3. If information is missing, use null or empty values
-4. Find RECURRING CLASS MEETING TIMES (weekly schedule, not course topics)
-5. Extract ALL specific class session dates from Course Schedule sections
+4. Find ONLY LECTURE MEETING TIMES (weekly schedule, not labs, tutorials, or other sessions)
+5. Extract ONLY LECTURE session dates from Course Schedule sections
+6. IGNORE exams, assignments, midterms, finals, labs, tutorials, seminars, or any non-lecture sessions
 
 JSON structure:
 {
@@ -615,11 +630,12 @@ JSON structure:
 }
 
 Guidelines:
-- Look for meeting times like "Mo/We 2:00 PM - 3:20 PM" or "MWF 9:00-10:30"
+- Look for LECTURE meeting times like "Mo/We 2:00 PM - 3:20 PM" or "MWF 9:00-10:30"
 - Convert days: M/Mo/Mon=1, T/Tu/Tue=2, W/We/Wed=3, Th/Thu/R=4, F/Fri=5, Sa/Sat=6, Su/Sun=0
 - Convert times to 24-hour format (e.g., "14:00" for 2:00 PM)
-- Extract ALL dates from Course Schedule sections
-- Skip "No class" entries
+- Extract ONLY LECTURE dates from Course Schedule sections
+- Skip "No class" entries, exams, assignments, labs, tutorials, seminars
+- Set type to "lecture" for all class meetings
 - Return ONLY the JSON object, no explanations
 
 Syllabus text:
@@ -632,7 +648,7 @@ ${text}`
       messages: [
         {
           role: "system",
-          content: "You are a JSON parser specialized in extracting structured data from academic syllabi. CRITICAL: You must ONLY extract information that is EXPLICITLY present in the document. DO NOT make up course names, codes, or any other information. If information is not found, use null. Always return valid JSON only. No markdown, no backticks, no explanations. You must extract the ACTUAL class meeting times, days, and locations from the document - never use placeholder or default values."
+          content: "You are a JSON parser specialized in extracting LECTURE information from academic syllabi. CRITICAL: You must ONLY extract LECTURE meeting times, days, and locations that are EXPLICITLY present in the document. DO NOT extract labs, tutorials, seminars, exams, assignments, or any non-lecture sessions. DO NOT make up course names, codes, or any other information. If information is not found, use null. Always return valid JSON only. No markdown, no backticks, no explanations. Focus ONLY on regular class lecture meetings."
         },
         {
           role: "user",
@@ -760,6 +776,8 @@ export async function POST(request: NextRequest) {
     // Step 1: Extract text from the PDF/syllabus
     const extractedText = await extractTextFromPDF(file_url)
     console.log('Extracted text length:', extractedText.length)
+    console.log('File type:', file_type)
+    console.log('First 500 characters of extracted text:', extractedText.substring(0, 500))
 
     // Step 2: Validate extracted text quality
     if (extractedText.length < 100) {
@@ -780,9 +798,10 @@ export async function POST(request: NextRequest) {
     // Step 4: Validate parsed data quality
     if (parsedData.courses.length === 0) {
       console.error('No courses extracted from syllabus')
+      console.log('Extracted text preview:', extractedText.substring(0, 1000))
       return NextResponse.json(
         {
-          error: 'Could not find any course information in the document. Please ensure the file contains course details.',
+          error: 'Could not find any course information in the document. Please ensure the file contains course details and schedules.',
           extracted_text_preview: extractedText.substring(0, 1000)
         },
         { status: 400 }

@@ -130,6 +130,12 @@ export async function POST(request: NextRequest) {
         console.log(`Using specific sessions for ${course.code}:`, course.specific_sessions.length, 'sessions')
 
         course.specific_sessions.forEach((session) => {
+          // Only include lecture sessions, filter out exams, assignments, etc.
+          const sessionType = session.type.toLowerCase()
+          if (sessionType !== 'lecture' && sessionType !== 'class') {
+            return // Skip non-lecture sessions
+          }
+
           // Parse date correctly to avoid timezone issues
           // session.date is in format "YYYY-MM-DD"
           const [year, month, day] = session.date.split('-').map(Number)
@@ -161,6 +167,12 @@ export async function POST(request: NextRequest) {
       } else {
         // Fall back to recurring events if no specific sessions
         course.schedule.forEach((schedule) => {
+          // Only include lecture sessions, filter out labs, tutorials, etc.
+          const scheduleType = schedule.type.toLowerCase()
+          if (scheduleType !== 'lecture' && scheduleType !== 'class') {
+            return // Skip non-lecture sessions
+          }
+
           const startDate = new Date(semesterStartDate)
           const endDate = new Date(semesterEndDate)
 
@@ -192,7 +204,7 @@ export async function POST(request: NextRequest) {
             all_day: false,
             color: getEventColor(schedule.type),
             location: schedule.location,
-            event_type: schedule.type === 'lab' ? 'study' : 'class',
+            event_type: 'class',
             course_code: course.code,
             recurring_pattern: {
               type: 'weekly',
@@ -205,80 +217,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Helper function to format dates without timezone conversion
-    const formatLocalISO = (date: Date) => {
-      const pad = (n: number) => n.toString().padStart(2, '0')
-      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-    }
-
-    // Add exam periods (midterm and final)
-    const midtermWeek = new Date(semesterStartDate)
-    midtermWeek.setDate(midtermWeek.getDate() + 42) // ~6 weeks into semester
-
-    const finalWeek = new Date(semesterEndDate)
-    finalWeek.setDate(finalWeek.getDate() - 7) // Week before finals
-
-    courses.forEach((course: Course) => {
-      // Midterm exam
-      const midtermDate = new Date(midtermWeek)
-      midtermDate.setDate(midtermDate.getDate() + (course.schedule[0]?.day_of_week || 1))
-      midtermDate.setHours(9, 0, 0, 0) // 9 AM
-
-      const midtermEnd = new Date(midtermDate)
-      midtermEnd.setHours(11, 0, 0, 0) // 11 AM
-
-      events.push({
-        title: `${course.name} - Midterm Exam`,
-        description: `Midterm exam for ${course.code}`,
-        start_time: formatLocalISO(midtermDate),
-        end_time: formatLocalISO(midtermEnd),
-        all_day: false,
-        color: '#EF4444',
-        location: course.schedule[0]?.location || 'TBD',
-        event_type: 'exam',
-        course_code: course.code
-      })
-
-      // Final exam
-      const finalDate = new Date(finalWeek)
-      finalDate.setDate(finalDate.getDate() + (course.schedule[0]?.day_of_week || 1))
-      finalDate.setHours(9, 0, 0, 0) // 9 AM
-
-      const finalEnd = new Date(finalDate)
-      finalEnd.setHours(11, 0, 0, 0) // 11 AM
-
-      events.push({
-        title: `${course.name} - Final Exam`,
-        description: `Final exam for ${course.code}`,
-        start_time: formatLocalISO(finalDate),
-        end_time: formatLocalISO(finalEnd),
-        all_day: false,
-        color: '#EF4444',
-        location: course.schedule[0]?.location || 'TBD',
-        event_type: 'exam',
-        course_code: course.code
-      })
-    })
-
-    // Add assignment due dates (example)
-    courses.forEach((course: Course) => {
-      for (let i = 1; i <= 5; i++) {
-        const assignmentDate = new Date(semesterStartDate)
-        assignmentDate.setDate(assignmentDate.getDate() + (i * 14)) // Every 2 weeks
-        assignmentDate.setHours(23, 0, 0, 0) // 11 PM
-
-        events.push({
-          title: `${course.name} - Assignment ${i}`,
-          description: `Assignment ${i} due for ${course.code}`,
-          start_time: formatLocalISO(assignmentDate),
-          end_time: formatLocalISO(assignmentDate),
-          all_day: false,
-          color: '#F59E0B',
-          event_type: 'assignment',
-          course_code: course.code
-        })
-      }
-    })
+    // Only generate lecture events - no exams, assignments, or other non-lecture events
 
     const scheduleData = {
       courses,
