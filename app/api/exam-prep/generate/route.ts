@@ -43,7 +43,7 @@ function detectSampleExamHeuristic(text: string): { isSample: boolean; score: nu
 async function fetchTextsForExamFiles(supabase: any, fileIds: string[], userId: string): Promise<string[]> {
   if (fileIds.length === 0) return []
   
-  // OPTIMIZED: Single query with better filtering
+  // OPTIMIZED: Single query with better filtering - handle missing text_length field
   const { data, error } = await supabase
     .from('documents')
     .select('id, extracted_text, file_path, file_type, original_filename, processing_status, text_length')
@@ -51,7 +51,6 @@ async function fetchTextsForExamFiles(supabase: any, fileIds: string[], userId: 
     .eq('user_id', userId)
     .eq('document_type', 'exam-prep')
     .not('extracted_text', 'is', null)
-    .gte('text_length', 50) // Only get documents with sufficient text
 
   console.log('🔍 fetchTextsForExamFiles query:', {
     fileIds,
@@ -63,13 +62,14 @@ async function fetchTextsForExamFiles(supabase: any, fileIds: string[], userId: 
       filename: d.original_filename,
       hasText: !!d.extracted_text,
       textLength: d.extracted_text?.length || 0,
+      textLengthField: d.text_length,
       processingStatus: d.processing_status
     }))
   })
 
   if (error) throw error
 
-  // OPTIMIZED: Return only documents with valid text, skip on-demand extraction
+  // OPTIMIZED: Return only documents with valid text, filter by actual text length
   const results = (data || [])
     .map((doc: any) => doc.extracted_text?.trim())
     .filter((text: string) => text && text.length >= 50)
@@ -202,7 +202,7 @@ async function attemptOnDemandExtraction(supabase: any, document: any, userId: s
 async function fetchTextsForReadingDocuments(supabase: any, docIds: string[], userId: string): Promise<string[]> {
   if (docIds.length === 0) return []
   
-  // OPTIMIZED: Filter for documents with sufficient text
+  // OPTIMIZED: Filter for documents with sufficient text - handle missing text_length field
   const { data, error } = await supabase
     .from('documents')
     .select('id, extracted_text, text_length')
@@ -210,7 +210,6 @@ async function fetchTextsForReadingDocuments(supabase: any, docIds: string[], us
     .eq('user_id', userId)
     .eq('document_type', 'reading')
     .not('extracted_text', 'is', null)
-    .gte('text_length', 50)
   
   if (error) throw error
   
@@ -281,7 +280,7 @@ async function saveCachedExam(supabase: any, userId: string, contentHash: string
 async function fetchSampleQuestions(supabase: any, sampleIds: string[], userId: string): Promise<string[]> {
   if (sampleIds.length === 0) return []
   
-  // OPTIMIZED: Filter for documents with sufficient text
+  // OPTIMIZED: Filter for documents with sufficient text - handle missing text_length field
   const { data, error } = await supabase
     .from('documents')
     .select('id, extracted_text, text_length')
@@ -289,7 +288,6 @@ async function fetchSampleQuestions(supabase: any, sampleIds: string[], userId: 
     .eq('user_id', userId)
     .eq('document_type', 'reading')
     .not('extracted_text', 'is', null)
-    .gte('text_length', 50)
   
   if (error) throw error
   
