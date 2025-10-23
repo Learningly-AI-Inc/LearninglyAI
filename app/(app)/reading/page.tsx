@@ -27,6 +27,7 @@ import { DocumentListModal } from "@/components/reading/document-list-modal"
 import { UsageProgressBar } from "@/components/ui/usage-progress-bar"
 import { UpgradeModal } from "@/components/ui/upgrade-modal"
 import { useUsageLimits } from "@/hooks/use-usage-limits"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 const ReadingPage = () => {
   const router = useRouter()
@@ -123,19 +124,22 @@ const ReadingPage = () => {
                 </h1>
               </div>
 
-              {/* Usage Limit Indicator */}
-              {!usageLoading && (
-                <div className="min-w-[280px]">
-                  <UsageProgressBar
-                    current={getCurrentUsage('documents_uploaded')}
-                    limit={getCurrentLimit('documents_uploaded')}
-                    label="Documents Uploaded"
-                    unit="docs"
-                    size="sm"
-                    showValues={true}
-                  />
-                </div>
-              )}
+              <div className="flex items-center gap-4">
+                <ThemeToggle />
+                {/* Usage Limit Indicator */}
+                {!usageLoading && (
+                  <div className="min-w-[280px]">
+                    <UsageProgressBar
+                      current={getCurrentUsage('documents_uploaded')}
+                      limit={getCurrentLimit('documents_uploaded')}
+                      label="Documents Uploaded"
+                      unit="docs"
+                      size="sm"
+                      showValues={true}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

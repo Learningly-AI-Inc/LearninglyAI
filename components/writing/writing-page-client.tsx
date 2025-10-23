@@ -15,6 +15,7 @@ import { openInGoogleDocs, downloadFile } from "@/components/writing/google-docs
 import { toast } from "sonner"
 import Toast from "@/components/ui/toast"
 import { ImprovedWritingPage } from "./improved/improved-writing-page"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 interface GrammarIssue {
   id: string;
@@ -1421,18 +1422,21 @@ const WritingPageClient = () => {
     <>
     <ImprovedWritingPage
       header={
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          {isAutoSaving ? (
-            <>
-              <div className="h-2 w-2 bg-yellow-500 rounded-full animate-pulse" />
-              <span>Auto-saving...</span>
-            </>
-          ) : lastAutoSave ? (
-            <>
-              <div className="h-2 w-2 bg-green-500 rounded-full" />
-              <span>Saved {lastAutoSave.toLocaleTimeString()}</span>
-            </>
-          ) : null}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {isAutoSaving ? (
+              <>
+                <div className="h-2 w-2 bg-yellow-500 rounded-full animate-pulse" />
+                <span>Auto-saving...</span>
+              </>
+            ) : lastAutoSave ? (
+              <>
+                <div className="h-2 w-2 bg-green-500 rounded-full" />
+                <span>Saved {lastAutoSave.toLocaleTimeString()}</span>
+              </>
+            ) : null}
+          </div>
+          <ThemeToggle />
         </div>
       }
       draftsManager={
