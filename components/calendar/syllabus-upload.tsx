@@ -239,6 +239,8 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
           errorMessage = 'Could not extract text from the document. The file may be an image-based PDF or corrupted. Please try a different file.'
         } else if (error.message.includes('Could not find any course information')) {
           errorMessage = 'No course information found in the document. Please ensure the file contains course details and schedules.'
+        } else if (error.message.includes('Failed to parse DOCX') || error.message.includes('Failed to parse DOC')) {
+          errorMessage = 'Could not read the Word document. Please try saving it as a PDF or ensure the file is not corrupted.'
         } else if (error.message.includes('Authentication error')) {
           errorMessage = 'Please log in again to upload syllabus files.'
         } else if (error.message.includes('File too large')) {
