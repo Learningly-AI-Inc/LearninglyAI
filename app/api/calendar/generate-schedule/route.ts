@@ -131,9 +131,15 @@ export async function POST(request: NextRequest) {
 
         course.specific_sessions.forEach((session) => {
           // Only include lecture sessions, filter out exams, assignments, etc.
-          const sessionType = session.type.toLowerCase()
+          const sessionType = session.type?.toLowerCase() || ''
           if (sessionType !== 'lecture' && sessionType !== 'class') {
             return // Skip non-lecture sessions
+          }
+
+          // Validate required fields
+          if (!session.date || !session.start_time || !session.end_time) {
+            console.warn('Skipping session with missing required fields:', session)
+            return
           }
 
           // Parse date correctly to avoid timezone issues
@@ -168,9 +174,15 @@ export async function POST(request: NextRequest) {
         // Fall back to recurring events if no specific sessions
         course.schedule.forEach((schedule) => {
           // Only include lecture sessions, filter out labs, tutorials, etc.
-          const scheduleType = schedule.type.toLowerCase()
+          const scheduleType = schedule.type?.toLowerCase() || ''
           if (scheduleType !== 'lecture' && scheduleType !== 'class') {
             return // Skip non-lecture sessions
+          }
+
+          // Validate required fields
+          if (!schedule.start_time || !schedule.end_time || schedule.day_of_week === undefined) {
+            console.warn('Skipping schedule with missing required fields:', schedule)
+            return
           }
 
           const startDate = new Date(semesterStartDate)

@@ -21,14 +21,19 @@ const nextConfig = {
         fs: false,
         path: false,
         crypto: false,
+        stream: false,
+        util: false,
       };
     }
 
-    // Suppress Adobe PDF Services SDK warnings
+    // Suppress Adobe PDF Services SDK warnings and mammoth warnings
     config.ignoreWarnings = [
       /Critical dependency: the request of a dependency is an expression/,
       /Module not found: Can't resolve 'fs'/,
       /Module not found: Can't resolve 'path'/,
+      /Module not found: Can't resolve 'stream'/,
+      /Module not found: Can't resolve 'util'/,
+      /mammoth/,
     ];
 
     return config;

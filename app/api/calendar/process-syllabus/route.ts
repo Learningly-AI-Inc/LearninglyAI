@@ -43,7 +43,7 @@ async function extractTextFromPDFBuffer(buffer: Buffer): Promise<string> {
         clientSecret: process.env.ADOBE_CLIENT_SECRET
       })
     } else {
-      // Try to find credentials file in project root
+      // Try to find credentials file in project root (for local development)
       const fs = require('fs')
       const path = require('path')
       const possiblePaths = [
@@ -66,7 +66,8 @@ async function extractTextFromPDFBuffer(buffer: Buffer): Promise<string> {
       }
 
       if (!credentialsData) {
-        throw new Error('Adobe PDF credentials not found')
+        console.warn('Adobe PDF credentials not found, falling back to basic PDF parsing')
+        throw new Error('Adobe PDF credentials not found - using fallback method')
       }
 
       credentials = new ServicePrincipalCredentials({
@@ -333,7 +334,10 @@ async function extractTextFromPDF(fileUrl: string): Promise<string> {
                contentType.includes('application/msword')) {
       // For DOCX/DOC files, use mammoth to extract text
       try {
+        console.log('Attempting to extract text from DOCX/DOC file...')
         const mammoth = await import('mammoth')
+        console.log('Mammoth library loaded successfully')
+        
         const result = await mammoth.extractRawText({ buffer: Buffer.from(buffer) })
         const extractedText = result.value
         
@@ -345,6 +349,19 @@ async function extractTextFromPDF(fileUrl: string): Promise<string> {
         return extractedText
       } catch (docxError) {
         console.error('DOCX parsing failed:', docxError)
+        
+        // Try fallback method for DOCX files
+        try {
+          console.log('Attempting fallback DOCX parsing...')
+          const text = new TextDecoder('utf-8', { fatal: false }).decode(buffer)
+          if (text && text.trim().length > 10) {
+            console.log('Fallback DOCX parsing succeeded, length:', text.length)
+            return text
+          }
+        } catch (fallbackError) {
+          console.error('Fallback DOCX parsing also failed:', fallbackError)
+        }
+        
         throw new Error(`Failed to parse DOCX/DOC: ${docxError}`)
       }
     } else {
@@ -716,15 +733,15 @@ ${text}`
     ]
 
     for (const course of parsedData.courses) {
-      const courseLower = course.name.toLowerCase()
-      const codeLower = course.code.toLowerCase()
+      const courseLower = course.name?.toLowerCase() || ''
+      const codeLower = course.code?.toLowerCase() || ''
 
       if (commonHallucinations.some(halluc => courseLower.includes(halluc) || codeLower.includes(halluc))) {
         console.warn('⚠️ POSSIBLE HALLUCINATION DETECTED:', course.name, course.code)
         console.warn('This may indicate the LLM could not find course information in the document')
 
         // Check if the original text contains this course name
-        if (!text.toLowerCase().includes(course.name.toLowerCase().substring(0, 15))) {
+        if (course.name && !text.toLowerCase().includes(course.name.toLowerCase().substring(0, 15))) {
           throw new Error(`LLM may have hallucinated course data. Could not find "${course.name}" in the original document. Please ensure the PDF text is readable.`)
         }
       }
@@ -761,6 +778,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check file size limits for Vercel (50MB limit for serverless functions)
+    try {
+      const response = await fetch(file_url, { method: 'HEAD' })
+      const contentLength = response.headers.get('content-length')
+      if (contentLength) {
+        const fileSizeMB = parseInt(contentLength) / (1024 * 1024)
+        if (fileSizeMB > 50) {
+          return NextResponse.json(
+            { error: 'File is too large. Please upload a file smaller than 50MB.' },
+            { status: 400 }
+          )
+        }
+        console.log(`File size: ${fileSizeMB.toFixed(2)}MB`)
+      }
+    } catch (sizeError) {
+      console.warn('Could not check file size:', sizeError)
+      // Continue anyway - size check is not critical
+    }
+
     // Check OpenAI API key availability
     try {
       getOpenAI()
@@ -773,8 +809,19 @@ export async function POST(request: NextRequest) {
 
     console.log('Processing syllabus:', { file_url, file_name, file_type })
 
-    // Step 1: Extract text from the PDF/syllabus
-    const extractedText = await extractTextFromPDF(file_url)
+    // Step 1: Extract text from the PDF/syllabus with timeout
+    console.log('Starting text extraction...')
+    const extractionStartTime = Date.now()
+    
+    const extractedText = await Promise.race([
+      extractTextFromPDF(file_url),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Text extraction timeout after 30 seconds')), 30000)
+      )
+    ]) as string
+    
+    const extractionTime = Date.now() - extractionStartTime
+    console.log(`Text extraction completed in ${extractionTime}ms`)
     console.log('Extracted text length:', extractedText.length)
     console.log('File type:', file_type)
     console.log('First 500 characters of extracted text:', extractedText.substring(0, 500))
@@ -791,8 +838,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Step 3: Use LLM to parse the syllabus and extract course information
-    const parsedData = await parseSyllabusWithLLM(extractedText)
+    // Step 3: Use LLM to parse the syllabus and extract course information with timeout
+    console.log('Starting LLM parsing...')
+    const llmStartTime = Date.now()
+    
+    const parsedData = await Promise.race([
+      parseSyllabusWithLLM(extractedText),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('LLM parsing timeout after 25 seconds')), 25000)
+      )
+    ]) as { courses: any[], semester_name: string }
+    
+    const llmTime = Date.now() - llmStartTime
+    console.log(`LLM parsing completed in ${llmTime}ms`)
     console.log('Parsed courses:', parsedData.courses.length)
 
     // Step 4: Validate parsed data quality
