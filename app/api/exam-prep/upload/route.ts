@@ -409,6 +409,8 @@ export async function POST(request: NextRequest) {
         public_url: urlData.publicUrl,
         // Save extracted text immediately (may be empty; mark completed like reading route)
         extracted_text: extractedText || '',
+        text_length: extractedText?.length || 0, // Add text_length field for exam generation filtering
+        page_count: pageCount,
         processing_status: 'completed',
         metadata: {
           upload_type: type,

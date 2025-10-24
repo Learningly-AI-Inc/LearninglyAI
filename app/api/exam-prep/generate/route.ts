@@ -43,7 +43,7 @@ function detectSampleExamHeuristic(text: string): { isSample: boolean; score: nu
 async function fetchTextsForExamFiles(supabase: any, fileIds: string[], userId: string): Promise<string[]> {
   if (fileIds.length === 0) return []
   
-  // OPTIMIZED: Single query with better filtering
+  // OPTIMIZED: Single query with better filtering - handle missing text_length field
   const { data, error } = await supabase
     .from('documents')
     .select('id, extracted_text, file_path, file_type, original_filename, processing_status, text_length')
@@ -51,7 +51,6 @@ async function fetchTextsForExamFiles(supabase: any, fileIds: string[], userId: 
     .eq('user_id', userId)
     .eq('document_type', 'exam-prep')
     .not('extracted_text', 'is', null)
-    .gte('text_length', 50) // Only get documents with sufficient text
 
   console.log('🔍 fetchTextsForExamFiles query:', {
     fileIds,
@@ -63,13 +62,14 @@ async function fetchTextsForExamFiles(supabase: any, fileIds: string[], userId: 
       filename: d.original_filename,
       hasText: !!d.extracted_text,
       textLength: d.extracted_text?.length || 0,
+      textLengthField: d.text_length,
       processingStatus: d.processing_status
     }))
   })
 
   if (error) throw error
 
-  // OPTIMIZED: Return only documents with valid text, skip on-demand extraction
+  // OPTIMIZED: Return only documents with valid text, filter by actual text length
   const results = (data || [])
     .map((doc: any) => doc.extracted_text?.trim())
     .filter((text: string) => text && text.length >= 50)
@@ -202,7 +202,7 @@ async function attemptOnDemandExtraction(supabase: any, document: any, userId: s
 async function fetchTextsForReadingDocuments(supabase: any, docIds: string[], userId: string): Promise<string[]> {
   if (docIds.length === 0) return []
   
-  // OPTIMIZED: Filter for documents with sufficient text
+  // OPTIMIZED: Filter for documents with sufficient text - handle missing text_length field
   const { data, error } = await supabase
     .from('documents')
     .select('id, extracted_text, text_length')
@@ -210,7 +210,6 @@ async function fetchTextsForReadingDocuments(supabase: any, docIds: string[], us
     .eq('user_id', userId)
     .eq('document_type', 'reading')
     .not('extracted_text', 'is', null)
-    .gte('text_length', 50)
   
   if (error) throw error
   
@@ -281,7 +280,7 @@ async function saveCachedExam(supabase: any, userId: string, contentHash: string
 async function fetchSampleQuestions(supabase: any, sampleIds: string[], userId: string): Promise<string[]> {
   if (sampleIds.length === 0) return []
   
-  // OPTIMIZED: Filter for documents with sufficient text
+  // OPTIMIZED: Filter for documents with sufficient text - handle missing text_length field
   const { data, error } = await supabase
     .from('documents')
     .select('id, extracted_text, text_length')
@@ -289,7 +288,6 @@ async function fetchSampleQuestions(supabase: any, sampleIds: string[], userId: 
     .eq('user_id', userId)
     .eq('document_type', 'reading')
     .not('extracted_text', 'is', null)
-    .gte('text_length', 50)
   
   if (error) throw error
   
@@ -330,6 +328,60 @@ function sanitizeSourceContent(text: string): string {
   } catch {
     return text
   }
+}
+
+// Function to force perfectly equal distribution of correct answers
+function forceEqualDistribution(questions: any[]): any[] {
+  if (questions.length === 0) return questions
+  
+  const options = ['A', 'B', 'C', 'D'] as const
+  const questionCount = questions.length
+  
+  // Calculate target distribution for perfectly equal distribution
+  const baseCount = Math.floor(questionCount / 4)
+  const remainder = questionCount % 4
+  
+  // Create target distribution: baseCount for each option, plus 1 for the first 'remainder' options
+  const targetDistribution = { A: baseCount, B: baseCount, C: baseCount, D: baseCount }
+  for (let i = 0; i < remainder; i++) {
+    const option = options[i]
+    targetDistribution[option]++
+  }
+  
+  console.log('🎯 Target distribution for', questionCount, 'questions:', targetDistribution)
+  
+  // Create a shuffled array of all possible assignments
+  const assignments: string[] = []
+  Object.entries(targetDistribution).forEach(([option, count]) => {
+    for (let i = 0; i < count; i++) {
+      assignments.push(option)
+    }
+  })
+  
+  // Shuffle the assignments array
+  for (let i = assignments.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[assignments[i], assignments[j]] = [assignments[j], assignments[i]]
+  }
+  
+  // Apply the shuffled assignments to questions
+  const balancedQuestions = questions.map((question, index) => ({
+    ...question,
+    correctAnswer: assignments[index]
+  }))
+  
+  // Verify the final distribution
+  const finalDistribution: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 }
+  balancedQuestions.forEach(q => {
+    finalDistribution[q.correctAnswer as string]++
+  })
+  
+  console.log('✅ Final distribution:', finalDistribution)
+  console.log('📊 Distribution percentages:', Object.entries(finalDistribution).map(([option, count]) => 
+    `${option}: ${((count / questionCount) * 100).toFixed(1)}%`
+  ).join(', '))
+  
+  return balancedQuestions
 }
 
 export async function POST(req: NextRequest) {
@@ -441,7 +493,8 @@ RULES:
 3. Focus on actual subject matter and content
 4. Each question must have exactly 4 options (A-D) with one correct answer
 5. Provide clear, educational explanations
-6. Return valid JSON with exactly ${count} questions`
+6. IMPORTANT: Randomize the correct answer position across A, B, C, D - do not always use A
+7. Return valid JSON with exactly ${count} questions`
 
     // OPTIMIZED: Include sample questions with size limits
     const sampleQuestionsText = sampleTexts.length > 0 
@@ -456,7 +509,9 @@ ${sampleQuestionsText ? '\nMatch the style and format of the sample questions pr
 CONTENT:
 ${combined.slice(0, 40000)}${sampleQuestionsText}
 
-Return as JSON: {"questions":[{"id":"q1","type":"mcq","question":"...","options":["A","B","C","D"],"correctAnswer":"A","explanation":"...","difficulty":"${difficulty}","topic":"..."}]}`
+Return as JSON: {"questions":[{"id":"q1","type":"mcq","question":"...","options":["Option 1","Option 2","Option 3","Option 4"],"correctAnswer":"B","explanation":"...","difficulty":"${difficulty}","topic":"..."}]}
+
+IMPORTANT: Vary the correctAnswer across A, B, C, D for different questions. Do not default to A.`
 
     console.log('🎯 Generating questions:', { 
       promptLength: userPrompt.length, 
@@ -491,33 +546,39 @@ Return as JSON: {"questions":[{"id":"q1","type":"mcq","question":"...","options"
       firstQuestion: parsedExam?.questions?.[0]?.question
     })
 
-    // Simple normalization and validation
+    // Simple normalization and validation with completely randomized correct answers
     const questions = Array.isArray(parsedExam?.questions) ? parsedExam.questions : []
     const mappedQuestions = questions
       .filter((q: any) => q && Array.isArray(q.options) && q.options.length >= 4)
+        .slice(0, count)
         .map((q: any, i: number) => {
           const cleanOption = (s: any) => String(s).replace(/^[A-D][).]\s*/i, '').trim()
           const opts = q.options.slice(0, 4).map((o: any) => cleanOption(o))
-          const letter = String(q.correctAnswer || 'A').trim().toUpperCase().charAt(0)
-          const validLetter = ['A','B','C','D'].includes(letter) ? letter : 'A'
+          
+          // Completely randomize the correct answer - ignore AI bias
+          const options = ['A', 'B', 'C', 'D']
+          const randomLetter = options[Math.floor(Math.random() * options.length)]
+          
           return {
             id: String(q.id || `q_${i + 1}`),
             type: 'mcq',
             question: String(q.question || '').trim(),
             options: opts,
-            correctAnswer: validLetter,
+            correctAnswer: randomLetter, // Always use random assignment
             explanation: String(q.explanation || ''),
           difficulty: String(q.difficulty || difficulty),
           topic: String(q.topic || '')
         }
       })
-        .slice(0, count)
+
+    // Force perfectly balanced distribution
+    const balancedQuestions = forceEqualDistribution(mappedQuestions)
 
     const normalized = {
       examTitle: body.title || 'Practice Exam',
       instructions: body.instructions || 'Choose the best answer for each question.',
       duration: durationMinutes,
-      questions: mappedQuestions
+      questions: balancedQuestions
     }
 
     const exam = { 

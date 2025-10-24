@@ -32,6 +32,8 @@ export default function TakeExamPage() {
   const [showResult, setShowResult] = useState(false)
   const [showReview, setShowReview] = useState(false)
   const [showOnlyIncorrect, setShowOnlyIncorrect] = useState(false)
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [isExamComplete, setIsExamComplete] = useState(false)
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -111,7 +113,15 @@ export default function TakeExamPage() {
     const isCorrect = selected.trim().toUpperCase().startsWith(String(q.correctAnswer).trim().toUpperCase())
     if (isCorrect) setScore(s => s + 1)
     
-    setShowResult(true)
+    // Store the answer
+    setAnswers(prev => ({ ...prev, [index]: selected }))
+    
+    // In rapid fire mode, show feedback instead of finishing the exam
+    if (exam?.quizMode === 'rapid-fire') {
+      setShowFeedback(true)
+    } else {
+      setShowResult(true)
+    }
   }
 
   function submitAll() {
@@ -123,8 +133,18 @@ export default function TakeExamPage() {
 
   function next() {
     setShowResult(false)
+    setShowFeedback(false)
     setSelected('')
-    if (index + 1 >= total) return
+    
+    // Check if we've reached the last question
+    if (index + 1 >= total) {
+      // Exam is complete, show final results
+      setIsExamComplete(true)
+      setShowResult(true)
+      return
+    }
+    
+    // Move to next question
     setIndex(i => i + 1)
   }
 
@@ -248,7 +268,7 @@ export default function TakeExamPage() {
                     })}
                   </div>
 
-                  {!showResult ? (
+                  {!showFeedback && !showResult ? (
                     <div className="flex justify-end mt-6">
                       <Button 
                         disabled={!selected} 
@@ -259,26 +279,23 @@ export default function TakeExamPage() {
                         Submit
                       </Button>
                     </div>
-                  ) : (
-                    <div className="space-y-3">
+                  ) : showFeedback ? (
+                    <div className="space-y-4 mt-6">
                       <div className={`p-4 rounded-lg ${selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'}`}>
                         <div className="font-semibold">
-                          {selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? '✓ Correct!' : `✗ Incorrect. Answer: ${q?.correctAnswer}`}
+                          {selected.toUpperCase().startsWith(String(q?.correctAnswer || '').toUpperCase()) ? '✓ Correct!' : `✗ Incorrect. The correct answer is: ${q?.correctAnswer}`}
                         </div>
                         {q?.explanation && (
                           <div className="text-sm mt-2 leading-relaxed">Explanation: {q.explanation}</div>
                         )}
                       </div>
-                      {q?.explanation && (
-                        <div className="text-sm text-foreground leading-relaxed">Explanation: {q.explanation}</div>
-                      )}
                       <div className="flex justify-end">
                         <Button onClick={next} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                          Next
+                          {index + 1 >= total ? 'Finish Exam' : 'Next Question'}
                         </Button>
                       </div>
                     </div>
-                  )}
+                  ) : null}
                 </>
               )
             ) : showReview ? (
@@ -402,6 +419,8 @@ export default function TakeExamPage() {
                       setScore(0);
                       setShowResult(false);
                       setShowReview(false);
+                      setShowFeedback(false);
+                      setIsExamComplete(false);
                       setSelected('');
                       setAnswers({});
                     }}
@@ -441,6 +460,8 @@ export default function TakeExamPage() {
                       setIndex(0);
                       setScore(0);
                       setShowResult(false);
+                      setShowFeedback(false);
+                      setIsExamComplete(false);
                       setSelected('');
                       setAnswers({});
                     }}

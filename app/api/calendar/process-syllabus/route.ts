@@ -43,7 +43,7 @@ async function extractTextFromPDFBuffer(buffer: Buffer): Promise<string> {
         clientSecret: process.env.ADOBE_CLIENT_SECRET
       })
     } else {
-      // Try to find credentials file in project root
+      // Try to find credentials file in project root (for local development)
       const fs = require('fs')
       const path = require('path')
       const possiblePaths = [
@@ -66,7 +66,8 @@ async function extractTextFromPDFBuffer(buffer: Buffer): Promise<string> {
       }
 
       if (!credentialsData) {
-        throw new Error('Adobe PDF credentials not found')
+        console.warn('Adobe PDF credentials not found, falling back to basic PDF parsing')
+        throw new Error('Adobe PDF credentials not found - using fallback method')
       }
 
       credentials = new ServicePrincipalCredentials({
@@ -312,16 +313,12 @@ async function extractTextFromPDF(fileUrl: string): Promise<string> {
     }
     
     const contentType = response.headers.get('content-type') || ''
+    const buffer = await response.arrayBuffer()
     
     if (contentType.includes('application/pdf')) {
-      // For PDF files, use pdf-parse to extract text
-      const pdfBuffer = await response.arrayBuffer()
-      const buffer = Buffer.from(pdfBuffer)
-      
+      // For PDF files, use Adobe PDF Services or fallback method
       try {
-        // Use a simpler approach for PDF text extraction
-        // Convert PDF buffer to text using a basic method
-        const extractedText = await extractTextFromPDFBuffer(buffer)
+        const extractedText = await extractTextFromPDFBuffer(Buffer.from(buffer))
         
         if (!extractedText || extractedText.trim().length < 50) {
           throw new Error('PDF text extraction yielded insufficient content')
@@ -333,9 +330,43 @@ async function extractTextFromPDF(fileUrl: string): Promise<string> {
         console.error('PDF parsing failed:', pdfError)
         throw new Error(`Failed to parse PDF: ${pdfError}`)
       }
+    } else if (contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document') || 
+               contentType.includes('application/msword')) {
+      // For DOCX/DOC files, use mammoth to extract text
+      try {
+        console.log('Attempting to extract text from DOCX/DOC file...')
+        const mammoth = await import('mammoth')
+        console.log('Mammoth library loaded successfully')
+        
+        const result = await mammoth.extractRawText({ buffer: Buffer.from(buffer) })
+        const extractedText = result.value
+        
+        if (!extractedText || extractedText.trim().length < 10) {
+          throw new Error('DOCX text extraction yielded insufficient content')
+        }
+        
+        console.log('Successfully extracted text from DOCX/DOC, length:', extractedText.length)
+        return extractedText
+      } catch (docxError) {
+        console.error('DOCX parsing failed:', docxError)
+        
+        // Try fallback method for DOCX files
+        try {
+          console.log('Attempting fallback DOCX parsing...')
+          const text = new TextDecoder('utf-8', { fatal: false }).decode(buffer)
+          if (text && text.trim().length > 10) {
+            console.log('Fallback DOCX parsing succeeded, length:', text.length)
+            return text
+          }
+        } catch (fallbackError) {
+          console.error('Fallback DOCX parsing also failed:', fallbackError)
+        }
+        
+        throw new Error(`Failed to parse DOCX/DOC: ${docxError}`)
+      }
     } else {
-      // For non-PDF files (like Word docs, text files), read as text
-      const text = await response.text()
+      // For other files (like text files), read as text
+      const text = new TextDecoder().decode(buffer)
       if (!text || text.trim().length < 10) {
         throw new Error('File appears to be empty or unreadable')
       }
@@ -578,8 +609,9 @@ CRITICAL RULES:
 1. ONLY extract information EXPLICITLY stated in the document
 2. DO NOT make up course names, codes, or details
 3. If information is missing, use null or empty values
-4. Find RECURRING CLASS MEETING TIMES (weekly schedule, not course topics)
-5. Extract ALL specific class session dates from Course Schedule sections
+4. Find ONLY LECTURE MEETING TIMES (weekly schedule, not labs, tutorials, or other sessions)
+5. Extract ONLY LECTURE session dates from Course Schedule sections
+6. IGNORE exams, assignments, midterms, finals, labs, tutorials, seminars, or any non-lecture sessions
 
 JSON structure:
 {
@@ -615,11 +647,12 @@ JSON structure:
 }
 
 Guidelines:
-- Look for meeting times like "Mo/We 2:00 PM - 3:20 PM" or "MWF 9:00-10:30"
+- Look for LECTURE meeting times like "Mo/We 2:00 PM - 3:20 PM" or "MWF 9:00-10:30"
 - Convert days: M/Mo/Mon=1, T/Tu/Tue=2, W/We/Wed=3, Th/Thu/R=4, F/Fri=5, Sa/Sat=6, Su/Sun=0
 - Convert times to 24-hour format (e.g., "14:00" for 2:00 PM)
-- Extract ALL dates from Course Schedule sections
-- Skip "No class" entries
+- Extract ONLY LECTURE dates from Course Schedule sections
+- Skip "No class" entries, exams, assignments, labs, tutorials, seminars
+- Set type to "lecture" for all class meetings
 - Return ONLY the JSON object, no explanations
 
 Syllabus text:
@@ -632,7 +665,7 @@ ${text}`
       messages: [
         {
           role: "system",
-          content: "You are a JSON parser specialized in extracting structured data from academic syllabi. CRITICAL: You must ONLY extract information that is EXPLICITLY present in the document. DO NOT make up course names, codes, or any other information. If information is not found, use null. Always return valid JSON only. No markdown, no backticks, no explanations. You must extract the ACTUAL class meeting times, days, and locations from the document - never use placeholder or default values."
+          content: "You are a JSON parser specialized in extracting LECTURE information from academic syllabi. CRITICAL: You must ONLY extract LECTURE meeting times, days, and locations that are EXPLICITLY present in the document. DO NOT extract labs, tutorials, seminars, exams, assignments, or any non-lecture sessions. DO NOT make up course names, codes, or any other information. If information is not found, use null. Always return valid JSON only. No markdown, no backticks, no explanations. Focus ONLY on regular class lecture meetings."
         },
         {
           role: "user",
@@ -700,15 +733,15 @@ ${text}`
     ]
 
     for (const course of parsedData.courses) {
-      const courseLower = course.name.toLowerCase()
-      const codeLower = course.code.toLowerCase()
+      const courseLower = course.name?.toLowerCase() || ''
+      const codeLower = course.code?.toLowerCase() || ''
 
       if (commonHallucinations.some(halluc => courseLower.includes(halluc) || codeLower.includes(halluc))) {
         console.warn('⚠️ POSSIBLE HALLUCINATION DETECTED:', course.name, course.code)
         console.warn('This may indicate the LLM could not find course information in the document')
 
         // Check if the original text contains this course name
-        if (!text.toLowerCase().includes(course.name.toLowerCase().substring(0, 15))) {
+        if (course.name && !text.toLowerCase().includes(course.name.toLowerCase().substring(0, 15))) {
           throw new Error(`LLM may have hallucinated course data. Could not find "${course.name}" in the original document. Please ensure the PDF text is readable.`)
         }
       }
@@ -745,6 +778,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check file size limits for Vercel (50MB limit for serverless functions)
+    try {
+      const response = await fetch(file_url, { method: 'HEAD' })
+      const contentLength = response.headers.get('content-length')
+      if (contentLength) {
+        const fileSizeMB = parseInt(contentLength) / (1024 * 1024)
+        if (fileSizeMB > 50) {
+          return NextResponse.json(
+            { error: 'File is too large. Please upload a file smaller than 50MB.' },
+            { status: 400 }
+          )
+        }
+        console.log(`File size: ${fileSizeMB.toFixed(2)}MB`)
+      }
+    } catch (sizeError) {
+      console.warn('Could not check file size:', sizeError)
+      // Continue anyway - size check is not critical
+    }
+
     // Check OpenAI API key availability
     try {
       getOpenAI()
@@ -757,9 +809,22 @@ export async function POST(request: NextRequest) {
 
     console.log('Processing syllabus:', { file_url, file_name, file_type })
 
-    // Step 1: Extract text from the PDF/syllabus
-    const extractedText = await extractTextFromPDF(file_url)
+    // Step 1: Extract text from the PDF/syllabus with timeout
+    console.log('Starting text extraction...')
+    const extractionStartTime = Date.now()
+    
+    const extractedText = await Promise.race([
+      extractTextFromPDF(file_url),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Text extraction timeout after 30 seconds')), 30000)
+      )
+    ]) as string
+    
+    const extractionTime = Date.now() - extractionStartTime
+    console.log(`Text extraction completed in ${extractionTime}ms`)
     console.log('Extracted text length:', extractedText.length)
+    console.log('File type:', file_type)
+    console.log('First 500 characters of extracted text:', extractedText.substring(0, 500))
 
     // Step 2: Validate extracted text quality
     if (extractedText.length < 100) {
@@ -773,16 +838,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Step 3: Use LLM to parse the syllabus and extract course information
-    const parsedData = await parseSyllabusWithLLM(extractedText)
+    // Step 3: Use LLM to parse the syllabus and extract course information with timeout
+    console.log('Starting LLM parsing...')
+    const llmStartTime = Date.now()
+    
+    const parsedData = await Promise.race([
+      parseSyllabusWithLLM(extractedText),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('LLM parsing timeout after 25 seconds')), 25000)
+      )
+    ]) as { courses: any[], semester_name: string }
+    
+    const llmTime = Date.now() - llmStartTime
+    console.log(`LLM parsing completed in ${llmTime}ms`)
     console.log('Parsed courses:', parsedData.courses.length)
 
     // Step 4: Validate parsed data quality
     if (parsedData.courses.length === 0) {
       console.error('No courses extracted from syllabus')
+      console.log('Extracted text preview:', extractedText.substring(0, 1000))
       return NextResponse.json(
         {
-          error: 'Could not find any course information in the document. Please ensure the file contains course details.',
+          error: 'Could not find any course information in the document. Please ensure the file contains course details and schedules.',
           extracted_text_preview: extractedText.substring(0, 1000)
         },
         { status: 400 }
