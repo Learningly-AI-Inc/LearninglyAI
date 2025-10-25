@@ -155,13 +155,21 @@ export function MindmapSettingsModal({
                         <div className={`p-3 rounded-lg border-2 transition-all ${
                           settings.style === option.value 
                             ? option.color 
-                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                            : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
                         }`}>
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className={`flex items-center gap-2 mb-1 ${
+                            settings.style === option.value 
+                              ? '' 
+                              : 'text-gray-700'
+                          }`}>
                             {option.icon}
                             <span className="font-medium text-sm">{option.label}</span>
                           </div>
-                          <p className="text-xs text-gray-600">{option.description}</p>
+                          <p className={`text-xs ${
+                            settings.style === option.value 
+                              ? 'text-gray-600' 
+                              : 'text-gray-700'
+                          }`}>{option.description}</p>
                         </div>
                       </label>
                     </ClickSpark>
@@ -206,9 +214,13 @@ export function MindmapSettingsModal({
                         <div className={`p-3 rounded-lg border-2 transition-all ${
                           settings.complexity === option.value 
                             ? option.color 
-                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                            : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
                         }`}>
-                          <div className="flex items-center justify-between mb-1">
+                          <div className={`flex items-center justify-between mb-1 ${
+                            settings.complexity === option.value 
+                              ? '' 
+                              : 'text-gray-700'
+                          }`}>
                             <div className="flex items-center gap-2">
                               {option.icon}
                               <span className="font-medium text-sm">{option.label}</span>
@@ -217,7 +229,11 @@ export function MindmapSettingsModal({
                               {option.nodeCount}
                             </Badge>
                           </div>
-                          <p className="text-xs text-gray-600">{option.description}</p>
+                          <p className={`text-xs ${
+                            settings.complexity === option.value 
+                              ? 'text-gray-600' 
+                              : 'text-gray-700'
+                          }`}>{option.description}</p>
                         </div>
                       </label>
                     </ClickSpark>

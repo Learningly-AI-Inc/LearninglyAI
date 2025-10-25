@@ -203,13 +203,21 @@ export function FlashcardSettingsModal({
                         <div className={`p-3 rounded-lg border-2 transition-all ${
                           settings.difficulty === option.value 
                             ? option.color 
-                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                            : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
                         }`}>
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className={`flex items-center gap-2 mb-1 ${
+                            settings.difficulty === option.value 
+                              ? '' 
+                              : 'text-gray-700'
+                          }`}>
                             {option.icon}
                             <span className="font-medium text-sm">{option.label}</span>
                           </div>
-                          <p className="text-xs text-gray-600">{option.description}</p>
+                          <p className={`text-xs ${
+                            settings.difficulty === option.value 
+                              ? 'text-gray-600' 
+                              : 'text-gray-700'
+                          }`}>{option.description}</p>
                         </div>
                       </label>
                     </ClickSpark>
