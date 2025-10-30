@@ -248,17 +248,21 @@ const SearchPage = () => {
       conversationId: selectedConversationId
     })
 
+    // Capture ready attachments once for this send
+    const readyAttachments = attachedDocs.filter(d => d.status === 'ready')
+    const readyAttachmentIds = readyAttachments.map(d => d.id)
+
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       type: 'user',
       content: message.trim(),
       timestamp: new Date(),
-      attachments: attachedDocs
-        .filter(d => d.status === 'ready')
-        .map(d => ({ id: d.id, name: d.name }))
+      attachments: readyAttachments.map(d => ({ id: d.id, name: d.name }))
     }
 
     setMessages(prev => [...prev, userMessage])
+    // Clear composer attachments after sending so the chip is not stuck in the input
+    setAttachedDocs([])
 
     // Add typing indicator message
     const typingMessage: Message = {
@@ -283,11 +287,6 @@ const SearchPage = () => {
       console.log('💬 [SEARCH PAGE] Making API request with model:', selectedModel)
       let response: Response
       try {
-        // Only include IDs of attachments that are fully ready
-        const readyAttachmentIds = attachedDocs
-          .filter(d => d.status === 'ready')
-          .map(d => d.id)
-
         response = await fetch('/api/search/enhanced', {
           method: 'POST',
           headers: {
@@ -344,8 +343,8 @@ const SearchPage = () => {
         ))
 
         console.log('💬 [SEARCH PAGE] Assistant response message added to chat')
-        // Keep attachments persistent for this conversation so subsequent
-        // messages continue to reference the same documents unless removed
+        // Attachments are cleared from the composer after send; messages retain
+        // their own attachment metadata for display purposes.
 
         // Save AI response to Supabase
         if (selectedConversationId) {
