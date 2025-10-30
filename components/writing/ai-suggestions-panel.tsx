@@ -392,14 +392,14 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
               </div>
             </TabsContent>
 
-            {/* Placeholder content for AI Detector */}
+            {/* Placeholder content for Humanizer */}
             <TabsContent value="detector" className="h-full m-0 px-4 pb-4 overflow-auto">
               <div className="flex items-center justify-center h-full border-2 border-dashed border-border rounded-lg bg-muted/30">
                 <div className="text-center">
                   <div className="p-4 bg-yellow-100 dark:bg-yellow-900/20 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                     <Sparkles className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
                   </div>
-                  <h3 className="text-lg font-semibold text-yellow-700 dark:text-yellow-400 mb-2">AI Detector</h3>
+                  <h3 className="text-lg font-semibold text-yellow-700 dark:text-yellow-400 mb-2">Humanizer</h3>
                   <p className="text-yellow-700 dark:text-yellow-400/80">Coming soon</p>
                 </div>
               </div>

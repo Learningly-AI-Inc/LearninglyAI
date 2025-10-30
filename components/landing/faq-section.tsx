@@ -12,28 +12,40 @@ import { Plus, Minus } from 'lucide-react';
 
 const faqs = [
     {
-        question: "What is Learningly, and how is it different from other AI tools?",
-        answer: "Learningly is an all-in-one learning assistant built specifically for students. Unlike other general-purpose AI tools, Learningly offers an integrated suite that covers reading, writing, exam prep, an individual search bar, and STEM support. Ask Anything, I am here to answer!—not just a chatbot."
+        question: "What is Learningly AI?",
+        answer: "Learningly AI is an all-in-one AI-powered learning platform designed specifically for students. We combine reading tools, writing assistance, exam prep, multi-LLM AI search, and automatic calendar scheduling from your syllabus/documents into one unified platform—eliminating the need to juggle multiple expensive apps."
       },
       {
-        question: "Does Learningly support exam preparation?",
-        answer: "Absolutely. Learningly includes a full-length exam-prep part customized for everyone. It creates custom practice tests, explains each answer with AI-generated walkthroughs, and tracks your progress over time—so you study smarter, not harder. It even has a quiz part, which allows you to set your own personalized quizzes while revising through summary, notes, flashcards, etc!"
+        question: "How is Learningly different from using ChatGPT, Grammarly, Quizlet, or Notion separately?",
+        answer: "Instead of paying for and switching between 5-10 different tools, Learningly integrates everything you need for academic success in one place. We're built specifically for students' academic workflows, with features like professor-style quiz generation, syllabus-based auto-calendars, and AI detection tools—all designed to work together seamlessly."
       },
       {
-        question: "I study STEM. Can Learningly actually help with math, physics, or chemistry?",
-        answer: "Yes! Our STEM Visualizer breaks down complex problems into easy-to-follow steps with formulas, graphs, and visual aids. Whether you're solving calculus, balancing equations, or decoding vectors—Learningly's got your back."
+        question: "What features does Learningly include?",
+        answer: "Learningly offers five core modules: Reading Tools (Smart summaries, notes, flashcards, quizzes, mindmaps, chats, and even memes from your readings), Writing Assistant (Grammar checking, AI detection, paraphrasing, and humanizing tools), Exam Prep (PDF and online quizzes that match your professor's teaching style), AI Search (Multi-LLM powered search for comprehensive research with your preferred AI model, including GPT, Grok, Claude, Gemini, DeepSeek, Llama, etc.), and Auto-Calendar (Automatically generates your study schedule from syllabi and assignments)."
       },
       {
-        question: "Will you keep my data private and secure?",
-        answer: "100%. Your privacy is our top priority. All your materials and activities are encrypted and stored securely. We do not sell or use your data to train third-party models. You can also delete your account or documents permanently at any time. We don't use your date for training purposes. Your data is yours, and you have full control over it."
+        question: "Can I upload my course materials and syllabi?",
+        answer: "Yes! Learningly works with your actual course content. Upload PDFs, syllabi, lecture notes, and documents; our AI will analyze them to create personalized study materials and automatically organize your academic calendar."
       },
       {
-        question: "Can I cancel my subscription? Will I be charged automatically?",
-        answer: "No contracts, no hidden fees. You can cancel your subscription anytime from your dashboard. We believe in earning your trust—not locking you in."
+        question: "Is my data secure?",
+        answer: "Yes. We take students' privacy seriously. Your course materials, notes, and personal information are encrypted and never shared with third parties. You own your data, always. We never use your data or share it with anyone. Your data is yours, and you have the right to delete it permanently anytime."
       },
       {
-        question: "Is Learningly free to use? What are my options?",
-        answer: "Yes! We offer a FREEMIUM plan with limited usage—perfect if you want to test it. Need more power? Upgrade to Pro ($10/month) for unlimited access. Plus, we offer scholarships and free Pro+ plans to students in need."
+        question: "Is there a free trial?",
+        answer: "Yes! We offer a free trial so you can experience how Learningly streamlines your academic life before committing to a subscription."
+      },
+      {
+        question: "What if I need help or have questions?",
+        answer: "Our support team is here to help! Reach out through in-app chat, email, or check our Help Center for tutorials and guides."
+      },
+      {
+        question: "Do you offer student discounts or financial aid?",
+        answer: "We're committed to making Learningly accessible to all students. We offer campus-specific discounts, referral benefits, and need-based assistance. If you need one, please contact our team at contact@learningly.ai. We will reply within 24-72 hours."
+      },
+      {
+        question: "What devices does Learningly work on?",
+        answer: "Learningly works on desktop, tablet, and mobile devices through any modern web browser. We're also developing dedicated mobile apps for iOS and Android."
       }
 ];
 
