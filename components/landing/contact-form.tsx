@@ -38,16 +38,17 @@ export const ContactForm: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      // TODO: Replace with your actual API endpoint
-      // For now, we'll just simulate a successful submission
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
 
-      // You can add your API call here:
-      // const response = await fetch('/api/contact', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData)
-      // });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send message');
+      }
 
       toast.success('Message sent successfully! We\'ll get back to you soon.');
       setSubmitted(true);
@@ -57,7 +58,8 @@ export const ContactForm: React.FC = () => {
       setTimeout(() => setSubmitted(false), 5000);
     } catch (error) {
       console.error('Contact form error:', error);
-      toast.error('Failed to send message. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to send message. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
