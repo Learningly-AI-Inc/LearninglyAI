@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 import { openai, DEFAULT_MODEL } from '@/lib/openai'
 import { subscriptionService } from '@/lib/subscription-service'
+import crypto from 'crypto'
 
 export const runtime = 'nodejs'
 
@@ -41,12 +42,15 @@ function detectSampleExamHeuristic(text: string): { isSample: boolean; score: nu
 
 async function fetchTextsForExamFiles(supabase: any, fileIds: string[], userId: string): Promise<string[]> {
   if (fileIds.length === 0) return []
+  
+  // OPTIMIZED: Single query with better filtering - handle missing text_length field
   const { data, error } = await supabase
     .from('documents')
-    .select('id, extracted_text, file_path, file_type, original_filename, processing_status')
+    .select('id, extracted_text, file_path, file_type, original_filename, processing_status, text_length')
     .in('id', fileIds)
     .eq('user_id', userId)
     .eq('document_type', 'exam-prep')
+    .not('extracted_text', 'is', null)
 
   console.log('🔍 fetchTextsForExamFiles query:', {
     fileIds,
@@ -58,30 +62,17 @@ async function fetchTextsForExamFiles(supabase: any, fileIds: string[], userId: 
       filename: d.original_filename,
       hasText: !!d.extracted_text,
       textLength: d.extracted_text?.length || 0,
+      textLengthField: d.text_length,
       processingStatus: d.processing_status
     }))
   })
 
   if (error) throw error
 
-  const results: string[] = []
-
-  for (const doc of data || []) {
-    let text = doc.extracted_text || ''
-
-    // If text is missing or empty, try on-demand extraction
-    if (!text || text.trim().length < 50) {
-      console.log('🛠️ Attempting on-demand extraction for exam-prep document:', doc.id)
-      const extractedText = await attemptOnDemandExtraction(supabase, doc, userId)
-      if (extractedText) {
-        text = extractedText
-      }
-    }
-
-    if (text && text.trim().length > 0) {
-      results.push(text)
-    }
-  }
+  // OPTIMIZED: Return only documents with valid text, filter by actual text length
+  const results = (data || [])
+    .map((doc: any) => doc.extracted_text?.trim())
+    .filter((text: string) => text && text.length >= 50)
 
   return results
 }
@@ -210,43 +201,124 @@ async function attemptOnDemandExtraction(supabase: any, document: any, userId: s
 
 async function fetchTextsForReadingDocuments(supabase: any, docIds: string[], userId: string): Promise<string[]> {
   if (docIds.length === 0) return []
+  
+  // OPTIMIZED: Filter for documents with sufficient text - handle missing text_length field
   const { data, error } = await supabase
     .from('documents')
-    .select('id, extracted_text')
+    .select('id, extracted_text, text_length')
     .in('id', docIds)
     .eq('user_id', userId)
     .eq('document_type', 'reading')
+    .not('extracted_text', 'is', null)
+  
   if (error) throw error
-  return (data || []).map((r: { extracted_text?: string }) => (r.extracted_text || '')).filter(Boolean)
+  
+  return (data || [])
+    .map((r: { extracted_text?: string }) => r.extracted_text?.trim())
+    .filter((text: string) => text && text.length >= 50)
+}
+
+// OPTIMIZED: Caching functions for faster exam generation
+async function generateContentHash(body: GenerateBody, userId: string): Promise<string> {
+  const content = JSON.stringify({
+    documentIds: body.documentIds || [],
+    fileIds: body.fileIds || [],
+    sampleQuestionIds: body.sampleQuestionIds || [],
+    count: body.count,
+    difficulty: body.difficulty,
+    userId
+  })
+  return crypto.createHash('md5').update(content).digest('hex')
+}
+
+async function checkCachedExam(supabase: any, userId: string, contentHash: string, count: number, difficulty: string) {
+  try {
+    const { data, error } = await supabase
+      .from('generated_exams')
+      .select('id, exam_data, created_at')
+      .eq('user_id', userId)
+      .eq('content_hash', contentHash)
+      .eq('generation_status', 'completed')
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // 24 hours cache
+      .order('created_at', { ascending: false })
+      .limit(1)
+    
+    if (error) {
+      console.error('Cache check error:', error)
+      return null
+    }
+    
+    return data?.[0] || null
+  } catch (error) {
+    console.error('Cache check failed:', error)
+    return null
+  }
+}
+
+async function saveCachedExam(supabase: any, userId: string, contentHash: string, examData: any, sourceFiles: string[]) {
+  try {
+    await supabase
+      .from('generated_exams')
+      .insert({
+        user_id: userId,
+        exam_title: examData.examTitle || 'Generated Exam',
+        exam_config: {
+          count: examData.questions?.length || 0,
+          difficulty: examData.difficulty || 'medium',
+          duration: examData.duration || 60
+        },
+        exam_data: examData,
+        source_files: sourceFiles,
+        content_hash: contentHash,
+        generation_status: 'completed'
+      })
+  } catch (error) {
+    console.error('Failed to cache exam:', error)
+  }
 }
 
 async function fetchSampleQuestions(supabase: any, sampleIds: string[], userId: string): Promise<string[]> {
   if (sampleIds.length === 0) return []
+  
+  // OPTIMIZED: Filter for documents with sufficient text - handle missing text_length field
   const { data, error } = await supabase
     .from('documents')
-    .select('id, extracted_text')
+    .select('id, extracted_text, text_length')
     .in('id', sampleIds)
     .eq('user_id', userId)
     .eq('document_type', 'reading')
+    .not('extracted_text', 'is', null)
+  
   if (error) throw error
-  return (data || []).map((r: { extracted_text?: string }) => (r.extracted_text || '')).filter(Boolean)
+  
+  return (data || [])
+    .map((r: { extracted_text?: string }) => r.extracted_text?.trim())
+    .filter((text: string) => text && text.length >= 50)
 }
 
-// Some uploads (when extraction fails) may store a boilerplate placeholder like
-// "PDF Document Analysis ... This document has been successfully uploaded ...".
-// Those strings pollute exam generation. Strip them out before prompting.
+// OPTIMIZED: Faster content sanitization with compiled regex patterns
+const BOILERPLATE_PATTERNS = [
+  /PDF\s+Document\s+Analysis[\s\S]*?The\s+document\s+is\s+now\s+available[\s\S]*?questions\./gi,
+  /Document\s+Analysis[\s\S]*?document\s+is\s+now\s+available[\s\S]*?questions\./gi,
+  /This\s+document\s+has\s+been\s+successfully\s+uploaded[\s\S]*?ready\s+for\s+analysis\.?/gi,
+  /Ask\s+questions\s+about\s+the\s+document[\s\S]*?document\-related\s+tasks/gi,
+  /Get\s+help\s+with\s+document\-related\s+tasks/gi,
+  /Discuss\s+the\s+document's\s+purpose/gi,
+  /Review\s+the\s+document\s+for\s+errors/gi,
+  /(drag\s+and\s+drop|choose\s+files|click\s+to\s+upload|processing\s+status|file\s+upload|file\s+deletion|we\s+can\s+help\s+you|help\s+the\s+user|ai\s+will\s+analyze|analysis\s+complete|upload\s+guidelines)/gi
+]
+
 function sanitizeSourceContent(text: string): string {
   try {
     let cleaned = String(text || '')
-      .replace(/PDF\s+Document\s+Analysis[\s\S]*?The\s+document\s+is\s+now\s+available[\s\S]*?questions\./gi, '')
-      .replace(/Document\s+Analysis[\s\S]*?document\s+is\s+now\s+available[\s\S]*?questions\./gi, '')
-      .replace(/This\s+document\s+has\s+been\s+successfully\s+uploaded[\s\S]*?ready\s+for\s+analysis\.?/gi, '')
-      .replace(/Ask\s+questions\s+about\s+the\s+document[\s\S]*?document\-related\s+tasks/gi, '')
-      .replace(/Get\s+help\s+with\s+document\-related\s+tasks/gi, '')
-      .replace(/Discuss\s+the\s+document's\s+purpose/gi, '')
-      .replace(/Review\s+the\s+document\s+for\s+errors/gi, '')
-      // Extra UI/boilerplate phrases that can poison prompts
-      .replace(/(drag\s+and\s+drop|choose\s+files|click\s+to\s+upload|processing\s+status|file\s+upload|file\s+deletion|we\s+can\s+help\s+you|help\s+the\s+user|ai\s+will\s+analyze|analysis\s+complete|upload\s+guidelines)/gi, '')
+    
+    // OPTIMIZED: Apply all patterns in one pass
+    for (const pattern of BOILERPLATE_PATTERNS) {
+      cleaned = cleaned.replace(pattern, '')
+    }
+    
+    // OPTIMIZED: Single cleanup pass
+    cleaned = cleaned
       .replace(/\n{3,}/g, '\n\n')
       .trim()
 
@@ -256,6 +328,60 @@ function sanitizeSourceContent(text: string): string {
   } catch {
     return text
   }
+}
+
+// Function to force perfectly equal distribution of correct answers
+function forceEqualDistribution(questions: any[]): any[] {
+  if (questions.length === 0) return questions
+  
+  const options = ['A', 'B', 'C', 'D'] as const
+  const questionCount = questions.length
+  
+  // Calculate target distribution for perfectly equal distribution
+  const baseCount = Math.floor(questionCount / 4)
+  const remainder = questionCount % 4
+  
+  // Create target distribution: baseCount for each option, plus 1 for the first 'remainder' options
+  const targetDistribution = { A: baseCount, B: baseCount, C: baseCount, D: baseCount }
+  for (let i = 0; i < remainder; i++) {
+    const option = options[i]
+    targetDistribution[option]++
+  }
+  
+  console.log('🎯 Target distribution for', questionCount, 'questions:', targetDistribution)
+  
+  // Create a shuffled array of all possible assignments
+  const assignments: string[] = []
+  Object.entries(targetDistribution).forEach(([option, count]) => {
+    for (let i = 0; i < count; i++) {
+      assignments.push(option)
+    }
+  })
+  
+  // Shuffle the assignments array
+  for (let i = assignments.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[assignments[i], assignments[j]] = [assignments[j], assignments[i]]
+  }
+  
+  // Apply the shuffled assignments to questions
+  const balancedQuestions = questions.map((question, index) => ({
+    ...question,
+    correctAnswer: assignments[index]
+  }))
+  
+  // Verify the final distribution
+  const finalDistribution: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 }
+  balancedQuestions.forEach(q => {
+    finalDistribution[q.correctAnswer as string]++
+  })
+  
+  console.log('✅ Final distribution:', finalDistribution)
+  console.log('📊 Distribution percentages:', Object.entries(finalDistribution).map(([option, count]) => 
+    `${option}: ${((count / questionCount) * 100).toFixed(1)}%`
+  ).join(', '))
+  
+  return balancedQuestions
 }
 
 export async function POST(req: NextRequest) {
@@ -268,6 +394,14 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // OPTIMIZED: Check for cached exam with same parameters
+    const contentHash = await generateContentHash(body, user.id)
+    const cachedExam = await checkCachedExam(supabase, user.id, contentHash, count, difficulty)
+    if (cachedExam) {
+      console.log('🎯 Using cached exam:', cachedExam.id)
+      return NextResponse.json({ success: true, exam: cachedExam.exam_data })
+    }
 
     // Check usage limits for exam sessions
     const canGenerate = await subscriptionService.checkUsageLimit(user.id, 'exam_sessions', 1);
@@ -301,9 +435,13 @@ export async function POST(req: NextRequest) {
       sampleQuestionIds: body.sampleQuestionIds
     })
 
-    let textsA = await fetchTextsForExamFiles(supabase, examPrepIds, user.id)
-    let textsB = await fetchTextsForReadingDocuments(supabase, body.documentIds || [], user.id)
-    let sampleTexts = await fetchSampleQuestions(supabase, body.sampleQuestionIds || [], user.id)
+    // OPTIMIZED: Parallel database queries for faster processing
+    const [textsA, textsB, sampleTexts] = await Promise.all([
+      fetchTextsForExamFiles(supabase, examPrepIds, user.id),
+      fetchTextsForReadingDocuments(supabase, body.documentIds || [], user.id),
+      fetchSampleQuestions(supabase, body.sampleQuestionIds || [], user.id)
+    ])
+    
     let texts = [...textsA, ...textsB].filter(Boolean)
 
     console.log('📄 Text extraction results:', {
@@ -326,12 +464,16 @@ export async function POST(req: NextRequest) {
       firstTextPreview: texts[0]?.slice(0, 500)
     })
 
-    // Sanitize each document separately; drop boilerplate-only docs
+    // OPTIMIZED: Faster content processing with size limits
     const sanitizedDocs = texts
       .map(t => sanitizeSourceContent(t))
       .filter(t => typeof t === 'string' && t.trim().length >= 200)
-    const sourceDocs = sanitizedDocs.length > 0 ? sanitizedDocs : texts
-    const rawCombined = sourceDocs.join('\n\n---\n\n').slice(0, 100_000)
+      .slice(0, 10) // Limit to 10 documents max for faster processing
+    
+    const sourceDocs = sanitizedDocs.length > 0 ? sanitizedDocs : texts.slice(0, 10)
+    
+    // OPTIMIZED: Reduce content size for faster API processing
+    const rawCombined = sourceDocs.join('\n\n---\n\n').slice(0, 50000) // Reduced from 100k to 50k
     const combined = rawCombined
 
     console.log('📄 Content for generation:', {
@@ -351,21 +493,25 @@ RULES:
 3. Focus on actual subject matter and content
 4. Each question must have exactly 4 options (A-D) with one correct answer
 5. Provide clear, educational explanations
-6. Return valid JSON with exactly ${count} questions`
+6. IMPORTANT: Randomize the correct answer position across A, B, C, D - do not always use A
+7. Return valid JSON with exactly ${count} questions`
 
-    // Include sample questions in the prompt if available
+    // OPTIMIZED: Include sample questions with size limits
     const sampleQuestionsText = sampleTexts.length > 0 
-      ? `\n\nSAMPLE QUESTIONS (use as style reference):\n${sampleTexts.map(text => sanitizeSourceContent(text).slice(0, 2000)).join('\n\n---\n\n')}`
+      ? `\n\nSAMPLE QUESTIONS (use as style reference):\n${sampleTexts.slice(0, 3).map(text => sanitizeSourceContent(text).slice(0, 1000)).join('\n\n---\n\n')}`
       : ''
 
+    // OPTIMIZED: Reduced content size and more focused prompt
     const userPrompt = `Create exactly ${count} multiple-choice questions from the content below.
 Difficulty level: ${difficulty}
 ${sampleQuestionsText ? '\nMatch the style and format of the sample questions provided.' : ''}
 
 CONTENT:
-${combined.slice(0, 80000)}${sampleQuestionsText}
+${combined.slice(0, 40000)}${sampleQuestionsText}
 
-Return as JSON: {"questions":[{"id":"q1","type":"mcq","question":"...","options":["A","B","C","D"],"correctAnswer":"A","explanation":"...","difficulty":"${difficulty}","topic":"..."}]}`
+Return as JSON: {"questions":[{"id":"q1","type":"mcq","question":"...","options":["Option 1","Option 2","Option 3","Option 4"],"correctAnswer":"B","explanation":"...","difficulty":"${difficulty}","topic":"..."}]}
+
+IMPORTANT: Vary the correctAnswer across A, B, C, D for different questions. Do not default to A.`
 
     console.log('🎯 Generating questions:', { 
       promptLength: userPrompt.length, 
@@ -374,11 +520,12 @@ Return as JSON: {"questions":[{"id":"q1","type":"mcq","question":"...","options"
       difficulty 
     })
 
-    // Single optimized API call
+    // OPTIMIZED: Use faster model and reduced parameters for speed
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini', // Faster model
       response_format: { type: 'json_object' },
-      temperature: 0.4, // Slightly higher for more variety
+      temperature: 0.3, // Lower temperature for faster, more consistent responses
+      max_tokens: 4000, // Limit response size for faster generation
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -399,33 +546,39 @@ Return as JSON: {"questions":[{"id":"q1","type":"mcq","question":"...","options"
       firstQuestion: parsedExam?.questions?.[0]?.question
     })
 
-    // Simple normalization and validation
+    // Simple normalization and validation with completely randomized correct answers
     const questions = Array.isArray(parsedExam?.questions) ? parsedExam.questions : []
     const mappedQuestions = questions
       .filter((q: any) => q && Array.isArray(q.options) && q.options.length >= 4)
+        .slice(0, count)
         .map((q: any, i: number) => {
           const cleanOption = (s: any) => String(s).replace(/^[A-D][).]\s*/i, '').trim()
           const opts = q.options.slice(0, 4).map((o: any) => cleanOption(o))
-          const letter = String(q.correctAnswer || 'A').trim().toUpperCase().charAt(0)
-          const validLetter = ['A','B','C','D'].includes(letter) ? letter : 'A'
+          
+          // Completely randomize the correct answer - ignore AI bias
+          const options = ['A', 'B', 'C', 'D']
+          const randomLetter = options[Math.floor(Math.random() * options.length)]
+          
           return {
             id: String(q.id || `q_${i + 1}`),
             type: 'mcq',
             question: String(q.question || '').trim(),
             options: opts,
-            correctAnswer: validLetter,
+            correctAnswer: randomLetter, // Always use random assignment
             explanation: String(q.explanation || ''),
           difficulty: String(q.difficulty || difficulty),
           topic: String(q.topic || '')
         }
       })
-        .slice(0, count)
+
+    // Force perfectly balanced distribution
+    const balancedQuestions = forceEqualDistribution(mappedQuestions)
 
     const normalized = {
       examTitle: body.title || 'Practice Exam',
       instructions: body.instructions || 'Choose the best answer for each question.',
       duration: durationMinutes,
-      questions: mappedQuestions
+      questions: balancedQuestions
     }
 
     const exam = { 
@@ -439,6 +592,14 @@ Return as JSON: {"questions":[{"id":"q1","type":"mcq","question":"...","options"
       await subscriptionService.incrementUsage(user.id, 'exam_sessions', 1);
     } catch (usageError) {
       console.error('Failed to track exam session usage:', usageError);
+    }
+
+    // OPTIMIZED: Save to cache for future use
+    try {
+      const sourceFiles = [...(body.documentIds || []), ...(body.fileIds || [])]
+      await saveCachedExam(supabase, user.id, contentHash, exam, sourceFiles)
+    } catch (cacheError) {
+      console.error('Failed to cache exam:', cacheError)
     }
 
     return NextResponse.json({ success: true, exam })

@@ -20,6 +20,7 @@ import { useSubscription } from "@/hooks/use-subscription"
 import { getUserMetadata } from "@/types/auth"
 import { useUsageLimits } from "@/hooks/use-usage-limits"
 import { UsageDisplay } from "@/components/ui/usage-display"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 const featureCards = [
   {
@@ -138,6 +139,7 @@ export default function MainContent({ sidebarCollapsed }: MainContentProps) {
               className="pl-10 w-[300px] bg-background/70 border-border/50 text-foreground focus:border-primary focus:ring-primary/30 rounded-full backdrop-blur-sm"
             />
           </form>
+          <ThemeToggle />
           <Button variant="ghost" size="icon" className="relative text-foreground hover:bg-accent/50">
             <Bell className="h-5 w-5" />
             <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-gradient-to-br from-red-400 to-red-600 rounded-full border-2 border-background animate-pulse"></span>

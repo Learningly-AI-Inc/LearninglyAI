@@ -50,7 +50,8 @@ export async function middleware(request: NextRequest) {
       console.log('Middleware check:', { 
         pathname: request.nextUrl.pathname, 
         hasUser: !!user, 
-        userId: user?.id?.substring(0, 8) + '...' || 'none'
+        userId: user?.id?.substring(0, 8) + '...' || 'none',
+        userEmail: user?.email || 'none'
       })
     }
 
@@ -106,8 +107,8 @@ export async function middleware(request: NextRequest) {
   // If user is authenticated and trying to access public auth routes
   if (user && isPublicRoute && !pathname.startsWith('/account/verify-email')) {
     console.log('Redirecting authenticated user from auth route:', pathname)
-    // Only redirect from the root account page, not all account pages
-    if (pathname === '/account') {
+    // Redirect authenticated users from landing page, root, and account page to dashboard
+    if (pathname === '/account' || pathname === '/' || pathname === '/landing') {
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = '/dashboard'
       // Add a timestamp to prevent caching issues

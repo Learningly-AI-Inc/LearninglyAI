@@ -272,6 +272,9 @@ export async function GET(request: NextRequest) {
       provider: data.user?.app_metadata?.provider
     })
 
+    console.log('OAuth callback redirecting to:', validatedNext)
+    console.log('User authenticated:', !!data.user, data.user?.email)
+
     return response
 
   } catch (error) {

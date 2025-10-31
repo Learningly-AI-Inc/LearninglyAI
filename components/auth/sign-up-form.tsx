@@ -61,6 +61,8 @@ export function SignUpForm() {
     }
   }
 
+  // TODO: Add a loading state for the form
+  console.log('loading', loading)
   return (
     <Card className="w-full border-gray-200 bg-white/95 backdrop-blur-sm shadow-xl">
       <CardContent className="p-8">

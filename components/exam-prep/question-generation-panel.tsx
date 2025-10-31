@@ -217,7 +217,7 @@ export function QuestionGenerationPanel({
       } : null)
       updateProgress(80, 'Creating PDFs...')
 
-      // Generate PDFs from all exam data
+      // OPTIMIZED: Generate PDFs in parallel for faster processing
       const allExams = result.exams || []
       const examFiles: Array<{
         questionsBlob: Blob;
@@ -226,27 +226,32 @@ export function QuestionGenerationPanel({
         title: string;
       }> = []
       
-      for (let i = 0; i < allExams.length; i++) {
-        const examData = allExams[i]
-        const questionsBlob = await generateQuestionsPDF(examData)
-        const answerKeyBlob = await generateAnswerKeyPDF(examData)
+      // OPTIMIZED: Parallel PDF generation
+      const pdfPromises = allExams.map(async (examData: any, i: number) => {
+        const [questionsBlob, answerKeyBlob] = await Promise.all([
+          generateQuestionsPDF(examData),
+          generateAnswerKeyPDF(examData)
+        ])
         
-        examFiles.push({
-          questionsBlob: questionsBlob,
-          answerKeyBlob: answerKeyBlob,
-          examData: examData,
+        return {
+          questionsBlob,
+          answerKeyBlob,
+          examData,
           title: examData.examTitle || `Exam Set ${i + 1}`
-        })
-
-        // Update progress during PDF generation
-        const pdfProgress = 80 + ((i + 1) / allExams.length) * 10
-        setCurrentSession(prev => prev ? {
-          ...prev,
-          progress: Math.round(pdfProgress * 10) / 10, // Round to 1 decimal place
-          currentStep: `Creating PDFs... (${i + 1}/${allExams.length})`
-        } : null)
-        updateProgress(pdfProgress, `Creating PDFs... (${i + 1}/${allExams.length})`)
-      }
+        }
+      })
+      
+      // Wait for all PDFs to be generated
+      const generatedFiles = await Promise.all(pdfPromises)
+      examFiles.push(...generatedFiles)
+      
+      // Update progress after all PDFs are generated
+      setCurrentSession(prev => prev ? {
+        ...prev,
+        progress: 90,
+        currentStep: 'PDFs generated successfully'
+      } : null)
+      updateProgress(90, 'PDFs generated successfully')
 
       // Create zip file if multiple exam sets, otherwise use single PDFs
       let downloadUrl: string
