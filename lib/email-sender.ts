@@ -3,7 +3,7 @@ import nodemailer from 'nodemailer';
 // Create reusable transporter
 function createTransporter() {
   // Use Titan Email SMTP settings
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.titan.email',
     port: parseInt(process.env.SMTP_PORT || '587'),
     secure: false, // Use TLS
