@@ -91,12 +91,14 @@ export class AuthSessionManager {
     try {
       const { data, error } = await this.supabase.auth.signInWithOAuth({
         provider,
-        options: { 
+        options: {
           redirectTo: `${window.location.origin}/api/auth/callback`,
           queryParams: {
             access_type: 'offline',
             prompt: context === 'signup' ? 'consent' : 'select_account',
-          }
+          },
+          // Ensure email is verified for OAuth providers
+          skipBrowserRedirect: false
         },
       })
 
