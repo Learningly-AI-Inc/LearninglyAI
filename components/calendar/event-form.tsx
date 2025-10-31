@@ -298,7 +298,7 @@ export function EventForm({ event, isOpen, onClose, onSubmit, onDelete, loading 
           <CardTitle className="text-xl font-semibold text-foreground">
             {event ? 'Edit Event' : 'Create Event'}
           </CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-accent">
+          <Button type="button" variant="ghost" size="icon" onClick={onClose} className="hover:bg-accent">
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
