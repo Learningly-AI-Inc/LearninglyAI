@@ -32,16 +32,18 @@ export function UnifiedAuthCard() {
     setLoading(true)
     try {
       toast.info('Checking your account status...')
-      
-      const { error, redirect } = await signInWithOAuth('google', 'signin')
-      
+
+      // Always use 'signup' context for OAuth - it works for both new and existing users
+      // Google will handle whether it's a new account or returning user
+      const { error, redirect } = await signInWithOAuth('google', 'signup')
+
       if (redirect) {
-        toast.success('Welcome back! Redirecting to your dashboard...')
+        toast.success('Welcome! Redirecting to your dashboard...')
         return
       }
-      
+
       if (error) {
-        const errorInfo = AuthHelper.handleOAuthError(error, 'signin')
+        const errorInfo = AuthHelper.handleOAuthError(error, 'signup')
         AuthHelper.showUserFriendlyMessage(errorInfo)
       } else {
         toast.success('Redirecting to your dashboard...')

@@ -21,8 +21,6 @@ import { toast } from 'sonner'
 //commented out for now
 //commented out for now
 
-  ``
-
 export function SubscriptionStatus() {
   const { subscription, loading, createPortalSession, cancelSubscription, refresh } = useSubscription()
   const [isLoading, setIsLoading] = useState(false)
