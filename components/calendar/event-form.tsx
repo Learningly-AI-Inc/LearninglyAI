@@ -21,6 +21,7 @@ interface EventFormProps {
   onSubmit: (data: EventFormData) => Promise<void>
   onDelete?: (eventId: string) => Promise<void>
   loading?: boolean
+  initialData?: Partial<EventFormData> | null
 }
 
 const eventTypes = [
@@ -43,7 +44,7 @@ const colorOptions = [
   { value: '#6B7280', label: 'Gray', color: 'bg-gray-500' },
 ]
 
-export function EventForm({ event, isOpen, onClose, onSubmit, onDelete, loading = false }: EventFormProps) {
+export function EventForm({ event, isOpen, onClose, onSubmit, onDelete, loading = false, initialData = null }: EventFormProps) {
   const [formData, setFormData] = React.useState<EventFormData>({
     title: '',
     description: '',
@@ -65,12 +66,12 @@ export function EventForm({ event, isOpen, onClose, onSubmit, onDelete, loading 
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false)
 
-  // Initialize form data when event changes
+  // Initialize form data when event or initialData changes
   React.useEffect(() => {
     if (event) {
       const startDate = new Date(event.start_time)
       const endDate = new Date(event.end_time)
-      
+
       setFormData({
         title: event.title,
         description: event.description || '',
@@ -81,11 +82,31 @@ export function EventForm({ event, isOpen, onClose, onSubmit, onDelete, loading 
         location: event.location || '',
         event_type: event.event_type,
       })
-      
+
       setStartDate(startDate)
       setEndDate(endDate)
       setStartTime(startDate.toTimeString().slice(0, 5))
       setEndTime(endDate.toTimeString().slice(0, 5))
+    } else if (initialData) {
+      // Use initialData for pre-filling the form
+      const startDate = initialData.start_time ? new Date(initialData.start_time) : undefined
+      const endDate = initialData.end_time ? new Date(initialData.end_time) : undefined
+
+      setFormData({
+        title: initialData.title || '',
+        description: initialData.description || '',
+        start_time: initialData.start_time || '',
+        end_time: initialData.end_time || '',
+        all_day: initialData.all_day || false,
+        color: initialData.color || '#3B82F6',
+        location: initialData.location || '',
+        event_type: initialData.event_type || 'general',
+      })
+
+      setStartDate(startDate)
+      setEndDate(endDate)
+      setStartTime(startDate ? startDate.toTimeString().slice(0, 5) : '')
+      setEndTime(endDate ? endDate.toTimeString().slice(0, 5) : '')
     } else {
       setFormData({
         title: '',
@@ -97,7 +118,7 @@ export function EventForm({ event, isOpen, onClose, onSubmit, onDelete, loading 
         location: '',
         event_type: 'general',
       })
-      
+
       setStartDate(undefined)
       setEndDate(undefined)
       setStartTime('')
@@ -105,7 +126,7 @@ export function EventForm({ event, isOpen, onClose, onSubmit, onDelete, loading 
     }
     setErrors({})
     setIsSubmitting(false) // Reset submitting state when form opens
-  }, [event, isOpen])
+  }, [event, initialData, isOpen])
 
   // Reset form when modal closes
   React.useEffect(() => {
