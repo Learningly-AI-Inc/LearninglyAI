@@ -26,6 +26,30 @@ interface GeneratedExam {
   questions: Array<{ id: string; question: string; options: string[]; correctAnswer: string; explanation?: string }>
 }
 
+type ExamDocSelection = { documentId?: string; name?: string }
+
+const normalizeDocumentName = (doc: ExamDocSelection) => (doc.name && doc.name.trim().length > 0 ? doc.name : 'Untitled Document')
+
+function mergeDocuments(additions: ExamDocSelection[], existing: ExamDocSelection[] = []): ExamDocSelection[] {
+  const seen = new Set<string>()
+  const result: ExamDocSelection[] = []
+
+  const pushEntry = (entry: ExamDocSelection) => {
+    const id = entry?.documentId
+    if (!id || seen.has(id)) return
+    seen.add(id)
+    result.push({
+      documentId: id,
+      name: normalizeDocumentName(entry)
+    })
+  }
+
+  additions.forEach(pushEntry)
+  existing.forEach(pushEntry)
+
+  return result
+}
+
 export default function ExamPrepPage() {
   const router = useRouter();
   const { checkUsageLimit } = useUsageLimits();
@@ -51,6 +75,9 @@ export default function ExamPrepPage() {
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null)
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [generatedExamData, setGeneratedExamData] = useState<GeneratedExam | null>(null)
+  const [savedStudyMaterials, setSavedStudyMaterials] = useState<ExamDocSelection[]>([])
+  const [savedSamplePapers, setSavedSamplePapers] = useState<ExamDocSelection[]>([])
+  const [isLoadingSavedDocs, setIsLoadingSavedDocs] = useState(false)
 
   const loadingFacts = [
     "💡 Did you know? The average person forgets 50% of what they learn within an hour!",
@@ -77,6 +104,67 @@ export default function ExamPrepPage() {
       return () => clearInterval(interval)
     }
   }, [isGenerating])
+
+  useEffect(() => {
+    let isCancelled = false
+
+    const loadSavedDocuments = async () => {
+      setIsLoadingSavedDocs(true)
+      try {
+        const response = await fetch('/api/exam-prep/files', { cache: 'no-store' })
+        if (!response.ok) {
+          throw new Error(`Failed to load exam files: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        const files = Array.isArray(data?.files) ? data.files : []
+
+        const studyFiles = files
+          .filter((file: any) => {
+            const category = file?.category || file?.metadata?.file_category
+            return category === 'study_materials' || category === 'learning_materials'
+          })
+          .map((file: any) => ({
+            documentId: file?.id,
+            name: file?.name || file?.title || file?.original_filename
+          }))
+          .filter((file: ExamDocSelection) => Boolean(file.documentId))
+
+        const sampleFiles = files
+          .filter((file: any) => {
+            const category = file?.category || file?.metadata?.file_category
+            return category === 'sample_questions'
+          })
+          .map((file: any) => ({
+            documentId: file?.id,
+            name: file?.name || file?.title || file?.original_filename
+          }))
+          .filter((file: ExamDocSelection) => Boolean(file.documentId))
+
+        if (!isCancelled) {
+          setSavedStudyMaterials(studyFiles)
+          setUploadedDocs(prev => mergeDocuments(studyFiles, prev))
+
+          if (sampleFiles.length > 0) {
+            setSavedSamplePapers(sampleFiles)
+            setSampleQuestions(prev => mergeDocuments(sampleFiles, prev))
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load saved exam prep files:', error)
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingSavedDocs(false)
+        }
+      }
+    }
+
+    loadSavedDocuments()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [])
 
   async function generate() {
     try {
@@ -326,16 +414,33 @@ export default function ExamPrepPage() {
                 <p className="text-sm text-foreground">Upload single or multiple files (up to 10 files, 100MB each).</p>
                 <p className="text-xs text-muted-foreground mt-1">Drag & drop multiple files for faster uploads, or click to browse.</p>
               </div>
-              <Button
-                size="sm"
-                onClick={handleOpenUploader}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
-              >
-                📤 Upload Files
-              </Button>
+              <div className="flex items-center gap-2">
+                {savedStudyMaterials.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setUploadedDocs(mergeDocuments(savedStudyMaterials, []))}
+                    disabled={isLoadingSavedDocs}
+                    className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    Restore saved
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  onClick={handleOpenUploader}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                >
+                  📤 Upload Files
+                </Button>
+              </div>
             </div>
             <div className="text-sm text-muted-foreground">
-              {uploadedDocs.length === 0 ? 'No study materials uploaded yet.' : `${uploadedDocs.length} study material(s) ready.`}
+              {isLoadingSavedDocs
+                ? 'Loading saved study materials...'
+                : uploadedDocs.length === 0
+                  ? 'No study materials uploaded yet.'
+                  : `${uploadedDocs.length} study material(s) ready.`}
             </div>
             {uploadedDocs.length > 0 && (
               <div className="space-y-2">
@@ -458,13 +563,17 @@ export default function ExamPrepPage() {
                     <Label>Sample Papers (optional)</Label>
                     <p className="text-xs text-muted-foreground mt-1">Upload up to 5 sample exam papers to help generate questions in your professor's style</p>
                   </div>
-                  <Badge variant={sampleQuestions.length > 0 ? "secondary" : "outline"}>
+                    <Badge variant={sampleQuestions.length > 0 ? "secondary" : "outline"}>
                     {sampleQuestions.length > 0 ? `${sampleQuestions.length}/5 files` : 'No files'}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between p-3 border border-dashed border-border rounded-lg bg-muted/50">
-                  <div className="text-sm text-muted-foreground">
-                    {sampleQuestions.length === 0 ? 'No sample papers uploaded yet.' : `${sampleQuestions.length} sample paper file(s) ready.`}
+                    <div className="text-sm text-muted-foreground">
+                      {isLoadingSavedDocs
+                        ? 'Loading saved sample papers...'
+                        : sampleQuestions.length === 0
+                          ? 'No sample papers uploaded yet.'
+                          : `${sampleQuestions.length} sample paper file(s) ready.`}
                   </div>
                   <Button
                     size="sm"
@@ -473,9 +582,22 @@ export default function ExamPrepPage() {
                     disabled={sampleQuestions.length >= 5}
                     className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
                   >
-                    {sampleQuestions.length >= 5 ? 'Max 5 files' : '📤 Upload Sample Papers'}
+                      {sampleQuestions.length >= 5 ? 'Max 5 files' : '📤 Upload Sample Papers'}
                   </Button>
                 </div>
+                  {savedSamplePapers.length > 0 && (
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSampleQuestions(mergeDocuments(savedSamplePapers, []))}
+                        disabled={isLoadingSavedDocs}
+                        className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+                      >
+                        Restore saved samples
+                      </Button>
+                    </div>
+                  )}
                 {sampleQuestions.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-xs text-muted-foreground">Uploaded sample papers:</p>
@@ -579,7 +701,11 @@ export default function ExamPrepPage() {
                   </div>
                   <div className="flex items-center justify-between p-3 border border-dashed border-border rounded-lg bg-muted/50">
                     <div className="text-sm text-muted-foreground">
-                      {sampleQuestions.length === 0 ? 'No sample questions uploaded yet.' : `${sampleQuestions.length} sample question file(s) ready.`}
+                      {isLoadingSavedDocs
+                        ? 'Loading saved sample questions...'
+                        : sampleQuestions.length === 0
+                          ? 'No sample questions uploaded yet.'
+                          : `${sampleQuestions.length} sample question file(s) ready.`}
                     </div>
                     <Button 
                       size="sm" 
@@ -590,6 +716,19 @@ export default function ExamPrepPage() {
                       {sampleQuestions.length >= 5 ? 'Max 5 files' : 'Upload Sample'}
                     </Button>
                   </div>
+                  {savedSamplePapers.length > 0 && (
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSampleQuestions(mergeDocuments(savedSamplePapers, []))}
+                        disabled={isLoadingSavedDocs}
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        Restore saved samples
+                      </Button>
+                    </div>
+                  )}
                   {sampleQuestions.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground">Uploaded sample questions:</p>
@@ -633,7 +772,9 @@ export default function ExamPrepPage() {
           <FileUploaderComponent
             onClose={() => setShowSampleUploader(false)}
             onUploaded={(result) => {
-              setSampleQuestions(prev => [...prev, { documentId: result.documentId, name: result.title || 'Sample Question' }])
+              const normalized = [{ documentId: result.documentId, name: result.title || 'Sample Question' }]
+              setSampleQuestions(prev => mergeDocuments(normalized, prev))
+              setSavedSamplePapers(prev => mergeDocuments(normalized, prev))
               setShowSampleUploader(false)
             }}
           />
@@ -644,7 +785,9 @@ export default function ExamPrepPage() {
         <StudyMaterialsUploader
           onClose={() => setShowStudyMaterialsUploader(false)}
           onUploaded={(results) => {
-            setUploadedDocs(prev => [...prev, ...results.map(r => ({ documentId: r.documentId, name: r.title }))])
+            const normalized = results.map(r => ({ documentId: r.documentId, name: r.title }))
+            setUploadedDocs(prev => mergeDocuments(normalized, prev))
+            setSavedStudyMaterials(prev => mergeDocuments(normalized, prev))
             setShowStudyMaterialsUploader(false)
           }}
           maxFiles={10}
