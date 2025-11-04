@@ -323,12 +323,17 @@ export function CalendarView({ onEventClick, onCreateEvent, onTimeSlotClick }: C
               <div className="grid grid-cols-8 gap-4">
                 <div className="text-sm font-medium text-muted-foreground">Time</div>
                 {days.map((day, index) => {
-                  const dayDate = new Date(view.date)
-                  const currentDayOfWeek = dayDate.getDay()
-                  const targetDayOfWeek = (weekStartDay + index) % 7
-                  let dayOffset = targetDayOfWeek - currentDayOfWeek
-                  if (dayOffset < 0) dayOffset += 7
-                  dayDate.setDate(dayDate.getDate() + dayOffset)
+                  // Calculate the start of the week
+                  const startOfWeek = new Date(view.date)
+                  const currentDay = startOfWeek.getDay()
+                  const diff = currentDay - weekStartDay
+                  const daysToSubtract = diff >= 0 ? diff : diff + 7
+                  startOfWeek.setDate(startOfWeek.getDate() - daysToSubtract)
+
+                  // Add index days to get the current day
+                  const dayDate = new Date(startOfWeek)
+                  dayDate.setDate(startOfWeek.getDate() + index)
+
                   return (
                     <div key={day} className="text-center">
                       <div className="text-sm font-medium text-muted-foreground">{day}</div>
@@ -342,7 +347,7 @@ export function CalendarView({ onEventClick, onCreateEvent, onTimeSlotClick }: C
                   )
                 })}
               </div>
-              
+
               <div className="grid grid-cols-8 gap-4">
                 <div className="space-y-0">
                   {Array.from({ length: 24 }, (_, i) => (
@@ -353,12 +358,17 @@ export function CalendarView({ onEventClick, onCreateEvent, onTimeSlotClick }: C
                 </div>
 
                 {days.map((_, dayIndex) => {
-                  const dayDate = new Date(view.date)
-                  const currentDayOfWeek = dayDate.getDay()
-                  const targetDayOfWeek = (weekStartDay + dayIndex) % 7
-                  let dayOffset = targetDayOfWeek - currentDayOfWeek
-                  if (dayOffset < 0) dayOffset += 7
-                  dayDate.setDate(dayDate.getDate() + dayOffset)
+                  // Calculate the start of the week
+                  const startOfWeek = new Date(view.date)
+                  const currentDay = startOfWeek.getDay()
+                  const diff = currentDay - weekStartDay
+                  const daysToSubtract = diff >= 0 ? diff : diff + 7
+                  startOfWeek.setDate(startOfWeek.getDate() - daysToSubtract)
+
+                  // Add index days to get the current day
+                  const dayDate = new Date(startOfWeek)
+                  dayDate.setDate(startOfWeek.getDate() + dayIndex)
+
                   const dayEvents = getEventsForDate?.(dayDate) || []
 
                   return (
