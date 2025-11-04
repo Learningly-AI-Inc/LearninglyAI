@@ -20,6 +20,7 @@ const CalendarPage = () => {
   const [isCreatingEvent, setIsCreatingEvent] = React.useState(false)
   const [isListening, setIsListening] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState('calendar')
+  const [initialEventData, setInitialEventData] = React.useState<Partial<EventFormData> | null>(null)
   
   // Call calendar hook unconditionally - it should handle its own errors internally
   const {
@@ -54,6 +55,27 @@ const CalendarPage = () => {
 
   const handleCreateEvent = () => {
     setSelectedEvent(null)
+    setInitialEventData(null)
+    setIsCreatingEvent(false)
+    setIsEventFormOpen(true)
+  }
+
+  const handleTimeSlotClick = (date: Date, hour: number) => {
+    // Create initial event data with the clicked time slot
+    const startTime = new Date(date)
+    startTime.setHours(hour, 0, 0, 0)
+
+    const endTime = new Date(startTime)
+    endTime.setHours(hour + 1, 0, 0, 0)
+
+    setInitialEventData({
+      start_time: startTime.toISOString(),
+      end_time: endTime.toISOString(),
+      all_day: false,
+      color: '#3B82F6',
+      event_type: 'general'
+    })
+    setSelectedEvent(null)
     setIsCreatingEvent(false)
     setIsEventFormOpen(true)
   }
@@ -62,6 +84,7 @@ const CalendarPage = () => {
     setIsEventFormOpen(false)
     setIsCreatingEvent(false)
     setSelectedEvent(null)
+    setInitialEventData(null)
   }
 
   const handleEventSubmit = async (data: EventFormData) => {
@@ -140,9 +163,10 @@ const CalendarPage = () => {
         </TabsList>
 
         <TabsContent value="calendar" className="space-y-4">
-          <CalendarView 
+          <CalendarView
             onEventClick={handleEventClick}
             onCreateEvent={handleCreateEvent}
+            onTimeSlotClick={handleTimeSlotClick}
           />
         </TabsContent>
 
@@ -180,6 +204,7 @@ const CalendarPage = () => {
         onSubmit={handleEventSubmit}
         onDelete={handleEventDelete}
         loading={isCreatingEvent}
+        initialData={initialEventData}
       />
     </div>
   )

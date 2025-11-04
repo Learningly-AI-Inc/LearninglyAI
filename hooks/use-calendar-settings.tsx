@@ -28,7 +28,7 @@ export interface CalendarSettings {
 }
 
 const defaultSettings: Omit<CalendarSettings, 'user_id'> = {
-  default_view: 'month',
+  default_view: 'week',
   week_start: 'sunday',
   time_format: '12h',
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
