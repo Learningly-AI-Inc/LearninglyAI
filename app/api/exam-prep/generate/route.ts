@@ -546,7 +546,7 @@ IMPORTANT: Vary the correctAnswer across A, B, C, D for different questions. Do 
       firstQuestion: parsedExam?.questions?.[0]?.question
     })
 
-    // Simple normalization and validation with completely randomized correct answers
+    // Simple normalization and validation - preserve AI's correct answer
     const questions = Array.isArray(parsedExam?.questions) ? parsedExam.questions : []
     const mappedQuestions = questions
       .filter((q: any) => q && Array.isArray(q.options) && q.options.length >= 4)
@@ -554,25 +554,32 @@ IMPORTANT: Vary the correctAnswer across A, B, C, D for different questions. Do 
         .map((q: any, i: number) => {
           const cleanOption = (s: any) => String(s).replace(/^[A-D][).]\s*/i, '').trim()
           const opts = q.options.slice(0, 4).map((o: any) => cleanOption(o))
-          
-          // Completely randomize the correct answer - ignore AI bias
-          const options = ['A', 'B', 'C', 'D']
-          const randomLetter = options[Math.floor(Math.random() * options.length)]
-          
+
+          // Normalize the AI's correct answer to A/B/C/D format
+          let correctAnswer = String(q.correctAnswer || 'A').trim().toUpperCase()
+
+          // If AI provided a letter (A/B/C/D), use it directly
+          if (/^[A-D]$/.test(correctAnswer)) {
+            // Valid letter, use as-is
+          } else {
+            // If AI provided something else (like full text or index), default to A
+            correctAnswer = 'A'
+          }
+
           return {
             id: String(q.id || `q_${i + 1}`),
             type: 'mcq',
             question: String(q.question || '').trim(),
             options: opts,
-            correctAnswer: randomLetter, // Always use random assignment
+            correctAnswer: correctAnswer,
             explanation: String(q.explanation || ''),
           difficulty: String(q.difficulty || difficulty),
           topic: String(q.topic || '')
         }
       })
 
-    // Force perfectly balanced distribution
-    const balancedQuestions = forceEqualDistribution(mappedQuestions)
+    // Use the questions as-is, trust the AI's correct answers
+    const balancedQuestions = mappedQuestions
 
     const normalized = {
       examTitle: body.title || 'Practice Exam',
