@@ -29,7 +29,7 @@ export function FileUploaderComponent({ onClose, onUploaded, enableClientSideExt
   const [file, setFile] = useState<File | null>(null)
   const [dragActive, setDragActive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  
+
   const validateFile = (selectedFile: File): string | null => {
     // Check file size
     if (selectedFile.size === 0) {
@@ -142,6 +142,14 @@ export function FileUploaderComponent({ onClose, onUploaded, enableClientSideExt
     resetUpload()
     setFile(null)
   }
+
+  // Check for dropped file from the reading page on mount
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).__droppedFile) {
+      const droppedFile = (window as any).__droppedFile
+      handleFileSelect(droppedFile)
+    }
+  }, [])
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes'

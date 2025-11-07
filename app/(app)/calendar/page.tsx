@@ -6,10 +6,8 @@ import { Header } from "@/components/ui/header"
 import { CalendarView } from "@/components/calendar/calendar-view"
 import { EventForm } from "@/components/calendar/event-form"
 import { SyllabusUpload } from "@/components/calendar/syllabus-upload"
-import { VoiceEditor } from "@/components/calendar/voice-editor"
 import { CalendarIntegrationComponent } from "@/components/calendar/calendar-integration"
 import { CalendarSettings } from "@/components/calendar/calendar-settings"
-import { TestDbConnection } from "@/components/calendar/test-db-connection"
 import { useCalendar } from "@/hooks/use-calendar"
 import { CalendarEvent, EventFormData, GeneratedSchedule } from "@/types/calendar"
 
@@ -18,7 +16,6 @@ const CalendarPage = () => {
   const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null)
   const [isEventFormOpen, setIsEventFormOpen] = React.useState(false)
   const [isCreatingEvent, setIsCreatingEvent] = React.useState(false)
-  const [isListening, setIsListening] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState('calendar')
   const [initialEventData, setInitialEventData] = React.useState<Partial<EventFormData> | null>(null)
   
@@ -112,27 +109,6 @@ const CalendarPage = () => {
     }
   }
 
-  const handleVoiceCommand = (command: any) => {
-    // Process voice commands
-    console.log('Voice command received:', command)
-    
-    // Example: Create event from voice command
-    if (command.action === 'create' && command.event_title && command.start_time) {
-      const eventData: EventFormData = {
-        title: command.event_title,
-        start_time: command.start_time,
-        end_time: command.end_time || command.start_time,
-        all_day: false,
-        color: '#3B82F6',
-        event_type: 'general',
-        location: command.location || '',
-        description: command.description || ''
-      }
-      
-      createEvent(eventData)
-    }
-  }
-
   const handleScheduleGenerated = (schedule: GeneratedSchedule) => {
     console.log('Schedule generated:', schedule)
     // Refresh events to show the new schedule
@@ -153,13 +129,11 @@ const CalendarPage = () => {
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="syllabus">Syllabus Upload</TabsTrigger>
-          <TabsTrigger value="voice">Voice Editor</TabsTrigger>
           <TabsTrigger value="integration">Integrations</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
-          <TabsTrigger value="debug">Debug</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendar" className="space-y-4">
@@ -174,25 +148,12 @@ const CalendarPage = () => {
           <SyllabusUpload onScheduleGenerated={handleScheduleGenerated} />
         </TabsContent>
 
-        <TabsContent value="voice" className="space-y-6">
-          <VoiceEditor 
-            onCommand={handleVoiceCommand}
-            isListening={isListening}
-            onStartListening={() => setIsListening(true)}
-            onStopListening={() => setIsListening(false)}
-          />
-        </TabsContent>
-
         <TabsContent value="integration" className="space-y-6">
           <CalendarIntegrationComponent onIntegrationChange={handleIntegrationChange} />
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
           <CalendarSettings />
-        </TabsContent>
-        
-        <TabsContent value="debug" className="space-y-6">
-          <TestDbConnection />
         </TabsContent>
       </Tabs>
 

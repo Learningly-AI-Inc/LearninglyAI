@@ -39,6 +39,7 @@ const ReadingPage = () => {
     message?: string;
     limitType?: 'documents_uploaded' | 'exam_sessions';
   }>({})
+  const [isDragging, setIsDragging] = React.useState(false)
   const { getCurrentUsage, getCurrentLimit, isLoading: usageLoading, usage, limits, checkUsageLimit } = useUsageLimits()
 
   // Debug: Log usage data
@@ -66,6 +67,62 @@ const ReadingPage = () => {
     }
     setShowUploadModal(true)
   }
+
+  // Drag and drop handlers for the entire page
+  const handleDragEnter = React.useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    // Check if dragging files
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true)
+    }
+  }, [])
+
+  const handleDragOver = React.useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const handleDragLeave = React.useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    // Only set dragging to false if leaving the entire window
+    if (e.currentTarget === e.target) {
+      setIsDragging(false)
+    }
+  }, [])
+
+  const handleDrop = React.useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      // Check usage limit before accepting drop
+      const limitCheck = await checkUsageLimit('documents_uploaded', 1)
+      if (!limitCheck.canProceed) {
+        setUpgradeModalConfig({
+          title: 'Upload Limit Reached',
+          message: limitCheck.message || 'You\'ve reached your monthly document upload limit. Upgrade to Premium to upload more documents.',
+          limitType: 'documents_uploaded'
+        })
+        setShowUpgradeModal(true)
+        return
+      }
+
+      // Open the upload modal which will handle the file
+      setShowUploadModal(true)
+
+      // We'll need to pass the file to the uploader
+      // Store it temporarily so the uploader can access it
+      if (typeof window !== 'undefined') {
+        (window as any).__droppedFile = files[0]
+      }
+    }
+  }, [checkUsageLimit])
 
   const uploadOptions = [
     {
@@ -110,7 +167,25 @@ const ReadingPage = () => {
 
   return (
     <DocumentProvider>
-      <div className="min-h-screen bg-background">
+      <div
+        className="min-h-screen bg-background relative"
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {/* Drag Overlay */}
+        {isDragging && (
+          <div className="fixed inset-0 bg-blue-500/20 backdrop-blur-sm z-50 flex items-center justify-center pointer-events-none">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-12 border-4 border-dashed border-blue-500">
+              <div className="flex flex-col items-center gap-4">
+                <Upload className="h-16 w-16 text-blue-500 animate-bounce" />
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">Drop your file here</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Supports PDF, DOCX, TXT (Max 100MB)</p>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Modern Header */}
         <div className="bg-background border-b border-border/50 sticky top-0 z-40">
           <div className="w-full max-w-[85vw] mx-auto px-6 py-4">
@@ -188,9 +263,19 @@ const ReadingPage = () => {
       {/* Upload Modal */}
       {showUploadModal && (
         <OptimizedFileUploader
-          onClose={() => setShowUploadModal(false)}
+          onClose={() => {
+            setShowUploadModal(false)
+            // Clean up dropped file reference
+            if (typeof window !== 'undefined') {
+              delete (window as any).__droppedFile
+            }
+          }}
           onUploaded={(result) => {
             console.log('Upload completed:', result);
+            // Clean up dropped file reference
+            if (typeof window !== 'undefined') {
+              delete (window as any).__droppedFile
+            }
             // Navigate to document viewer after successful upload
             if (result?.fileUrl && result?.documentId) {
               const title = result.title || 'Document';
