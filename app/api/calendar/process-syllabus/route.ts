@@ -609,9 +609,8 @@ CRITICAL RULES:
 1. ONLY extract information EXPLICITLY stated in the document
 2. DO NOT make up course names, codes, or details
 3. If information is missing, use null or empty values
-4. Find ONLY LECTURE MEETING TIMES (weekly schedule, not labs, tutorials, or other sessions)
-5. Extract ONLY LECTURE session dates from Course Schedule sections
-6. IGNORE exams, assignments, midterms, finals, labs, tutorials, seminars, or any non-lecture sessions
+4. Extract ALL important academic dates including lectures, exams, assignments, and deadlines
+5. Look for course schedules in various formats: weekly topics, specific dates, or recurring meeting times
 
 JSON structure:
 {
@@ -619,7 +618,7 @@ JSON structure:
   "courses": [
     {
       "name": "Course Name",
-      "code": "COURSE 101", 
+      "code": "COURSE 101",
       "instructor": "Instructor Name",
       "credits": 3,
       "location": "Room/Building",
@@ -627,18 +626,26 @@ JSON structure:
         {
           "day_of_week": 1,
           "start_time": "14:00",
-          "end_time": "15:20", 
+          "end_time": "15:20",
           "location": "Room/Building",
           "type": "lecture"
         }
       ],
       "specific_sessions": [
         {
-          "date": "2024-09-20",
-          "title": "Welcome, syllabus",
+          "date": "2025-04-21",
+          "title": "Exam 1 - The middle and late Paleozoic",
           "start_time": "14:00",
           "end_time": "15:20",
-          "location": "Room/Building", 
+          "location": "Room/Building",
+          "type": "exam"
+        },
+        {
+          "date": "2025-04-07",
+          "title": "Week 3: Early animals",
+          "start_time": "09:00",
+          "end_time": "10:00",
+          "location": "Room/Building",
           "type": "lecture"
         }
       ]
@@ -646,14 +653,35 @@ JSON structure:
   ]
 }
 
-Guidelines:
-- Look for LECTURE meeting times like "Mo/We 2:00 PM - 3:20 PM" or "MWF 9:00-10:30"
-- Convert days: M/Mo/Mon=1, T/Tu/Tue=2, W/We/Wed=3, Th/Thu/R=4, F/Fri=5, Sa/Sat=6, Su/Sun=0
-- Convert times to 24-hour format (e.g., "14:00" for 2:00 PM)
-- Extract ONLY LECTURE dates from Course Schedule sections
-- Skip "No class" entries, exams, assignments, labs, tutorials, seminars
-- Set type to "lecture" for all class meetings
-- Return ONLY the JSON object, no explanations
+Guidelines for extracting information:
+
+1. COURSE INFORMATION:
+   - Extract course name, code, instructor from the header/title section
+   - Look for professor email, office hours, room numbers
+
+2. WEEKLY SCHEDULES (if present):
+   - Look for recurring meeting times like "Mo/We 2:00 PM - 3:20 PM" or "MWF 9:00-10:30"
+   - Convert days: M/Mo/Mon=1, T/Tu/Tue=2, W/We/Wed=3, Th/Thu/R=4, F/Fri=5, Sa/Sat=6, Su/Sun=0
+   - Convert times to 24-hour format (e.g., "14:00" for 2:00 PM)
+
+3. SPECIFIC SESSIONS (very important):
+   - Look for "Lectures and Reading Assignments", "Course Schedule", or similar sections
+   - Extract EACH lecture topic with its date (e.g., "Week 3: Early animals" on specific date)
+   - Extract ALL exam dates (e.g., "April 21: EXAM", "May 12: EXAM")
+   - Extract assignment due dates, project deadlines
+   - If only "Week X" is given without specific dates, estimate dates based on semester start/end
+   - Set appropriate types: "lecture", "exam", "assignment", "lab", "tutorial", "final"
+
+4. DATE CONVERSION:
+   - Convert all dates to ISO format YYYY-MM-DD
+   - If only month/day given (e.g., "April 21"), infer year from semester
+   - If only "Week X" given, calculate dates based on semester start date
+
+5. TIME INFERENCE:
+   - If specific times aren't given but class meeting times are mentioned elsewhere, use those
+   - If no times at all, use reasonable defaults (e.g., "09:00" to "10:30" for lectures)
+
+Return ONLY the JSON object, no explanations or markdown.
 
 Syllabus text:
 ${text}`
@@ -665,7 +693,7 @@ ${text}`
       messages: [
         {
           role: "system",
-          content: "You are a JSON parser specialized in extracting LECTURE information from academic syllabi. CRITICAL: You must ONLY extract LECTURE meeting times, days, and locations that are EXPLICITLY present in the document. DO NOT extract labs, tutorials, seminars, exams, assignments, or any non-lecture sessions. DO NOT make up course names, codes, or any other information. If information is not found, use null. Always return valid JSON only. No markdown, no backticks, no explanations. Focus ONLY on regular class lecture meetings."
+          content: "You are a JSON parser specialized in extracting comprehensive academic schedule information from syllabi. Extract ALL important dates including lectures, exams, assignments, and deadlines. CRITICAL: You must ONLY extract information that is EXPLICITLY present in the document. DO NOT make up course names, codes, dates, or any other information. If information is not found, use null or empty arrays. Always return valid JSON only. No markdown, no backticks, no explanations. Be thorough in finding lecture schedules, even if they're listed as weekly topics rather than recurring meeting times."
         },
         {
           role: "user",

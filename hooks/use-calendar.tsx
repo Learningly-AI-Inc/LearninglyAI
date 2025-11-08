@@ -9,7 +9,7 @@ export function useCalendar() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [view, setView] = useState<CalendarView>({ type: 'month', date: new Date() })
+  const [view, setView] = useState<CalendarView>({ type: 'week', date: new Date() })
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [isCreatingEvent, setIsCreatingEvent] = useState(false)
   

@@ -15,9 +15,10 @@ import { cn } from "@/lib/utils"
 interface CalendarViewProps {
   onEventClick?: (event: CalendarEvent) => void
   onCreateEvent?: () => void
+  onTimeSlotClick?: (date: Date, hour: number) => void
 }
 
-export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps) {
+export function CalendarView({ onEventClick, onCreateEvent, onTimeSlotClick }: CalendarViewProps) {
   const calendarHook = useCalendar()
   const { settings } = useCalendarSettings()
 
@@ -209,13 +210,13 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
           <div className="flex items-center space-x-2">
             <div className="flex items-center space-x-1 bg-blue-100 dark:bg-blue-900/30 rounded-lg p-1">
               <Button
-                variant={view.type === 'month' ? 'default' : 'ghost'}
+                variant={view.type === 'day' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => changeView?.('month')}
+                onClick={() => changeView?.('day')}
                 className="h-8 px-3"
               >
-                <Grid3X3 className="h-4 w-4 mr-1" />
-                Month
+                <Clock className="h-4 w-4 mr-1" />
+                Day
               </Button>
               <Button
                 variant={view.type === 'week' ? 'default' : 'ghost'}
@@ -227,13 +228,13 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
                 Week
               </Button>
               <Button
-                variant={view.type === 'day' ? 'default' : 'ghost'}
+                variant={view.type === 'month' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => changeView?.('day')}
+                onClick={() => changeView?.('month')}
                 className="h-8 px-3"
               >
-                <Clock className="h-4 w-4 mr-1" />
-                Day
+                <Grid3X3 className="h-4 w-4 mr-1" />
+                Month
               </Button>
               <Button
                 variant={view.type === 'agenda' ? 'default' : 'ghost'}
@@ -322,12 +323,17 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
               <div className="grid grid-cols-8 gap-4">
                 <div className="text-sm font-medium text-muted-foreground">Time</div>
                 {days.map((day, index) => {
-                  const dayDate = new Date(view.date)
-                  const currentDayOfWeek = dayDate.getDay()
-                  const targetDayOfWeek = (weekStartDay + index) % 7
-                  let dayOffset = targetDayOfWeek - currentDayOfWeek
-                  if (dayOffset < 0) dayOffset += 7
-                  dayDate.setDate(dayDate.getDate() + dayOffset)
+                  // Calculate the start of the week
+                  const startOfWeek = new Date(view.date)
+                  const currentDay = startOfWeek.getDay()
+                  const diff = currentDay - weekStartDay
+                  const daysToSubtract = diff >= 0 ? diff : diff + 7
+                  startOfWeek.setDate(startOfWeek.getDate() - daysToSubtract)
+
+                  // Add index days to get the current day
+                  const dayDate = new Date(startOfWeek)
+                  dayDate.setDate(startOfWeek.getDate() + index)
+
                   return (
                     <div key={day} className="text-center">
                       <div className="text-sm font-medium text-muted-foreground">{day}</div>
@@ -341,42 +347,92 @@ export function CalendarView({ onEventClick, onCreateEvent }: CalendarViewProps)
                   )
                 })}
               </div>
-              
+
               <div className="grid grid-cols-8 gap-4">
-                <div className="space-y-4">
+                <div className="space-y-0">
                   {Array.from({ length: 24 }, (_, i) => (
-                    <div key={i} className="h-12 text-xs text-muted-foreground flex items-center">
+                    <div key={i} className="h-12 text-xs text-muted-foreground flex items-center border-b border-border">
                       {i === 0 ? '12 AM' : i < 12 ? `${i} AM` : i === 12 ? '12 PM' : `${i - 12} PM`}
                     </div>
                   ))}
                 </div>
 
                 {days.map((_, dayIndex) => {
-                  const dayDate = new Date(view.date)
-                  const currentDayOfWeek = dayDate.getDay()
-                  const targetDayOfWeek = (weekStartDay + dayIndex) % 7
-                  let dayOffset = targetDayOfWeek - currentDayOfWeek
-                  if (dayOffset < 0) dayOffset += 7
-                  dayDate.setDate(dayDate.getDate() + dayOffset)
+                  // Calculate the start of the week
+                  const startOfWeek = new Date(view.date)
+                  const currentDay = startOfWeek.getDay()
+                  const diff = currentDay - weekStartDay
+                  const daysToSubtract = diff >= 0 ? diff : diff + 7
+                  startOfWeek.setDate(startOfWeek.getDate() - daysToSubtract)
+
+                  // Add index days to get the current day
+                  const dayDate = new Date(startOfWeek)
+                  dayDate.setDate(startOfWeek.getDate() + dayIndex)
+
                   const dayEvents = getEventsForDate?.(dayDate) || []
 
                   return (
-                    <div key={dayIndex} className="space-y-1">
-                      {dayEvents.map((event, eventIndex) => (
-                        <div
-                          key={eventIndex}
-                          className={cn(
-                            "text-xs p-2 rounded text-white cursor-pointer hover:opacity-80 transition-opacity",
-                            getEventColor(event.color)
-                          )}
-                          onClick={() => onEventClick?.(event)}
-                        >
-                          <div className="font-medium truncate">{event.title}</div>
-                          <div className="text-xs opacity-90">
-                            {formatTime(event.start_time)} - {formatTime(event.end_time)}
+                    <div key={dayIndex} className="relative">
+                      {/* Time slot grid for clickable hours */}
+                      {Array.from({ length: 24 }, (_, hour) => {
+                        const slotDate = new Date(dayDate)
+                        slotDate.setHours(hour, 0, 0, 0)
+
+                        // Find events that overlap with this hour
+                        const hourEvents = dayEvents.filter(event => {
+                          const eventStart = new Date(event.start_time)
+                          const eventEnd = new Date(event.end_time)
+                          const slotEnd = new Date(slotDate)
+                          slotEnd.setHours(hour + 1, 0, 0, 0)
+
+                          return eventStart < slotEnd && eventEnd > slotDate
+                        })
+
+                        return (
+                          <div
+                            key={hour}
+                            className={cn(
+                              "h-12 border-b border-border cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors relative",
+                              isToday(dayDate) && "bg-blue-50/50 dark:bg-blue-950/10"
+                            )}
+                            onClick={() => onTimeSlotClick?.(dayDate, hour)}
+                            title={`Click to create event at ${hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}`}
+                          >
+                            {/* Render events that overlap with this hour */}
+                            {hourEvents.map((event, eventIndex) => {
+                              const eventStart = new Date(event.start_time)
+                              const eventHour = eventStart.getHours()
+
+                              // Only render the event in its starting hour to avoid duplicates
+                              if (eventHour !== hour) return null
+
+                              return (
+                                <div
+                                  key={eventIndex}
+                                  className={cn(
+                                    "absolute inset-x-0 text-xs p-1.5 rounded text-white cursor-pointer hover:opacity-80 transition-opacity z-10 mx-0.5",
+                                    getEventColor(event.color)
+                                  )}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onEventClick?.(event)
+                                  }}
+                                  style={{
+                                    top: `${(eventStart.getMinutes() / 60) * 100}%`,
+                                    height: 'auto',
+                                    minHeight: '2rem'
+                                  }}
+                                >
+                                  <div className="font-medium truncate text-[10px]">{event.title}</div>
+                                  <div className="text-[9px] opacity-90 truncate">
+                                    {formatTime(event.start_time)}
+                                  </div>
+                                </div>
+                              )
+                            })}
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )
                 })}

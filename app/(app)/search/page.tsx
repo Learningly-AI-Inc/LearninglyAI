@@ -51,7 +51,16 @@ const SearchPage = () => {
   const [currentMessage, setCurrentMessage] = React.useState('')
   const [attachedDocs, setAttachedDocs] = React.useState<Array<{ id: string; name: string; url: string; status: 'uploading' | 'ready' | 'error' }>>([])
   const [isTyping, setIsTyping] = React.useState(false)
-  const [selectedModel, setSelectedModel] = React.useState<'gemini-2.5-flash' | 'gpt-5-mini' | 'gpt-5' | 'gpt-5-nano' | 'gemini-2.5-pro' | 'gemini-2.5-flash-lite' | 'gpt-5-thinking-pro' | 'grok-3' | 'deepseek-v3' | 'llama-3.1'>('gemini-2.5-flash')
+  // Load saved model preference from localStorage, fallback to 'gemini-2.5-flash'
+  const [selectedModel, setSelectedModel] = React.useState<'gemini-2.5-flash' | 'gpt-5-mini' | 'gpt-5' | 'gpt-5-nano' | 'gemini-2.5-pro' | 'gemini-2.5-flash-lite' | 'gpt-5-thinking-pro' | 'grok-3' | 'deepseek-v3' | 'llama-3.1'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('learningly_preferred_model')
+      if (saved) {
+        return saved as any
+      }
+    }
+    return 'gemini-2.5-flash'
+  })
   const [conversations, setConversations] = React.useState<Conversation[]>([])
   const [selectedConversationId, setSelectedConversationId] = React.useState<string | null>(null)
   const [isLoading, setIsLoading] = React.useState(false)
@@ -70,6 +79,13 @@ const SearchPage = () => {
   const [isSearching, setIsSearching] = React.useState(false)
   const [isDragOver, setIsDragOver] = React.useState(false)
   const scrollAreaRef = React.useRef<HTMLDivElement>(null)
+
+  // Save model preference whenever it changes
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('learningly_preferred_model', selectedModel)
+    }
+  }, [selectedModel])
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
