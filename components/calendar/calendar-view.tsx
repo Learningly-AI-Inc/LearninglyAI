@@ -22,6 +22,10 @@ export function CalendarView({ onEventClick, onCreateEvent, onTimeSlotClick }: C
   const calendarHook = useCalendar()
   const { settings } = useCalendarSettings()
 
+  const weekScrollContainerRef = React.useRef<HTMLDivElement | null>(null)
+  const dayScrollContainerRef = React.useRef<HTMLDivElement | null>(null)
+  const HOUR_BLOCK_HEIGHT = 48 // Tailwind h-12 (12 * 4px)
+
   // Defensive programming - ensure all functions exist
   if (!calendarHook) {
     return (
@@ -135,6 +139,8 @@ export function CalendarView({ onEventClick, onCreateEvent, onTimeSlotClick }: C
     }
     return colorMap[color] || 'bg-blue-500 hover:bg-blue-600'
   }
+
+  // No need for scroll logic anymore - we display hours starting from current time
 
   if (loading) {
     return (
@@ -348,13 +354,25 @@ export function CalendarView({ onEventClick, onCreateEvent, onTimeSlotClick }: C
                 })}
               </div>
 
-              <div className="grid grid-cols-8 gap-4">
-                <div className="space-y-0">
-                  {Array.from({ length: 24 }, (_, i) => (
-                    <div key={i} className="h-12 text-xs text-muted-foreground flex items-center border-b border-border">
-                      {i === 0 ? '12 AM' : i < 12 ? `${i} AM` : i === 12 ? '12 PM' : `${i - 12} PM`}
-                    </div>
-                  ))}
+              <div
+                ref={weekScrollContainerRef}
+                className="grid grid-cols-8 gap-4 max-h-[calc(100vh-280px)] overflow-y-auto pr-2"
+              >
+                <div className="space-y-0 sticky left-0 bg-background z-10">
+                  {Array.from({ length: 24 }, (_, i) => {
+                    // Start from current hour and wrap around
+                    const currentHour = new Date().getHours()
+                    const displayHour = (currentHour + i) % 24
+                    return (
+                      <div
+                        key={i}
+                        data-hour={displayHour}
+                        className="h-12 text-xs text-muted-foreground flex items-center border-b border-border"
+                      >
+                        {displayHour === 0 ? '12 AM' : displayHour < 12 ? `${displayHour} AM` : displayHour === 12 ? '12 PM' : `${displayHour - 12} PM`}
+                      </div>
+                    )
+                  })}
                 </div>
 
                 {days.map((_, dayIndex) => {
@@ -370,11 +388,13 @@ export function CalendarView({ onEventClick, onCreateEvent, onTimeSlotClick }: C
                   dayDate.setDate(startOfWeek.getDate() + dayIndex)
 
                   const dayEvents = getEventsForDate?.(dayDate) || []
+                  const currentHourNow = new Date().getHours()
 
                   return (
                     <div key={dayIndex} className="relative">
                       {/* Time slot grid for clickable hours */}
-                      {Array.from({ length: 24 }, (_, hour) => {
+                      {Array.from({ length: 24 }, (_, i) => {
+                        const hour = (currentHourNow + i) % 24
                         const slotDate = new Date(dayDate)
                         slotDate.setHours(hour, 0, 0, 0)
 
@@ -453,13 +473,25 @@ export function CalendarView({ onEventClick, onCreateEvent, onTimeSlotClick }: C
                 </h3>
               </div>
               
-              <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-2 space-y-4">
-                  {Array.from({ length: 24 }, (_, i) => (
-                    <div key={i} className="h-12 text-xs text-muted-foreground flex items-center">
-                      {i === 0 ? '12 AM' : i < 12 ? `${i} AM` : i === 12 ? '12 PM' : `${i - 12} PM`}
-                    </div>
-                  ))}
+              <div
+                ref={dayScrollContainerRef}
+                className="grid grid-cols-12 gap-4 max-h-[calc(100vh-280px)] overflow-y-auto pr-2"
+              >
+                <div className="col-span-2 space-y-4 sticky left-0 bg-background z-10">
+                  {Array.from({ length: 24 }, (_, i) => {
+                    // Start from current hour and wrap around
+                    const currentHour = new Date().getHours()
+                    const displayHour = (currentHour + i) % 24
+                    return (
+                      <div
+                        key={i}
+                        data-hour={displayHour}
+                        className="h-12 text-xs text-muted-foreground flex items-center"
+                      >
+                        {displayHour === 0 ? '12 AM' : displayHour < 12 ? `${displayHour} AM` : displayHour === 12 ? '12 PM' : `${displayHour - 12} PM`}
+                      </div>
+                    )
+                  })}
                 </div>
                 
                 <div className="col-span-10 space-y-1">

@@ -130,10 +130,11 @@ export async function POST(request: NextRequest) {
         console.log(`Using specific sessions for ${course.code}:`, course.specific_sessions.length, 'sessions')
 
         course.specific_sessions.forEach((session) => {
-          // Only include lecture sessions, filter out exams, assignments, etc.
-          const sessionType = session.type?.toLowerCase() || ''
-          if (sessionType !== 'lecture' && sessionType !== 'class') {
-            return // Skip non-lecture sessions
+          // Skip only exams and assignments, include lectures and general events
+          const sessionType = session.type?.toLowerCase() || 'lecture'
+          if (sessionType === 'exam' || sessionType === 'final' || sessionType === 'assignment' || sessionType === 'quiz') {
+            console.log(`Skipping ${sessionType} session:`, session.title)
+            return // Skip exam/assignment sessions
           }
 
           // Validate required fields
@@ -141,6 +142,8 @@ export async function POST(request: NextRequest) {
             console.warn('Skipping session with missing required fields:', session)
             return
           }
+
+          console.log(`Including session: ${session.title} (type: ${sessionType})`)
 
           // Parse date correctly to avoid timezone issues
           // session.date is in format "YYYY-MM-DD"
@@ -173,10 +176,11 @@ export async function POST(request: NextRequest) {
       } else {
         // Fall back to recurring events if no specific sessions
         course.schedule.forEach((schedule) => {
-          // Only include lecture sessions, filter out labs, tutorials, etc.
-          const scheduleType = schedule.type?.toLowerCase() || ''
-          if (scheduleType !== 'lecture' && scheduleType !== 'class') {
-            return // Skip non-lecture sessions
+          // Include all class-related sessions (lectures, labs, tutorials), skip only exams/assignments
+          const scheduleType = schedule.type?.toLowerCase() || 'lecture'
+          if (scheduleType === 'exam' || scheduleType === 'final' || scheduleType === 'assignment' || scheduleType === 'quiz') {
+            console.log(`Skipping ${scheduleType} schedule`)
+            return // Skip exam/assignment schedules
           }
 
           // Validate required fields
@@ -184,6 +188,8 @@ export async function POST(request: NextRequest) {
             console.warn('Skipping schedule with missing required fields:', schedule)
             return
           }
+
+          console.log(`Including recurring schedule: ${course.name} on day ${schedule.day_of_week} (type: ${scheduleType})`)
 
           const startDate = new Date(semesterStartDate)
           const endDate = new Date(semesterEndDate)

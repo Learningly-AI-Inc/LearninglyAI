@@ -210,11 +210,18 @@ export function CalendarIntegrationComponent({ onIntegrationChange }: CalendarIn
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Calendar className="h-5 w-5" />
-          <span>Calendar Integration</span>
+          <span>Calendar Integrations</span>
         </CardTitle>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
+        {/* Coming Soon Banner */}
+        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-center">
+          <p className="text-lg font-semibold text-blue-900 dark:text-blue-100">Coming Soon</p>
+          <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+            Calendar integrations with Google, Outlook, and Apple Calendar are currently in development
+          </p>
+        </div>
         {integrationProviders.map((provider) => {
           const status = getIntegrationStatus(provider.id)
           const isConnected = isIntegrationConnected(provider.id)
