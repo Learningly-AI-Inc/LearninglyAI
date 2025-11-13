@@ -29,6 +29,17 @@ interface Conversation {
   updated_at: string
 }
 
+const GPT_MODELS = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-thinking-pro'] as const
+type GPTModel = (typeof GPT_MODELS)[number]
+const DEFAULT_GPT_MODEL: GPTModel = 'gpt-5-mini'
+const MODEL_LABELS: Record<GPTModel, string> = {
+  'gpt-5': 'GPT-5',
+  'gpt-5-mini': 'GPT-5 Mini',
+  'gpt-5-nano': 'GPT-5 Nano',
+  'gpt-5-thinking-pro': 'GPT-5 Thinking Pro'
+}
+const isGptModel = (value: string): value is GPTModel => GPT_MODELS.includes(value as GPTModel)
+
 function QuickTip({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
     <div className="flex items-start gap-2 p-2 rounded-xl bg-muted border border-border">
@@ -51,15 +62,15 @@ const SearchPage = () => {
   const [currentMessage, setCurrentMessage] = React.useState('')
   const [attachedDocs, setAttachedDocs] = React.useState<Array<{ id: string; name: string; url: string; status: 'uploading' | 'ready' | 'error' }>>([])
   const [isTyping, setIsTyping] = React.useState(false)
-  // Load saved model preference from localStorage, fallback to 'gemini-2.5-flash'
-  const [selectedModel, setSelectedModel] = React.useState<'gemini-2.5-flash' | 'gpt-5-mini' | 'gpt-5' | 'gpt-5-nano' | 'gemini-2.5-pro' | 'gemini-2.5-flash-lite' | 'gpt-5-thinking-pro' | 'grok-3' | 'deepseek-v3' | 'llama-3.1'>(() => {
+  // Load saved model preference from localStorage, fallback to DEFAULT_GPT_MODEL
+  const [selectedModel, setSelectedModel] = React.useState<GPTModel>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('learningly_preferred_model')
-      if (saved) {
-        return saved as any
+      if (saved && isGptModel(saved)) {
+        return saved
       }
     }
-    return 'gemini-2.5-flash'
+    return DEFAULT_GPT_MODEL
   })
   const [conversations, setConversations] = React.useState<Conversation[]>([])
   const [selectedConversationId, setSelectedConversationId] = React.useState<string | null>(null)
@@ -587,21 +598,6 @@ const SearchPage = () => {
   }
 
 
-
-  // Map new model names to database-allowed model names
-  const mapModelToDatabaseModel = (model: string): 'gpt-4' | 'gpt-3.5-turbo' | 'gemini-pro' | 'claude' => {
-    const modelMapping: Record<string, 'gpt-4' | 'gpt-3.5-turbo' | 'gemini-pro' | 'claude'> = {
-      'gemini-2.5-flash': 'gemini-pro',
-      'gemini-2.5-flash-lite': 'gemini-pro',
-      'gemini-2.5-pro': 'gemini-pro',
-      'gpt-5-mini': 'gpt-3.5-turbo',
-      'gpt-5': 'gpt-4',
-      'gpt-5-nano': 'gpt-3.5-turbo',
-      'gpt-5-thinking-pro': 'gpt-4'
-    }
-    
-    return modelMapping[model] || 'gpt-3.5-turbo' // Default fallback
-  }
 
   const handleNewConversation = () => {
     if (loading || !user?.id) {
@@ -1332,7 +1328,7 @@ const SearchPage = () => {
                 <div className="flex items-center justify-center min-h-[60vh] sm:min-h-[65vh] text-center select-none">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Ask Anything, I am here to answer!</h1>
-                    <p className="text-sm text-muted-foreground mt-1">I’ll help with answers, explanations, and examples.</p>
+                    <p className="text-sm text-muted-foreground mt-1">I'll help with answers, explanations, and examples.</p>
                   </div>
                 </div>
               )}
@@ -1609,13 +1605,9 @@ const SearchPage = () => {
                             className="h-8 px-3 text-xs border-border bg-background hover:bg-accent w-full sm:min-w-[140px] justify-between"
                           >
                             <div className="flex items-center gap-2">
-                              {selectedModel.startsWith('gemini') ? (
-                                <Zap className="h-3 w-3 text-purple-600 dark:text-purple-400" />
-                              ) : (
-                                <Brain className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                              )}
+                              <Brain className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                               <span className="truncate font-medium">
-                                {selectedModel.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                {MODEL_LABELS[selectedModel]}
                               </span>
                             </div>
                             <ChevronRight className={`h-3 w-3 transition-transform ${showModelMenu ? 'rotate-90' : ''}`} />
@@ -1633,15 +1625,15 @@ const SearchPage = () => {
                                     GPT-5 Models
                                   </div>
                                   {[
-                                    { id: 'gpt-5', name: 'GPT-5', desc: 'Most capable model' },
-                                    { id: 'gpt-5-mini', name: 'GPT-5 Mini', desc: 'Fast and efficient' },
-                                    { id: 'gpt-5-nano', name: 'GPT-5 Nano', desc: 'Lightweight option' },
-                                    { id: 'gpt-5-thinking-pro', name: 'GPT-5 Thinking Pro', desc: 'Advanced reasoning' }
+                                    { id: 'gpt-5' as GPTModel, name: 'GPT-5', desc: 'Most capable model' },
+                                    { id: 'gpt-5-mini' as GPTModel, name: 'GPT-5 Mini', desc: 'Fast and efficient' },
+                                    { id: 'gpt-5-nano' as GPTModel, name: 'GPT-5 Nano', desc: 'Lightweight option' },
+                                    { id: 'gpt-5-thinking-pro' as GPTModel, name: 'GPT-5 Thinking Pro', desc: 'Advanced reasoning' }
                                   ].map((model) => (
                                     <button
                                       key={model.id}
                                       onClick={() => {
-                                        setSelectedModel(model.id as any);
+                                        setSelectedModel(model.id);
                                         setShowModelMenu(false);
                                       }}
                                       className={`w-full px-3 py-2.5 text-left hover:bg-accent transition-colors rounded-lg ${
@@ -1661,69 +1653,32 @@ const SearchPage = () => {
                                   ))}
                                 </div>
                                 
-                                {/* Gemini Models */}
+                                {/* Other providers listed as coming soon */}
                                 <div className="px-2 py-1">
                                   <div className="text-xs font-medium text-muted-foreground px-2 py-1 mb-1 flex items-center gap-1">
                                     <Zap className="h-3 w-3" />
-                                    Gemini Models
+                                    Other Providers
                                   </div>
-                                  {[
-                                    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', desc: 'Most capable Gemini' },
-                                    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', desc: 'Fast and efficient' },
-                                    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', desc: 'Lightweight option' }
-                                  ].map((model) => (
+                                  {[ 
+                                    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
+                                    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+                                    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' },
+                                    { id: 'llama-3.1', name: 'Llama 3.1' },
+                                    { id: 'claude-3.7', name: 'Claude 3.7' },
+                                    { id: 'grok-3', name: 'Grok 3' },
+                                    { id: 'deepseek-v3', name: 'DeepSeek V3' }
+                                  ].map(model => (
                                     <button
                                       key={model.id}
-                                      onClick={() => {
-                                        setSelectedModel(model.id as any);
-                                        setShowModelMenu(false);
-                                      }}
-                                      className={`w-full px-3 py-2.5 text-left hover:bg-accent transition-colors rounded-lg ${
-                                        selectedModel === model.id ? 'bg-accent text-foreground' : 'text-foreground'
-                                      }`}
+                                      type="button"
+                                      disabled
+                                      className="w-full px-3 py-2.5 text-left rounded-lg border border-dashed border-border/60 bg-muted/40 text-muted-foreground cursor-not-allowed flex items-center justify-between"
                                     >
-                                      <div className="flex items-center justify-between">
-                                        <div>
-                                          <div className="text-sm font-medium">{model.name}</div>
-                                          <div className="text-xs text-muted-foreground">{model.desc}</div>
-                                        </div>
-                                        {selectedModel === model.id && (
-                                          <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
-                                        )}
+                                      <div>
+                                        <div className="text-sm font-medium">{model.name}</div>
+                                        <div className="text-xs text-muted-foreground/80">Coming soon</div>
                                       </div>
-                                    </button>
-                                  ))}
-                                </div>
-
-                                {/* Other Providers (Llama, Claude, Grok, DeepSeek) – mapped to closest engines */}
-                                <div className="px-2 py-1">
-                                  <div className="text-xs font-medium text-muted-foreground px-2 py-1 mb-1">Other Providers</div>
-                                  {[
-                                    { id: 'llama-3.1', name: 'Llama 3.1', map: 'gpt-5-mini' },
-                                    { id: 'claude-3.7', name: 'Claude 3.7', map: 'gpt-5' },
-                                    { id: 'grok-3', name: 'Grok 3', map: 'gpt-5-mini' },
-                                    { id: 'deepseek-v3', name: 'DeepSeek V3', map: 'gpt-5-nano' }
-                                  ].map((model) => (
-                                    <button
-                                      key={model.id}
-                                      onClick={() => {
-                                        // Store the displayed provider id; API will map internally
-                                        setSelectedModel(model.id as any);
-                                        setShowModelMenu(false);
-                                      }}
-                                      className={`w-full px-3 py-2.5 text-left hover:bg-accent transition-colors rounded-lg ${
-                                        (selectedModel === model.id || selectedModel === (model.map as any)) ? 'bg-accent text-foreground' : 'text-foreground'
-                                      }`}
-                                    >
-                                      <div className="flex items-center justify-between">
-                                        <div>
-                                          <div className="text-sm font-medium">{model.name}</div>
-                                          <div className="text-xs text-muted-foreground">Maps to {model.map}</div>
-                                        </div>
-                                        {(selectedModel === model.id || selectedModel === (model.map as any)) && (
-                                          <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
-                                        )}
-                                      </div>
+                                      <Badge variant="secondary" className="text-[10px] uppercase tracking-wide bg-muted text-muted-foreground">Soon</Badge>
                                     </button>
                                   ))}
                                 </div>

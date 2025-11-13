@@ -611,10 +611,16 @@ CRITICAL RULES:
 3. If information is missing, use null or empty values
 4. Extract ALL important academic dates including lectures, exams, assignments, and deadlines
 5. Look for course schedules in various formats: weekly topics, specific dates, or recurring meeting times
+6. IMPORTANT: Determine the correct semester name and year by analyzing ALL dates in the document:
+   - Look for exam dates, assignment due dates, and class session dates
+   - Infer the semester (Spring/Fall/Summer) and year from these dates
+   - Spring semesters typically run January-May, Fall semesters August-December, Summer May-August
+   - If you see dates like "April 21", "May 12", "June 2", these indicate a Spring semester
+   - Extract the year from the most recent/future dates mentioned
 
 JSON structure:
 {
-  "semester_name": "Fall 2025",
+  "semester_name": "Spring 2025",
   "courses": [
     {
       "name": "Course Name",
@@ -679,7 +685,8 @@ Guidelines for extracting information:
 
 5. TIME INFERENCE:
    - If specific times aren't given but class meeting times are mentioned elsewhere, use those
-   - If no times at all, use reasonable defaults (e.g., "09:00" to "10:30" for lectures)
+   - If no times at all, use reasonable defaults: "10:00" to "12:00" for lectures and class sessions
+   - IMPORTANT: ALWAYS provide start_time and end_time for every specific_session, even if you have to use defaults
 
 Return ONLY the JSON object, no explanations or markdown.
 

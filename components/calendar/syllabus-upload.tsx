@@ -186,38 +186,92 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
         // Don't throw error, just continue
       }
       
-      setExtractedCourses(courses)
-      setConfiguredCourses(courses) // Initialize configured courses
-      setSemesterName(semester_name)
-      
-      // Calculate default semester dates based on semester name
-      const currentYear = new Date().getFullYear()
-      // Match any 4-digit year (more flexible than just 202x)
-      const yearMatch = semester_name.match(/\b(20\d{2})\b/)
-      const extractedYear = yearMatch ? parseInt(yearMatch[0]) : currentYear
+      // Validate and fix course data - add default times if missing
+      const validatedCourses = courses.map((course: Course) => {
+        if (course.specific_sessions) {
+          course.specific_sessions = course.specific_sessions.map((session: any) => {
+            // Add default times if missing (10 AM - 12 PM)
+            if (!session.start_time) {
+              session.start_time = "10:00"
+              console.log(`Added default start_time for session: ${session.title}`)
+            }
+            if (!session.end_time) {
+              session.end_time = "12:00"
+              console.log(`Added default end_time for session: ${session.title}`)
+            }
+            return session
+          })
+        }
+        return course
+      })
 
-      if (semester_name.toLowerCase().includes('spring')) {
-        setSemesterStartDate(`${extractedYear}-01-15`)
-        setSemesterEndDate(`${extractedYear}-05-15`)
-      } else if (semester_name.toLowerCase().includes('fall')) {
-        setSemesterStartDate(`${extractedYear}-08-26`)
-        setSemesterEndDate(`${extractedYear}-12-13`)
-      } else if (semester_name.toLowerCase().includes('summer')) {
-        setSemesterStartDate(`${extractedYear}-05-15`)
-        setSemesterEndDate(`${extractedYear}-08-15`)
+      setExtractedCourses(validatedCourses)
+      setConfiguredCourses(validatedCourses) // Initialize configured courses
+      setSemesterName(semester_name)
+
+      // Calculate semester dates by analyzing actual dates in the course data
+      let earliestDate: Date | null = null
+      let latestDate: Date | null = null
+
+      // Look through all courses for specific session dates
+      validatedCourses.forEach((course: Course) => {
+        if (course.specific_sessions && course.specific_sessions.length > 0) {
+          course.specific_sessions.forEach((session: any) => {
+            if (session.date) {
+              const sessionDate = new Date(session.date)
+              if (!earliestDate || sessionDate < earliestDate) {
+                earliestDate = sessionDate
+              }
+              if (!latestDate || sessionDate > latestDate) {
+                latestDate = sessionDate
+              }
+            }
+          })
+        }
+      })
+
+      // If we found actual dates in the syllabus, use those with some padding
+      if (earliestDate && latestDate) {
+        // Add 1-2 weeks before the first class date for semester start
+        const semesterStart = new Date(earliestDate)
+        semesterStart.setDate(semesterStart.getDate() - 14)
+
+        // Add 1 week after the last class/exam date for semester end
+        const semesterEnd = new Date(latestDate)
+        semesterEnd.setDate(semesterEnd.getDate() + 7)
+
+        setSemesterStartDate(semesterStart.toISOString().split('T')[0])
+        setSemesterEndDate(semesterEnd.toISOString().split('T')[0])
       } else {
-        // Default to current semester based on current date
-        const now = new Date()
-        const month = now.getMonth() + 1
-        if (month >= 1 && month <= 5) {
+        // Fallback to calculating based on semester name
+        const currentYear = new Date().getFullYear()
+        // Match any 4-digit year (more flexible than just 202x)
+        const yearMatch = semester_name.match(/\b(20\d{2})\b/)
+        const extractedYear = yearMatch ? parseInt(yearMatch[0]) : currentYear
+
+        if (semester_name.toLowerCase().includes('spring')) {
           setSemesterStartDate(`${extractedYear}-01-15`)
-          setSemesterEndDate(`${extractedYear}-05-15`)
-        } else if (month >= 8 && month <= 12) {
+          setSemesterEndDate(`${extractedYear}-06-15`)
+        } else if (semester_name.toLowerCase().includes('fall')) {
           setSemesterStartDate(`${extractedYear}-08-26`)
           setSemesterEndDate(`${extractedYear}-12-13`)
-        } else {
+        } else if (semester_name.toLowerCase().includes('summer')) {
           setSemesterStartDate(`${extractedYear}-05-15`)
           setSemesterEndDate(`${extractedYear}-08-15`)
+        } else {
+          // Default to current semester based on current date
+          const now = new Date()
+          const month = now.getMonth() + 1
+          if (month >= 1 && month <= 5) {
+            setSemesterStartDate(`${extractedYear}-01-15`)
+            setSemesterEndDate(`${extractedYear}-06-15`)
+          } else if (month >= 8 && month <= 12) {
+            setSemesterStartDate(`${extractedYear}-08-26`)
+            setSemesterEndDate(`${extractedYear}-12-13`)
+          } else {
+            setSemesterStartDate(`${extractedYear}-05-15`)
+            setSemesterEndDate(`${extractedYear}-08-15`)
+          }
         }
       }
       
@@ -290,7 +344,18 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
       }
 
       const scheduleData = await response.json()
-      
+
+      console.log('Schedule data received:', {
+        eventsCount: scheduleData.events?.length || 0,
+        hasEvents: !!scheduleData.events,
+        firstEvent: scheduleData.events?.[0]
+      })
+
+      // Check if we have any events to insert
+      if (!scheduleData.events || scheduleData.events.length === 0) {
+        throw new Error('No events were generated. Please ensure your syllabus contains class schedules with dates and times.')
+      }
+
       // Save calendar events to generated_content table
       const eventsToInsert = scheduleData.events.map((event: any) => ({
         user_id: user.id,
