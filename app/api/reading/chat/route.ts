@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize Gemini
+// Initialize Gemini with optimized settings
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const model = genAI.getGenerativeModel({
+  model: "gemini-2.5-flash",
+  generationConfig: {
+    maxOutputTokens: 1024, // Limit response size for faster generation
+    temperature: 0.7,
+  }
+});
+
+// Constants for optimization
+const MAX_CONVERSATION_HISTORY = 10; // Keep only last 10 messages for context
+const MAX_DOCUMENT_LENGTH = 30000; // Limit document text to 30k chars
 
 // System prompt for document chat
 const SYSTEM_PROMPT = `You are Learningly's study coach.
@@ -69,25 +79,31 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Build conversation context
+    // Build conversation context with optimizations
     let prompt = SYSTEM_PROMPT + '\n\n';
-    
-    // Add document context if provided
+
+    // Add document context if provided (with length limit for faster processing)
     console.log('📚 [READING CHAT] Building prompt context...')
     if (documentText) {
+      const truncatedDoc = documentText.length > MAX_DOCUMENT_LENGTH
+        ? documentText.slice(0, MAX_DOCUMENT_LENGTH) + '\n\n[Document truncated for processing...]'
+        : documentText;
       prompt += `DOCUMENT TITLE: ${documentTitle || 'Untitled Document'}\n`;
-      prompt += `DOCUMENT CONTENT:\n${documentText}\n\n`;
-      console.log('📚 [READING CHAT] Added document context to prompt')
+      prompt += `DOCUMENT CONTENT:\n${truncatedDoc}\n\n`;
+      console.log('📚 [READING CHAT] Added document context to prompt (length: ' + truncatedDoc.length + ')')
     }
 
-    // Add conversation history
-    if (conversationHistory.length > 0) {
+    // Add conversation history (limited to recent messages for faster processing)
+    const recentHistory = conversationHistory.slice(-MAX_CONVERSATION_HISTORY);
+    if (recentHistory.length > 0) {
       prompt += 'CONVERSATION HISTORY:\n';
-      conversationHistory.forEach(msg => {
-        prompt += `${msg.role.toUpperCase()}: ${msg.content}\n`;
+      recentHistory.forEach(msg => {
+        // Truncate very long messages in history
+        const content = msg.content.length > 500 ? msg.content.slice(0, 500) + '...' : msg.content;
+        prompt += `${msg.role.toUpperCase()}: ${content}\n`;
       });
       prompt += '\n';
-      console.log('📚 [READING CHAT] Added conversation history to prompt')
+      console.log('📚 [READING CHAT] Added conversation history to prompt (' + recentHistory.length + ' messages)')
     }
 
     // Handle first message after document upload

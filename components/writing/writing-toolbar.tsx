@@ -38,12 +38,17 @@ interface WritingToolbarProps {
   selectedTone: string;
   isProcessing: boolean;
   // Which action is currently processing; used to scope spinners to the right button
-  processingAction?: 'paraphrase' | 'grammar' | 'shorten' | 'expand' | null;
+  processingAction?: 'paraphrase' | 'grammar' | 'shorten' | 'expand' | 'humanize' | 'detect' | null;
   hasContent: boolean;
   lastProcessedFeature?: string;
   onSelectOutput: (panel: 'paraphrase' | 'grammar' | 'detector' | 'checker') => void;
   selectedEnglishType: string;
   onEnglishTypeChange: (type: string) => void;
+  // New props for AI detection and humanizing
+  onAIDetect?: () => void;
+  onHumanize?: () => void;
+  isDetecting?: boolean;
+  isHumanizing?: boolean;
 }
 
 const WritingToolbar: React.FC<WritingToolbarProps> = ({
@@ -61,6 +66,10 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
   onSelectOutput,
   selectedEnglishType,
   onEnglishTypeChange,
+  onAIDetect,
+  onHumanize,
+  isDetecting = false,
+  isHumanizing = false,
 }) => {
   const toneOptions = ["Formal", "Informal", "Academic", "Casual"];
   const englishOptions = ["American", "British"];
@@ -127,26 +136,70 @@ const WritingToolbar: React.FC<WritingToolbarProps> = ({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        {/* AI Detector */}
-        <Button
-          variant="outline"
-          size="sm"
-          onMouseDown={() => onSelectOutput('detector')}
-          className="h-9"
-        >
-          <Scan className="h-4 w-4 mr-2" />
-          Humanizer
-        </Button>
+        {/* Humanizer */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onSelectOutput('detector');
+                  onHumanize?.();
+                }}
+                disabled={isProcessing || isHumanizing || !hasContent}
+                className="h-9"
+              >
+                {isHumanizing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Humanizing...
+                  </>
+                ) : (
+                  <>
+                    <Scan className="h-4 w-4 mr-2" />
+                    Humanizer
+                  </>
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Make text sound more human-written</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         {/* AI Checker */}
-        <Button
-          variant="outline"
-          size="sm"
-          onMouseDown={() => onSelectOutput('checker')}
-          className="h-9"
-        >
-          <ShieldCheck className="h-4 w-4 mr-2" />
-          AI Checker
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onSelectOutput('checker');
+                  onAIDetect?.();
+                }}
+                disabled={isProcessing || isDetecting || !hasContent}
+                className="h-9"
+              >
+                {isDetecting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4 mr-2" />
+                    AI Checker
+                  </>
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Check if text appears AI-generated</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* Shorten / Expand */}
         <TooltipProvider>

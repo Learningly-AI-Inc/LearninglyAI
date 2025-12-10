@@ -17,13 +17,14 @@ export async function GET(request: NextRequest) {
 
     console.log('📚 Fetching documents for user:', user.id);
 
-    // Fetch user's documents from database
+    // Fetch user's documents from database with only needed columns for faster queries
     const { data: documents, error: dbError } = await supabase
       .from('documents')
-      .select('*')
+      .select('id, title, original_filename, file_type, file_size, page_count, text_length, processing_status, public_url, file_path, created_at, updated_at, metadata')
       .eq('user_id', user.id)
       .eq('document_type', 'reading')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100); // Limit to prevent excessive data transfer
 
     if (dbError) {
       console.error('❌ Database error:', dbError);

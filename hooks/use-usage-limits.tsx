@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 
 export interface UsageData {
@@ -38,6 +38,14 @@ export interface UsageCheckResult {
   message?: string;
 }
 
+// Cache for usage data to prevent redundant API calls
+const CACHE_TTL = 30000; // 30 seconds
+let usageDataCache: {
+  data: { usage: UsageData; limits: UsageLimits; planName: string } | null;
+  timestamp: number;
+  userId: string | null
+} = { data: null, timestamp: 0, userId: null };
+
 export function useUsageLimits() {
   const { user } = useAuth();
   const [usage, setUsage] = useState<UsageData>({
@@ -51,13 +59,31 @@ export function useUsageLimits() {
   const [planName, setPlanName] = useState<string>('Free');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchInProgress = useRef(false);
 
   // Fetch usage data and limits using the combined endpoint
-  const fetchUsageData = async () => {
+  const fetchUsageData = useCallback(async (forceRefresh = false) => {
     if (!user) {
       setIsLoading(false);
       return;
     }
+
+    // Use cache if valid and not forcing refresh
+    const now = Date.now();
+    if (!forceRefresh &&
+        usageDataCache.userId === user.id &&
+        usageDataCache.data &&
+        now - usageDataCache.timestamp < CACHE_TTL) {
+      setUsage(usageDataCache.data.usage);
+      setLimits(usageDataCache.data.limits);
+      setPlanName(usageDataCache.data.planName);
+      setIsLoading(false);
+      return;
+    }
+
+    // Prevent duplicate fetches
+    if (fetchInProgress.current) return;
+    fetchInProgress.current = true;
 
     try {
       setIsLoading(true);
@@ -67,7 +93,6 @@ export function useUsageLimits() {
       const response = await fetch('/api/user/status', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
       });
 
       if (!response.ok) {
@@ -76,10 +101,21 @@ export function useUsageLimits() {
 
       const data = await response.json();
 
+      const usageData = data.usage || usage;
+      const limitsData = data.plan?.limits || {};
+      const planNameData = data.plan?.name || 'Free';
+
+      // Update cache
+      usageDataCache = {
+        data: { usage: usageData, limits: limitsData, planName: planNameData },
+        timestamp: Date.now(),
+        userId: user.id
+      };
+
       // Update state from combined response
-      setUsage(data.usage || usage);
-      setLimits(data.plan?.limits || {});
-      setPlanName(data.plan?.name || 'Free');
+      setUsage(usageData);
+      setLimits(limitsData);
+      setPlanName(planNameData);
 
       // Log detailed user limits for all sections
       console.group('🔒 USER LIMITS BREAKDOWN');
@@ -116,8 +152,9 @@ export function useUsageLimits() {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsLoading(false);
+      fetchInProgress.current = false;
     }
-  };
+  }, [user]);
 
   // Check if user can perform a specific action
   const checkUsageLimit = async (
@@ -262,14 +299,15 @@ export function useUsageLimits() {
     return currentUsage >= limit;
   };
 
-  // Refresh usage data
-  const refreshUsage = () => {
-    fetchUsageData();
-  };
+  // Refresh usage data (with cache clear)
+  const refreshUsage = useCallback(() => {
+    usageDataCache = { data: null, timestamp: 0, userId: null };
+    fetchUsageData(true);
+  }, [fetchUsageData]);
 
   useEffect(() => {
     fetchUsageData();
-  }, [user]);
+  }, [fetchUsageData]);
 
   return {
     usage,

@@ -12,13 +12,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Fetch user's uploaded files
+    // Fetch user's uploaded files with only needed columns for faster queries
     const { data: files, error: dbError } = await supabase
       .from('documents')
-      .select('*')
+      .select('id, original_filename, file_size, mime_type, created_at, processing_status, extracted_text, metadata')
       .eq('user_id', user.id)
       .eq('document_type', 'exam-prep')
       .order('created_at', { ascending: false })
+      .limit(100) // Limit to prevent excessive data transfer
 
     if (dbError) {
       console.error('Database error:', dbError)

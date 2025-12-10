@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuth } from './use-auth'
 
 export interface SubscriptionPlan {
@@ -29,44 +29,75 @@ export interface SubscriptionData {
   }
 }
 
+// Cache for subscription data to prevent redundant API calls
+const CACHE_TTL = 30000 // 30 seconds
+let subscriptionCache: { data: SubscriptionData | null; timestamp: number; userId: string | null } = {
+  data: null,
+  timestamp: 0,
+  userId: null
+}
+
 export function useSubscription() {
   const { user } = useAuth()
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const fetchInProgress = useRef(false)
 
-  const fetchSubscription = async () => {
+  const fetchSubscription = useCallback(async (forceRefresh = false) => {
     if (!user) {
       setSubscription(null)
       setLoading(false)
       return
     }
 
+    // Use cache if valid and not forcing refresh
+    const now = Date.now()
+    if (!forceRefresh &&
+        subscriptionCache.userId === user.id &&
+        subscriptionCache.data &&
+        now - subscriptionCache.timestamp < CACHE_TTL) {
+      setSubscription(subscriptionCache.data)
+      setLoading(false)
+      return
+    }
+
+    // Prevent duplicate fetches
+    if (fetchInProgress.current) return
+    fetchInProgress.current = true
+
     try {
       setLoading(true)
       setError(null)
 
-      const response = await fetch('/api/subscriptions/status', {
-        cache: 'no-store', // Ensure we get fresh data
-      })
-      
+      const response = await fetch('/api/subscriptions/status')
+
       if (!response.ok) {
         throw new Error('Failed to fetch subscription status')
       }
 
       const data = await response.json()
+
+      // Update cache
+      subscriptionCache = {
+        data,
+        timestamp: Date.now(),
+        userId: user.id
+      }
+
       setSubscription(data)
     } catch (err) {
       console.error('Error fetching subscription:', err)
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setLoading(false)
+      fetchInProgress.current = false
     }
-  }
+  }, [user])
 
   useEffect(() => {
     fetchSubscription()
-  }, [user])
+  }, [fetchSubscription])
 
   // Reconcile with Stripe manually via refresh function
   // Removed automatic reconciliation on mount to improve performance
@@ -246,9 +277,11 @@ export function useSubscription() {
     return Math.min((currentUsage / limit) * 100, 100)
   }
 
-  const refreshSubscription = async () => {
-    await fetchSubscription()
-  }
+  const refreshSubscription = useCallback(async () => {
+    // Clear cache and force refresh
+    subscriptionCache = { data: null, timestamp: 0, userId: null }
+    await fetchSubscription(true)
+  }, [fetchSubscription])
 
   return {
     subscription,

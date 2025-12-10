@@ -54,6 +54,12 @@ const WritingPageClient = () => {
   // Auto-save state
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null)
   const [isAutoSaving, setIsAutoSaving] = useState<boolean>(false)
+
+  // AI Detection and Humanizer state
+  const [aiDetectionResult, setAiDetectionResult] = useState<any>(null)
+  const [humanizedText, setHumanizedText] = useState<string>("")
+  const [isDetecting, setIsDetecting] = useState<boolean>(false)
+  const [isHumanizing, setIsHumanizing] = useState<boolean>(false)
   
   // Draft naming dialog state
   const [showDraftNamingDialog, setShowDraftNamingDialog] = useState<boolean>(false)
@@ -909,6 +915,116 @@ const WritingPageClient = () => {
     setLastGrammarCheckHash(""); // Reset hash when clearing suggestions
     setLastGrammarCheckResult(null); // Reset result when clearing suggestions
     setLastProcessedFeature("");
+    // Also clear AI detection and humanizer results
+    setAiDetectionResult(null);
+    setHumanizedText("");
+  };
+
+  // Function to handle AI detection
+  const handleAIDetect = async () => {
+    // Get text to analyze - use selected text or entire content
+    let textToAnalyze = selectedText.trim() || editorContent;
+
+    // Strip HTML tags for analysis
+    if (textToAnalyze) {
+      textToAnalyze = textToAnalyze.replace(/<[^>]*>?/gm, '').trim();
+    }
+
+    if (!textToAnalyze || textToAnalyze.length < 50) {
+      toast.warning("Please add at least 50 characters of content for accurate AI detection");
+      return;
+    }
+
+    setActiveTab("checker");
+    setIsDetecting(true);
+    setAiDetectionResult(null);
+
+    try {
+      console.log('🔍 [AI DETECT] Analyzing text, length:', textToAnalyze.length);
+
+      const response = await fetch('/api/writing/ai-detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: textToAnalyze,
+          userId: getMockUserId()
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'AI detection failed');
+      }
+
+      const data = await response.json();
+      setAiDetectionResult(data.result);
+      setLastProcessedFeature("AI Detection");
+
+      // Show appropriate toast based on result
+      const score = data.result.score;
+      if (score < 30) {
+        toast.success("Your text appears to be human-written!");
+      } else if (score < 60) {
+        toast.info("Your text has some AI-like patterns. Consider humanizing it.");
+      } else {
+        toast.warning("Your text appears to be AI-generated. Try the Humanizer to improve it.");
+      }
+
+    } catch (error: any) {
+      console.error("Error during AI detection:", error);
+      toast.error(error.message || "An error occurred while analyzing text. Please try again.");
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
+  // Function to handle humanizing text
+  const handleHumanize = async (style: string = 'natural') => {
+    // Get text to humanize - use selected text or entire content
+    let textToHumanize = selectedText.trim() || editorContent;
+
+    // Strip HTML tags
+    if (textToHumanize) {
+      textToHumanize = textToHumanize.replace(/<[^>]*>?/gm, '').trim();
+    }
+
+    if (!textToHumanize || textToHumanize.length < 20) {
+      toast.warning("Please add at least 20 characters of content to humanize");
+      return;
+    }
+
+    setActiveTab("detector");
+    setIsHumanizing(true);
+
+    try {
+      console.log('✍️ [HUMANIZE] Humanizing text, length:', textToHumanize.length, 'style:', style);
+
+      const response = await fetch('/api/writing/humanize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: textToHumanize,
+          style: style,
+          userId: getMockUserId()
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Humanizing failed');
+      }
+
+      const data = await response.json();
+      setHumanizedText(data.result);
+      setLastProcessedFeature(`Humanized (${style})`);
+      toast.success("Text humanized successfully! Review the result and apply if satisfied.");
+
+    } catch (error: any) {
+      console.error("Error during humanizing:", error);
+      toast.error(error.message || "An error occurred while humanizing text. Please try again.");
+    } finally {
+      setIsHumanizing(false);
+    }
   };
 
   // Function to handle saving drafts
@@ -1462,6 +1578,10 @@ const WritingPageClient = () => {
           onSelectOutput={(panel) => setActiveTab(panel)}
           selectedEnglishType={englishType}
           onEnglishTypeChange={setEnglishType}
+          onAIDetect={handleAIDetect}
+          onHumanize={() => handleHumanize()}
+          isDetecting={isDetecting}
+          isHumanizing={isHumanizing}
         />
       }
       richTextEditor={
@@ -1499,6 +1619,12 @@ const WritingPageClient = () => {
               onRevealIssue={revealIssueInEditor}
               currentIssueIndex={currentIssueIndex}
               onNavigateIssue={navigateToIssue}
+              onAIDetect={handleAIDetect}
+              onHumanize={handleHumanize}
+              aiDetectionResult={aiDetectionResult}
+              humanizedText={humanizedText}
+              isDetecting={isDetecting}
+              isHumanizing={isHumanizing}
             />
           </div>
         </div>
