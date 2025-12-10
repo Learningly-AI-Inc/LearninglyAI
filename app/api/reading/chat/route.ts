@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 
-// Initialize Gemini with optimized settings
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '');
-const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
-  generationConfig: {
-    maxOutputTokens: 1024, // Limit response size for faster generation
-    temperature: 0.7,
-  }
+// Initialize OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
 });
 
 // Constants for optimization
@@ -48,7 +43,7 @@ interface ChatRequest {
 
 export async function POST(req: NextRequest) {
   // Build-time safety check - return early if we're in a build environment without API keys
-  if (process.env.NODE_ENV !== 'production' && !process.env.NEXT_PUBLIC_GOOGLE_API_KEY) {
+  if (process.env.NODE_ENV !== 'production' && !process.env.NEXT_PUBLIC_OPENAI_API_KEY) {
     return NextResponse.json(
       { error: 'API keys not available during build' },
       { status: 503 }
@@ -119,11 +114,15 @@ export async function POST(req: NextRequest) {
       console.log('📚 [READING CHAT] Handling regular message')
     }
 
-    // Generate response with Gemini
+    // Generate response with OpenAI
     console.log('📚 [READING CHAT] Generating AI response...')
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 1024,
+      temperature: 0.7,
+    });
+    const text = completion.choices[0]?.message?.content || '';
 
     const responseTime = Date.now() - startTime
     console.log('📚 [READING CHAT] Response generated successfully:', {

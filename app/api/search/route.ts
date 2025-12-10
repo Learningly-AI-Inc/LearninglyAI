@@ -1,29 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import OpenAI from 'openai'
 import { trackApiUsage } from '@/middleware/api-usage'
 import { subscriptionService } from '@/lib/subscription-service'
 
 // Simplified model mapping - just use the basic model name
 const mapModelToDatabaseModel = (model: string): string => {
-  if (model.startsWith('gemini')) {
-    return 'gemini'
-  } else if (model.startsWith('gpt')) {
-    return 'openai'
-  }
-  return 'gemini' // Default fallback
+  // All models now map to openai since Gemini is suspended
+  return 'openai'
 }
 
-// Initialize AI clients
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '')
+// Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
 })
 
 export async function POST(request: NextRequest) {
   // Build-time safety check - return early if we're in a build environment without API keys
-  if (process.env.NODE_ENV !== 'production' && (!process.env.NEXT_PUBLIC_GOOGLE_API_KEY || !process.env.NEXT_PUBLIC_OPENAI_API_KEY)) {
+  if (process.env.NODE_ENV !== 'production' && !process.env.NEXT_PUBLIC_OPENAI_API_KEY) {
     return NextResponse.json(
       { error: 'API keys not available during build' },
       { status: 503 }
@@ -230,18 +224,8 @@ export async function POST(request: NextRequest) {
     let sources: string[] = []
 
     try {
-      if (model.startsWith('gemini')) {
-        // Map model names to actual Gemini models
-        const modelMap: Record<string, string> = {
-          'gemini-2.5-flash': 'gemini-2.5-flash',
-          'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
-          'gemini-2.5-pro': 'gemini-2.5-pro'
-        }
-        
-        const geminiModelName = modelMap[model] || 'gemini-2.5-flash'
-        const geminiModel = genAI.getGenerativeModel({ model: geminiModelName })
-        
-        const prompt = `${context}User Question: ${message}\n\nYou are an expert AI tutor and problem-solving assistant. Your goal is to provide complete, step-by-step solutions to problems across all academic subjects.
+      // All models now use OpenAI (Gemini API suspended)
+      const systemPrompt = `${context}You are an expert AI tutor and problem-solving assistant. Your goal is to provide complete, step-by-step solutions to problems across all academic subjects.
 
 CORE CAPABILITIES:
 - Solve problems step-by-step with detailed explanations
@@ -258,16 +242,8 @@ PROBLEM-SOLVING APPROACH:
 5. Explain key concepts and reasoning
 
 Be encouraging, conversational, and thorough. Show your work clearly and provide complete solutions.`
-        
-        const result = await geminiModel.generateContent(prompt)
-        const response = await result.response
-        aiResponse = response.text()
-        
-        // Extract sources from response (simple heuristic)
-        if (userContent) {
-          sources = userContent.map(content => content.content_url.split('/').pop() || 'document')
-        }
-      } else if (model.startsWith('gpt-5')) {
+
+      if (model.startsWith('gemini') || model.startsWith('gpt-5')) {
         console.log('🔍 [SEARCH API] Using OpenAI model:', model)
 
         // Map model names to actual OpenAI models
