@@ -136,11 +136,18 @@ export default function ExamPrepPage() {
       const data = await res.json() as { success: boolean; exam: GeneratedExam }
 
       if (mode === 'pdf') {
-        // Generate PDF and show in modal with preview
-        const blob = await generatePDF(data.exam)
-        setPdfBlob(blob)
+        // OPTIMIZED: Generate PDF asynchronously to avoid blocking UI
         setGeneratedExamData(data.exam)
         setShowPdfModal(true)
+        setPdfBlob(null) // Show loading state
+        
+        // Generate PDF in background
+        generatePDF(data.exam).then(blob => {
+          setPdfBlob(blob)
+        }).catch(error => {
+          console.error('PDF generation failed:', error)
+          setShowPdfModal(false)
+        })
       } else {
         // Online quiz mode - save to localStorage and redirect
         localStorage.setItem('generatedExam', JSON.stringify(data.exam))
@@ -442,6 +449,56 @@ export default function ExamPrepPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Sample Papers Upload - Available for PDF Mode */}
+            {mode === 'pdf' && (
+              <div className="space-y-2 sm:col-span-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Sample Papers (optional)</Label>
+                    <p className="text-xs text-muted-foreground mt-1">Upload up to 5 sample exam papers to help generate questions in your professor's style</p>
+                  </div>
+                  <Badge variant={sampleQuestions.length > 0 ? "secondary" : "outline"}>
+                    {sampleQuestions.length > 0 ? `${sampleQuestions.length}/5 files` : 'No files'}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 border border-dashed border-border rounded-lg bg-muted/50">
+                  <div className="text-sm text-muted-foreground">
+                    {sampleQuestions.length === 0 ? 'No sample papers uploaded yet.' : `${sampleQuestions.length} sample paper file(s) ready.`}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowSampleUploader(true)}
+                    disabled={sampleQuestions.length >= 5}
+                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                  >
+                    {sampleQuestions.length >= 5 ? 'Max 5 files' : '📤 Upload Sample Papers'}
+                  </Button>
+                </div>
+                {sampleQuestions.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Uploaded sample papers:</p>
+                    <div className="space-y-1">
+                      {sampleQuestions.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-card border rounded text-sm">
+                          <span className="text-card-foreground">{file.name || `Sample Paper ${index + 1}`}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSampleQuestions(prev => prev.filter((_, i) => i !== index))}
+                            className="text-destructive hover:text-destructive/80"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {mode === 'online' && (
               <>
                 <div className="space-y-2 sm:col-span-3">

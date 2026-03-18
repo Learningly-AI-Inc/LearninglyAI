@@ -48,7 +48,12 @@ export function useAuth() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state change:', { event, hasSession: !!session, hasUser: !!session?.user })
+        console.log('Auth state change:', { 
+          event, 
+          hasSession: !!session, 
+          hasUser: !!session?.user,
+          userEmail: session?.user?.email || 'none'
+        })
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
@@ -83,18 +88,35 @@ export function useAuth() {
   const signUp = async (email: string, password: string) => {
     try {
       console.log('Attempting sign up with:', { email, passwordLength: password.length })
-      
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/api/auth/callback`,
+          data: {
+            email_confirm: true
+          }
+        }
       })
-      
+
       console.log('Sign up response:', { data: !!data, error: error?.message, user: !!data?.user })
-      
+
       if (error) {
         console.error('Sign up error:', error)
       }
-      
+
+      // Check if user already exists but is not confirmed
+      if (data?.user && data.user.identities && data.user.identities.length === 0) {
+        console.log('User already exists but email not confirmed')
+        return {
+          data,
+          error: {
+            message: 'An account with this email already exists. Please check your email to confirm your account or sign in instead.'
+          } as any
+        }
+      }
+
       return { data, error }
     } catch (err) {
       console.error('Unexpected error during sign up:', err)

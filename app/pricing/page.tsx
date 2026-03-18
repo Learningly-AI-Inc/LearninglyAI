@@ -133,6 +133,7 @@ export default function PricingPage() {
           plan: selectedPlan,
           successUrl: `${window.location.origin}/account/success?success=true&session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${window.location.origin}/pricing?canceled=true`,
+          customerEmail: user?.email || undefined,
         }),
       });
 

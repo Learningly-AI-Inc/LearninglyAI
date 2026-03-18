@@ -57,6 +57,40 @@ export interface PlanLimits {
   storage_used_bytes: number
 }
 
+// In-memory cache for subscription data (reduces database calls)
+interface CacheEntry<T> {
+  data: T
+  timestamp: number
+}
+
+const CACHE_TTL = 60 * 1000 // 1 minute cache TTL
+const subscriptionCache = new Map<string, CacheEntry<any>>()
+const usageCache = new Map<string, CacheEntry<UsageData>>()
+const planLimitsCache = new Map<string, CacheEntry<PlanLimits>>()
+
+function getCachedData<T>(cache: Map<string, CacheEntry<T>>, key: string): T | null {
+  const entry = cache.get(key)
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
+    return entry.data
+  }
+  cache.delete(key)
+  return null
+}
+
+function setCachedData<T>(cache: Map<string, CacheEntry<T>>, key: string, data: T): void {
+  cache.set(key, { data, timestamp: Date.now() })
+}
+
+export function clearSubscriptionCache(userId?: string): void {
+  if (userId) {
+    subscriptionCache.delete(userId)
+    usageCache.delete(userId)
+  } else {
+    subscriptionCache.clear()
+    usageCache.clear()
+  }
+}
+
 export class SubscriptionService {
   private async getSupabase() {
     return await createClient()
@@ -109,25 +143,32 @@ export class SubscriptionService {
   }
 
   /**
-   * Get user's subscription with plan details
+   * Get user's subscription with plan details (with caching)
    */
   async getUserSubscriptionWithPlan(userId: string) {
     try {
+      // Check cache first
+      const cached = getCachedData(subscriptionCache, userId)
+      if (cached !== null) {
+        return cached
+      }
+
       const supabase = await this.getSupabase()
-      
-      // Get the user's data from consolidated table
+
+      // Get the user's data from consolidated table with only needed columns
       const { data, error } = await supabase
         .from('user_data')
-        .select('*')
+        .select('user_id, plan_name, plan_price_cents, subscription_status, current_period_end, cancel_at_period_end, stripe_customer_id, stripe_subscription_id')
         .eq('user_id', userId)
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
-      
+
       // Only return if it's a premium plan (not Free) and has active/trialing status
-      if (data && data.plan_name !== 'Free' && 
+      let result = null
+      if (data && data.plan_name !== 'Free' &&
           (data.subscription_status === 'active' || data.subscription_status === 'trialing')) {
-        return {
+        result = {
           ...data,
           subscription_plans: {
             name: data.plan_name,
@@ -136,8 +177,10 @@ export class SubscriptionService {
           status: data.subscription_status
         }
       }
-      
-      return null
+
+      // Cache the result
+      setCachedData(subscriptionCache, userId, result)
+      return result
     } catch (error) {
       console.error('Error fetching user subscription with plan:', error)
       return null
@@ -731,23 +774,33 @@ export class SubscriptionService {
   }
 
   /**
-   * Get user's current monthly usage
+   * Get user's current monthly usage (with caching)
    */
   async getCurrentUsage(userId: string): Promise<UsageData> {
     try {
+      // Check cache first (shorter TTL for usage - 30 seconds)
+      const cached = getCachedData(usageCache, userId)
+      if (cached !== null) {
+        return cached
+      }
+
       const supabase = await this.getSupabase()
       const { data, error } = await supabase
         .rpc('get_monthly_usage', { user_uuid: userId })
 
       if (error) throw error
-      
-      return data?.[0] || {
+
+      const result = data?.[0] || {
         documents_uploaded: 0,
         writing_words: 0,
         storage_used_bytes: 0,
         search_queries: 0,
         exam_sessions: 0,
       }
+
+      // Cache the result
+      setCachedData(usageCache, userId, result)
+      return result
     } catch (error) {
       console.error('Error fetching current usage:', error)
       return {
@@ -846,7 +899,7 @@ export class SubscriptionService {
   async incrementUsage(userId: string, action: keyof UsageData, amount: number = 1): Promise<void> {
     try {
       const supabase = await this.getSupabase()
-      
+
       const { error } = await supabase
         .rpc('increment_monthly_usage', {
           user_uuid: userId,
@@ -855,6 +908,9 @@ export class SubscriptionService {
         })
 
       if (error) throw error
+
+      // Clear usage cache after increment so next call gets fresh data
+      usageCache.delete(userId)
     } catch (error) {
       console.error('Error incrementing usage:', error)
       throw error

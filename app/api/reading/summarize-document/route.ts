@@ -11,6 +11,10 @@ const openai = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
 });
 
+// In-memory cache for summaries (reduces redundant API calls)
+const summaryCache = new Map<string, { summary: string; timestamp: number }>();
+const SUMMARY_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
 export async function POST(req: NextRequest) {
     // Adobe helper: Export PDF -> DOCX (with OCR if available), then read text via mammoth
     async function adobeExtractTextFromPdf(pdfBuffer: Buffer): Promise<{ text: string; pages?: number } | null> {
@@ -185,13 +189,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if summary already exists and is recent (cache for 24 hours)
+    // Check in-memory cache first (fastest)
+    const cacheKey = `${documentId}-${summaryType}`;
+    const cachedEntry = summaryCache.get(cacheKey);
+    if (cachedEntry && Date.now() - cachedEntry.timestamp < SUMMARY_CACHE_TTL) {
+      console.log('✅ Using in-memory cached summary');
+      return NextResponse.json({
+        success: true,
+        summary: cachedEntry.summary,
+        metadata: {
+          documentId: document.id,
+          title: document.title,
+          summaryType,
+          model: 'cached',
+          tokensUsed: 0,
+          contextChunks: 0,
+          originalTextLength: document.text_length,
+          cached: true
+        }
+      });
+    }
+
+    // Check if summary already exists in database (cache for 24 hours)
     if (document.summary && document.summary_updated_at) {
       const lastUpdated = new Date(document.summary_updated_at);
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      
+
       if (lastUpdated > twentyFourHoursAgo) {
-        console.log('✅ Using cached summary (less than 24 hours old)');
+        console.log('✅ Using database cached summary (less than 24 hours old)');
+        // Store in memory cache for faster subsequent access
+        summaryCache.set(cacheKey, { summary: document.summary, timestamp: Date.now() });
         return NextResponse.json({
           success: true,
           summary: document.summary,
@@ -400,14 +427,15 @@ export async function POST(req: NextRequest) {
     const userPrompt = buildSummarizationUserPrompt(context, summaryType);
 
     // Map model names to actual OpenAI models (same as search API)
+    // Using faster models for better performance
     const modelMap: Record<string, string> = {
-      'gpt-5': 'gpt-4o',
+      'gpt-5': 'gpt-4o-mini', // Use mini by default for speed
       'gpt-5-mini': 'gpt-4o-mini',
-      'gpt-5-nano': 'gpt-3.5-turbo',
+      'gpt-5-nano': 'gpt-4o-mini',
       'gpt-5-thinking-pro': 'gpt-4o'
     };
 
-    const openaiModelName = modelMap[model] || 'gpt-4o';
+    const openaiModelName = modelMap[model] || 'gpt-4o-mini';
     console.log('🤖 Using OpenAI model for summarization:', openaiModelName);
 
     // Call OpenAI API for summarization
@@ -434,6 +462,9 @@ export async function POST(req: NextRequest) {
       tokensUsed: completion.usage?.total_tokens,
       model: openaiModelName
     });
+
+    // Cache the summary in memory for fast access
+    summaryCache.set(cacheKey, { summary, timestamp: Date.now() });
 
     // Save summary to database (with caching consideration)
     try {

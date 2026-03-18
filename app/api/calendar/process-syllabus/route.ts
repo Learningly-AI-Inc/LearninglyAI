@@ -43,7 +43,7 @@ async function extractTextFromPDFBuffer(buffer: Buffer): Promise<string> {
         clientSecret: process.env.ADOBE_CLIENT_SECRET
       })
     } else {
-      // Try to find credentials file in project root
+      // Try to find credentials file in project root (for local development)
       const fs = require('fs')
       const path = require('path')
       const possiblePaths = [
@@ -66,7 +66,8 @@ async function extractTextFromPDFBuffer(buffer: Buffer): Promise<string> {
       }
 
       if (!credentialsData) {
-        throw new Error('Adobe PDF credentials not found')
+        console.warn('Adobe PDF credentials not found, falling back to basic PDF parsing')
+        throw new Error('Adobe PDF credentials not found - using fallback method')
       }
 
       credentials = new ServicePrincipalCredentials({
@@ -312,16 +313,12 @@ async function extractTextFromPDF(fileUrl: string): Promise<string> {
     }
     
     const contentType = response.headers.get('content-type') || ''
+    const buffer = await response.arrayBuffer()
     
     if (contentType.includes('application/pdf')) {
-      // For PDF files, use pdf-parse to extract text
-      const pdfBuffer = await response.arrayBuffer()
-      const buffer = Buffer.from(pdfBuffer)
-      
+      // For PDF files, use Adobe PDF Services or fallback method
       try {
-        // Use a simpler approach for PDF text extraction
-        // Convert PDF buffer to text using a basic method
-        const extractedText = await extractTextFromPDFBuffer(buffer)
+        const extractedText = await extractTextFromPDFBuffer(Buffer.from(buffer))
         
         if (!extractedText || extractedText.trim().length < 50) {
           throw new Error('PDF text extraction yielded insufficient content')
@@ -333,9 +330,43 @@ async function extractTextFromPDF(fileUrl: string): Promise<string> {
         console.error('PDF parsing failed:', pdfError)
         throw new Error(`Failed to parse PDF: ${pdfError}`)
       }
+    } else if (contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document') || 
+               contentType.includes('application/msword')) {
+      // For DOCX/DOC files, use mammoth to extract text
+      try {
+        console.log('Attempting to extract text from DOCX/DOC file...')
+        const mammoth = await import('mammoth')
+        console.log('Mammoth library loaded successfully')
+        
+        const result = await mammoth.extractRawText({ buffer: Buffer.from(buffer) })
+        const extractedText = result.value
+        
+        if (!extractedText || extractedText.trim().length < 10) {
+          throw new Error('DOCX text extraction yielded insufficient content')
+        }
+        
+        console.log('Successfully extracted text from DOCX/DOC, length:', extractedText.length)
+        return extractedText
+      } catch (docxError) {
+        console.error('DOCX parsing failed:', docxError)
+        
+        // Try fallback method for DOCX files
+        try {
+          console.log('Attempting fallback DOCX parsing...')
+          const text = new TextDecoder('utf-8', { fatal: false }).decode(buffer)
+          if (text && text.trim().length > 10) {
+            console.log('Fallback DOCX parsing succeeded, length:', text.length)
+            return text
+          }
+        } catch (fallbackError) {
+          console.error('Fallback DOCX parsing also failed:', fallbackError)
+        }
+        
+        throw new Error(`Failed to parse DOCX/DOC: ${docxError}`)
+      }
     } else {
-      // For non-PDF files (like Word docs, text files), read as text
-      const text = await response.text()
+      // For other files (like text files), read as text
+      const text = new TextDecoder().decode(buffer)
       if (!text || text.trim().length < 10) {
         throw new Error('File appears to be empty or unreadable')
       }
@@ -347,9 +378,218 @@ async function extractTextFromPDF(fileUrl: string): Promise<string> {
   }
 }
 
+// Helper function to estimate token count (rough approximation)
+function estimateTokenCount(text: string): number {
+  // Rough estimation: 1 token ≈ 4 characters for English text
+  return Math.ceil(text.length / 4)
+}
+
+// Helper function to chunk text while preserving important sections
+function chunkTextIntelligently(text: string, maxTokens: number = 25000): string[] {
+  const chunks: string[] = []
+  const maxChars = maxTokens * 4 // Convert tokens to characters
+  
+  // First, try to split by major sections
+  const sections = text.split(/(?=\n[A-Z][A-Z\s]+\n)/) // Split before all-caps headers
+  
+  if (sections.length > 1) {
+    let currentChunk = ''
+    
+    for (const section of sections) {
+      if (currentChunk.length + section.length <= maxChars) {
+        currentChunk += section
+      } else {
+        if (currentChunk) {
+          chunks.push(currentChunk.trim())
+          currentChunk = section
+        } else {
+          // Section is too large, split it further
+          const subChunks = chunkTextByParagraph(section, maxChars)
+          chunks.push(...subChunks)
+        }
+      }
+    }
+    
+    if (currentChunk) {
+      chunks.push(currentChunk.trim())
+    }
+  } else {
+    // No clear sections, split by paragraphs
+    chunks.push(...chunkTextByParagraph(text, maxChars))
+  }
+  
+  return chunks.filter(chunk => chunk.length > 100) // Filter out tiny chunks
+}
+
+function chunkTextByParagraph(text: string, maxChars: number): string[] {
+  const paragraphs = text.split(/\n\s*\n/)
+  const chunks: string[] = []
+  let currentChunk = ''
+  
+  for (const paragraph of paragraphs) {
+    if (currentChunk.length + paragraph.length <= maxChars) {
+      currentChunk += (currentChunk ? '\n\n' : '') + paragraph
+    } else {
+      if (currentChunk) {
+        chunks.push(currentChunk.trim())
+        currentChunk = paragraph
+      } else {
+        // Paragraph is too large, split by sentences
+        const sentences = paragraph.split(/[.!?]+/)
+        let sentenceChunk = ''
+        
+        for (const sentence of sentences) {
+          if (sentenceChunk.length + sentence.length <= maxChars) {
+            sentenceChunk += (sentenceChunk ? '. ' : '') + sentence.trim()
+          } else {
+            if (sentenceChunk) {
+              chunks.push(sentenceChunk.trim() + '.')
+              sentenceChunk = sentence.trim()
+            } else {
+              // Single sentence is too large, truncate
+              chunks.push(sentence.substring(0, maxChars - 3) + '...')
+            }
+          }
+        }
+        
+        if (sentenceChunk) {
+          currentChunk = sentenceChunk.trim() + '.'
+        }
+      }
+    }
+  }
+  
+  if (currentChunk) {
+    chunks.push(currentChunk.trim())
+  }
+  
+  return chunks
+}
+
 async function parseSyllabusWithLLM(text: string): Promise<{ courses: Course[], semester_name: string }> {
   console.log('\n=== LLM PARSING DEBUG ===')
   console.log('Text length being sent to LLM:', text.length)
+  console.log('Estimated tokens:', estimateTokenCount(text))
+  
+  // Check if text is too large for single LLM call
+  const tokenCount = estimateTokenCount(text)
+  const maxTokens = 25000 // Leave some buffer below the 30k limit
+  
+  if (tokenCount > maxTokens) {
+    console.log('Text is too large for single LLM call, chunking...')
+    
+    // Try to extract the most relevant parts first
+    const relevantText = extractRelevantSections(text)
+    console.log('Relevant sections length:', relevantText.length)
+    console.log('Relevant sections tokens:', estimateTokenCount(relevantText))
+    
+    if (estimateTokenCount(relevantText) <= maxTokens) {
+      console.log('Using relevant sections only')
+      return parseSyllabusWithLLMSingle(relevantText)
+    } else {
+      console.log('Even relevant sections are too large, using chunking approach')
+      return parseSyllabusWithLLMChunked(text, maxTokens)
+    }
+  }
+  
+  return parseSyllabusWithLLMSingle(text)
+}
+
+// Extract the most relevant sections for syllabus parsing
+function extractRelevantSections(text: string): string {
+  const lines = text.split('\n')
+  const relevantLines: string[] = []
+  
+  // Keywords that indicate important sections
+  const importantKeywords = [
+    'course', 'class', 'meeting', 'schedule', 'time', 'day', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday',
+    'instructor', 'professor', 'room', 'location', 'building', 'credits', 'semester', 'term',
+    'syllabus', 'overview', 'description', 'objectives', 'requirements', 'prerequisites'
+  ]
+  
+  // Look for headers and important sections
+  let inImportantSection = false
+  let importantSectionLines: string[] = []
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].toLowerCase()
+    const isHeader = /^[A-Z][A-Z\s]+$/.test(lines[i]) || /^[A-Z][a-z]+(\s+[A-Z][a-z]+)*$/.test(lines[i])
+    
+    // Check if this line contains important keywords
+    const hasImportantKeywords = importantKeywords.some(keyword => line.includes(keyword))
+    
+    if (isHeader && hasImportantKeywords) {
+      // Start of important section
+      if (importantSectionLines.length > 0) {
+        relevantLines.push(...importantSectionLines)
+        importantSectionLines = []
+      }
+      inImportantSection = true
+      importantSectionLines.push(lines[i])
+    } else if (inImportantSection) {
+      // Continue collecting lines in important section
+      importantSectionLines.push(lines[i])
+      
+      // Stop if we hit another header or empty line followed by non-important content
+      if (isHeader && !hasImportantKeywords) {
+        relevantLines.push(...importantSectionLines)
+        importantSectionLines = []
+        inImportantSection = false
+      }
+    } else if (hasImportantKeywords) {
+      // Individual line with important keywords
+      relevantLines.push(lines[i])
+    }
+  }
+  
+  // Add any remaining important section
+  if (importantSectionLines.length > 0) {
+    relevantLines.push(...importantSectionLines)
+  }
+  
+  return relevantLines.join('\n')
+}
+
+// Parse syllabus with chunked approach
+async function parseSyllabusWithLLMChunked(text: string, maxTokens: number): Promise<{ courses: Course[], semester_name: string }> {
+  const chunks = chunkTextIntelligently(text, maxTokens)
+  console.log(`Split text into ${chunks.length} chunks`)
+  
+  const allCourses: Course[] = []
+  let semesterName = ''
+  
+  for (let i = 0; i < chunks.length; i++) {
+    console.log(`Processing chunk ${i + 1}/${chunks.length}`)
+    
+    try {
+      const chunkResult = await parseSyllabusWithLLMSingle(chunks[i])
+      
+      if (chunkResult.semester_name && !semesterName) {
+        semesterName = chunkResult.semester_name
+      }
+      
+      allCourses.push(...chunkResult.courses)
+    } catch (error) {
+      console.warn(`Failed to process chunk ${i + 1}:`, error)
+      // Continue with other chunks
+    }
+  }
+  
+  // Deduplicate courses by name and code
+  const uniqueCourses = allCourses.filter((course, index, self) => 
+    index === self.findIndex(c => c.name === course.name && c.code === course.code)
+  )
+  
+  console.log(`Extracted ${uniqueCourses.length} unique courses from ${chunks.length} chunks`)
+  
+  return {
+    courses: uniqueCourses,
+    semester_name: semesterName || `Fall ${new Date().getFullYear()}`
+  }
+}
+
+// Original single LLM parsing function
+async function parseSyllabusWithLLMSingle(text: string): Promise<{ courses: Course[], semester_name: string }> {
   console.log('\n--- First 1000 characters of text being sent to LLM ---')
   console.log(text.substring(0, 1000))
   console.log('\n--- Last 1000 characters of text being sent to LLM ---')
@@ -363,33 +603,24 @@ async function parseSyllabusWithLLM(text: string): Promise<{ courses: Course[], 
   console.log('\nSchedule-related keywords found in text:', foundKeywords.join(', '))
   console.log('========================\n')
   
-  const prompt = `You are an expert at parsing academic syllabi. Extract course information from the following syllabus text and return ONLY a valid JSON object.
+  const prompt = `Extract course information from this syllabus text. Return ONLY valid JSON.
 
 CRITICAL RULES:
-1. ONLY extract information that is EXPLICITLY stated in the document - DO NOT make up or infer course names, codes, or details
-2. If you cannot find specific information in the document, use null or empty values
-3. DO NOT use placeholder data like "Introduction to Psychology" or "PSYCH 101"
-4. You MUST extract the ACTUAL course title, code, and instructor name from the document
-5. You MUST find the RECURRING CLASS MEETING TIMES (when the class meets every week)
-   - Look near the top of the syllabus for patterns like:
-     * "Mo/We 2:00 PM - 3:20 PM" or "MWF 9:00-10:30"
-     * "Tuesday/Thursday 2:00 PM - 3:15 PM" or "T/Th 14:00-15:15"
-     * "Meeting Times:", "Class Times:", "When:", "Schedule:"
-   - DO NOT confuse the recurring meeting times with the course syllabus/weekly schedule
-   - The "Course Schedule" section typically lists weekly topics/assignments, NOT the class meeting times
-   - Class meeting times are usually listed at the TOP of the syllabus with course info
+1. ONLY extract information EXPLICITLY stated in the document
+2. DO NOT make up course names, codes, or details
+3. If information is missing, use null or empty values
+4. Extract ALL important academic dates including lectures, exams, assignments, and deadlines
+5. Look for course schedules in various formats: weekly topics, specific dates, or recurring meeting times
+6. IMPORTANT: Determine the correct semester name and year by analyzing ALL dates in the document:
+   - Look for exam dates, assignment due dates, and class session dates
+   - Infer the semester (Spring/Fall/Summer) and year from these dates
+   - Spring semesters typically run January-May, Fall semesters August-December, Summer May-August
+   - If you see dates like "April 21", "May 12", "June 2", these indicate a Spring semester
+   - Extract the year from the most recent/future dates mentioned
 
-IMPORTANT DISTINCTION:
-- RECURRING MEETING TIMES (extract these): "Mo/We 2:00-3:20 PM in Room 204"
-- COURSE SCHEDULE (ignore these): "Week 1: Sep 20 - Introduction", "Week 2: Sep 27 - Topic 2"
-
-DO NOT use placeholder or default times like "09:00-10:30". You MUST find the actual recurring meeting times.
-
-IMPORTANT: Return ONLY valid JSON. No markdown, no backticks, no explanations, no additional text.
-
-Required JSON structure:
+JSON structure:
 {
-  "semester_name": "Fall 2025",
+  "semester_name": "Spring 2025",
   "courses": [
     {
       "name": "Course Name",
@@ -408,18 +639,18 @@ Required JSON structure:
       ],
       "specific_sessions": [
         {
-          "date": "2024-09-20",
-          "title": "Welcome, syllabus, and assignments",
+          "date": "2025-04-21",
+          "title": "Exam 1 - The middle and late Paleozoic",
           "start_time": "14:00",
           "end_time": "15:20",
           "location": "Room/Building",
-          "type": "lecture"
+          "type": "exam"
         },
         {
-          "date": "2024-09-27",
-          "title": "Navigating the University",
-          "start_time": "14:00",
-          "end_time": "15:20",
+          "date": "2025-04-07",
+          "title": "Week 3: Early animals",
+          "start_time": "09:00",
+          "end_time": "10:00",
           "location": "Room/Building",
           "type": "lecture"
         }
@@ -428,67 +659,39 @@ Required JSON structure:
   ]
 }
 
-Guidelines:
-- Extract ALL courses mentioned in the syllabus
-- For each course, find the RECURRING weekly meeting pattern (NOT the weekly schedule of topics)
-- CAREFULLY look for class meeting times near the TOP of the syllabus - they may be in various formats:
-  * "Mo/We 2:00 PM - 3:20 PM" (Monday, Wednesday)
-  * "MWF 9:00-10:30 AM" (Monday, Wednesday, Friday)
-  * "T/Th 2:00-3:15 PM" or "TR 14:00-15:15" (Tuesday, Thursday)
-  * "Monday and Wednesday from 10:00 AM to 11:30 AM"
-  * "Tuesdays 1:00 PM - 2:50 PM"
-- Convert day abbreviations: M/Mo/Mon=1, T/Tu/Tue=2, W/We/Wed=3, Th/Thu/R=4, F/Fri=5, Sa/Sat=6, Su/Sun=0
-- Convert times to 24-hour format (e.g., "09:00" for 9:00 AM, "14:00" for 2:00 PM)
-- Extract the ACTUAL room/building from near the meeting times (e.g., "Kresge Hall 2-329", "Room 204")
-- If location is not specified, use null
-- If credits are not specified, estimate based on typical course credit hours (usually 3 or 4)
-- Include all recurring class meetings, labs, tutorials, etc.
-- Type should be "lecture" for regular classes, "lab" for laboratory sessions, "tutorial" for discussion sections, "seminar" for seminars
+Guidelines for extracting information:
 
-EXAMPLE OF WHAT TO EXTRACT:
-From: "JWSH ST 101-7-1, Mo/We 2:00 PM - 3:20 PM, Room: Kresge Hall 2-329"
-Extract: [
-  {"day_of_week": 1, "start_time": "14:00", "end_time": "15:20", "location": "Kresge Hall 2-329", "type": "lecture"},
-  {"day_of_week": 3, "start_time": "14:00", "end_time": "15:20", "location": "Kresge Hall 2-329", "type": "lecture"}
-]
+1. COURSE INFORMATION:
+   - Extract course name, code, instructor from the header/title section
+   - Look for professor email, office hours, room numbers
 
-CRITICAL: Extract ALL specific class session dates from the Course Schedule section:
-- Look for ALL date patterns throughout the document: "Sep. 20", "Oct. 02", "Nov. 15", etc.
-- Extract EVERY date you find with its topic/title
-- Convert dates to ISO format (YYYY-MM-DD) using the semester year
-- Include special locations if mentioned for that specific date
-- Use the recurring schedule times unless a different time is specified
-- Skip ONLY entries that say "No class" or similar
-- This is VERY IMPORTANT: Extract ALL dates, not just a few examples
+2. WEEKLY SCHEDULES (if present):
+   - Look for recurring meeting times like "Mo/We 2:00 PM - 3:20 PM" or "MWF 9:00-10:30"
+   - Convert days: M/Mo/Mon=1, T/Tu/Tue=2, W/We/Wed=3, Th/Thu/R=4, F/Fri=5, Sa/Sat=6, Su/Sun=0
+   - Convert times to 24-hour format (e.g., "14:00" for 2:00 PM)
 
-EXAMPLE:
-From Course Schedule section with many weeks:
-"Week 1: Sep. 20 – Welcome, syllabus"
-"Week 2: Sep. 25 - No class (Yom Kippur)"  ← SKIP THIS
-"Sep. 27 – Navigating the University"
-"Week 3: Oct. 02 - Brief Geopolitical Overview"
-"Oct. 04 – Daily Life in early 20th century"
-"Week 4: Oct. 09 – Daily interactions between Jews and Arabs"
-"Oct. 11 – Library instruction - We will meet at 02:00 in the main library, lower level"
-"Week 5: Oct. 16 – NO CLASS"  ← SKIP THIS
-"Oct. 18 – Art of reading"
+3. SPECIFIC SESSIONS (very important):
+   - Look for "Lectures and Reading Assignments", "Course Schedule", or similar sections
+   - Extract EACH lecture topic with its date (e.g., "Week 3: Early animals" on specific date)
+   - Extract ALL exam dates (e.g., "April 21: EXAM", "May 12: EXAM")
+   - Extract assignment due dates, project deadlines
+   - If only "Week X" is given without specific dates, estimate dates based on semester start/end
+   - Set appropriate types: "lecture", "exam", "assignment", "lab", "tutorial", "final"
 
-Extract as specific_sessions ALL dates (10+ entries expected):
-[
-  {"date": "2023-09-20", "title": "Welcome, syllabus", "start_time": "14:00", "end_time": "15:20", "type": "lecture"},
-  {"date": "2023-09-27", "title": "Navigating the University", "start_time": "14:00", "end_time": "15:20", "type": "lecture"},
-  {"date": "2023-10-02", "title": "Brief Geopolitical Overview", "start_time": "14:00", "end_time": "15:20", "type": "lecture"},
-  {"date": "2023-10-04", "title": "Daily Life in early 20th century", "start_time": "14:00", "end_time": "15:20", "type": "lecture"},
-  {"date": "2023-10-09", "title": "Daily interactions between Jews and Arabs", "start_time": "14:00", "end_time": "15:20", "type": "lecture"},
-  {"date": "2023-10-11", "title": "Library instruction", "start_time": "14:00", "end_time": "15:20", "location": "Main library, lower level", "type": "lecture"},
-  {"date": "2023-10-18", "title": "Art of reading", "start_time": "14:00", "end_time": "15:20", "type": "lecture"}
-  ... continue for ALL dates found
-]
+4. DATE CONVERSION:
+   - Convert all dates to ISO format YYYY-MM-DD
+   - If only month/day given (e.g., "April 21"), infer year from semester
+   - If only "Week X" given, calculate dates based on semester start date
+
+5. TIME INFERENCE:
+   - If specific times aren't given but class meeting times are mentioned elsewhere, use those
+   - If no times at all, use reasonable defaults: "10:00" to "12:00" for lectures and class sessions
+   - IMPORTANT: ALWAYS provide start_time and end_time for every specific_session, even if you have to use defaults
+
+Return ONLY the JSON object, no explanations or markdown.
 
 Syllabus text:
-${text}
-
-Return ONLY the JSON object:`
+${text}`
 
   try {
     const openaiClient = getOpenAI()
@@ -497,7 +700,7 @@ Return ONLY the JSON object:`
       messages: [
         {
           role: "system",
-          content: "You are a JSON parser specialized in extracting structured data from academic syllabi. CRITICAL: You must ONLY extract information that is EXPLICITLY present in the document. DO NOT make up course names, codes, or any other information. If information is not found, use null. Always return valid JSON only. No markdown, no backticks, no explanations. You must extract the ACTUAL class meeting times, days, and locations from the document - never use placeholder or default values."
+          content: "You are a JSON parser specialized in extracting comprehensive academic schedule information from syllabi. Extract ALL important dates including lectures, exams, assignments, and deadlines. CRITICAL: You must ONLY extract information that is EXPLICITLY present in the document. DO NOT make up course names, codes, dates, or any other information. If information is not found, use null or empty arrays. Always return valid JSON only. No markdown, no backticks, no explanations. Be thorough in finding lecture schedules, even if they're listed as weekly topics rather than recurring meeting times."
         },
         {
           role: "user",
@@ -565,15 +768,15 @@ Return ONLY the JSON object:`
     ]
 
     for (const course of parsedData.courses) {
-      const courseLower = course.name.toLowerCase()
-      const codeLower = course.code.toLowerCase()
+      const courseLower = course.name?.toLowerCase() || ''
+      const codeLower = course.code?.toLowerCase() || ''
 
       if (commonHallucinations.some(halluc => courseLower.includes(halluc) || codeLower.includes(halluc))) {
         console.warn('⚠️ POSSIBLE HALLUCINATION DETECTED:', course.name, course.code)
         console.warn('This may indicate the LLM could not find course information in the document')
 
         // Check if the original text contains this course name
-        if (!text.toLowerCase().includes(course.name.toLowerCase().substring(0, 15))) {
+        if (course.name && !text.toLowerCase().includes(course.name.toLowerCase().substring(0, 15))) {
           throw new Error(`LLM may have hallucinated course data. Could not find "${course.name}" in the original document. Please ensure the PDF text is readable.`)
         }
       }
@@ -610,6 +813,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check file size limits for Vercel (50MB limit for serverless functions)
+    try {
+      const response = await fetch(file_url, { method: 'HEAD' })
+      const contentLength = response.headers.get('content-length')
+      if (contentLength) {
+        const fileSizeMB = parseInt(contentLength) / (1024 * 1024)
+        if (fileSizeMB > 50) {
+          return NextResponse.json(
+            { error: 'File is too large. Please upload a file smaller than 50MB.' },
+            { status: 400 }
+          )
+        }
+        console.log(`File size: ${fileSizeMB.toFixed(2)}MB`)
+      }
+    } catch (sizeError) {
+      console.warn('Could not check file size:', sizeError)
+      // Continue anyway - size check is not critical
+    }
+
     // Check OpenAI API key availability
     try {
       getOpenAI()
@@ -622,9 +844,22 @@ export async function POST(request: NextRequest) {
 
     console.log('Processing syllabus:', { file_url, file_name, file_type })
 
-    // Step 1: Extract text from the PDF/syllabus
-    const extractedText = await extractTextFromPDF(file_url)
+    // Step 1: Extract text from the PDF/syllabus with timeout
+    console.log('Starting text extraction...')
+    const extractionStartTime = Date.now()
+    
+    const extractedText = await Promise.race([
+      extractTextFromPDF(file_url),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Text extraction timeout after 30 seconds')), 30000)
+      )
+    ]) as string
+    
+    const extractionTime = Date.now() - extractionStartTime
+    console.log(`Text extraction completed in ${extractionTime}ms`)
     console.log('Extracted text length:', extractedText.length)
+    console.log('File type:', file_type)
+    console.log('First 500 characters of extracted text:', extractedText.substring(0, 500))
 
     // Step 2: Validate extracted text quality
     if (extractedText.length < 100) {
@@ -638,16 +873,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Step 3: Use LLM to parse the syllabus and extract course information
-    const parsedData = await parseSyllabusWithLLM(extractedText)
+    // Step 3: Use LLM to parse the syllabus and extract course information with timeout
+    console.log('Starting LLM parsing...')
+    const llmStartTime = Date.now()
+    
+    const parsedData = await Promise.race([
+      parseSyllabusWithLLM(extractedText),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('LLM parsing timeout after 25 seconds')), 25000)
+      )
+    ]) as { courses: any[], semester_name: string }
+    
+    const llmTime = Date.now() - llmStartTime
+    console.log(`LLM parsing completed in ${llmTime}ms`)
     console.log('Parsed courses:', parsedData.courses.length)
 
     // Step 4: Validate parsed data quality
     if (parsedData.courses.length === 0) {
       console.error('No courses extracted from syllabus')
+      console.log('Extracted text preview:', extractedText.substring(0, 1000))
       return NextResponse.json(
         {
-          error: 'Could not find any course information in the document. Please ensure the file contains course details.',
+          error: 'Could not find any course information in the document. Please ensure the file contains course details and schedules.',
           extracted_text_preview: extractedText.substring(0, 1000)
         },
         { status: 400 }

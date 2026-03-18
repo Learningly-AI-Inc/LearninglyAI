@@ -39,10 +39,10 @@ export function SignInForm() {
       }
 
       if (data.user) {
-        console.log('Sign in successful, redirecting to dashboard')
+        console.log('Sign in successful')
         toast.success('Successfully signed in!')
-        // Use replace to prevent back navigation to sign-in page
-        router.replace('/dashboard')
+        // Let the middleware handle the redirect to prevent conflicts
+        // The auth state change will trigger the middleware redirect
       } else {
         console.warn('Sign in returned no user')
         toast.error('Sign in failed - no user returned')

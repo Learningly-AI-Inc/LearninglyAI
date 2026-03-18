@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import OpenAI from 'openai'
 import { TokenManager } from '@/lib/token-manager'
 
-// Initialize AI clients
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '')
+// Initialize OpenAI client (Gemini API suspended)
 const openai = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
 })
@@ -723,31 +721,8 @@ async function generateGeminiResponse(
   model: string,
   hasImages: boolean = false
 ): Promise<string> {
-  const modelMap: Record<string, string> = {
-    'gemini-2.5-flash': 'gemini-2.5-flash',
-    'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
-    'gemini-2.5-pro': 'gemini-2.5-pro'
-  }
-
-  const geminiModelName = modelMap[model] || 'gemini-2.5-flash'
-  const geminiModel = genAI.getGenerativeModel({ model: geminiModelName })
-
-  // Convert messages to Gemini format
-  const prompt = messages
-    .map(msg => {
-      if (typeof msg.content === 'string') {
-        return `${msg.role}: ${msg.content}`
-      } else {
-        // For multi-modal content, extract text parts
-        const textParts = msg.content.filter((part: any) => part.type === 'text').map((part: any) => part.text).join(' ')
-        return `${msg.role}: ${textParts}`
-      }
-    })
-    .join('\n')
-
-  const result = await geminiModel.generateContent(prompt)
-  const response = await result.response
-  return response.text()
+  // Gemini API suspended - fall back to OpenAI
+  return generateOpenAIResponse(messages, 'gpt-5-mini', hasImages)
 }
 
 /**

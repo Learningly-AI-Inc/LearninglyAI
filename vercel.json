@@ -10,6 +10,12 @@
     },
     "app/api/reading/upload/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/calendar/process-syllabus/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/calendar/generate-schedule/route.ts": {
+      "maxDuration": 30
     }
   },
   "crons": [

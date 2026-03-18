@@ -4,65 +4,57 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  BookOpen, 
-  Search, 
-  PenTool, 
-  Brain, 
+import {
+  BookOpen,
+  Search,
+  PenTool,
+  Brain,
   ArrowRight,
   FileText,
-  BarChart3
+  Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const features = [
   {
     icon: FileText,
-    title: "Reading & Summaries",
-    description: "Upload documents and get instant, comprehensive summaries. From textbooks to notes—Our tool makes your study materials interactive and easy to use.",
+    title: "Smart Reading Help!",
+    description: "Upload your textbooks, readings, or lecture notes and get instant, professor-style smart summaries, notes, flashcards, quizzes, mind maps, and even funny memes—all from your own materials. It's your personal academic companion for every document you read.",
     color: "text-blue-400",
     bgColor: "bg-blue-900/20",
     className: "lg:col-span-2"
   },
   {
     icon: PenTool,
-    title: "Smarter Writing Tools",
-    description: "Personalized AI writing with your tone and structure. Upload writing samples and study materials to generate customized content.",
+    title: "Personalized Writing Suite",
+    description: "Refine your writing with AI that matches your tone and academic goals. Access grammar checking, paraphrasing, AI detection, and humanizing tools—all in one place.",
     color: "text-purple-400",
     bgColor: "bg-purple-900/20",
-    className: "lg:col-span-1"
+    className: "lg:col-span-2"
   },
   {
     icon: BookOpen,
-    title: "Exam-Prep Powerhouse",
-    description: "Generate custom practice tests, flashcards, and quizzes. Adaptive learning that adjusts to your progress and knowledge gaps.",
+    title: "Exam Prep Powerhouse",
+    description: "Prepare smarter with adaptive quizzes and tests that mirror your professor's style. Automatically generate study plans from your syllabus and track your mastery level over time.",
     color: "text-green-400",
     bgColor: "bg-green-900/20",
-    className: "lg:col-span-1"
+    className: "lg:col-span-2"
   },
   {
     icon: Search,
-    title: "AI Search Bar",
-    description: "Ask anything to your AI-based search bar. Get instant, accurate answers with real-time web results and intelligent analysis.",
+    title: "Multi-LLM AI Search",
+    description: "Ask anything with Learningly's research-grade AI search with your preferred AI models. Choose between GPT, Claude, Gemini, DeepSeek, Llama, or Grok for fast, accurate, and multi-perspective insights across your queries!",
     color: "text-yellow-400",
     bgColor: "bg-yellow-900/20",
     className: "lg:col-span-2"
   },
   {
-    icon: Brain,
-    title: "AI Reading Assistant",
-    description: "Upload any materials and get instantly summarized texts, notes, and mind maps. It will generate flashcards, quizzes, and even memes.",
+    icon: Calendar,
+    title: "Auto-Calendar",
+    description: "Upload your syllabus and documents—Learningly automatically builds your study calendar and deadlines for the entire semester/quarter. Track your progress and deadlines with Learningly!",
     color: "text-teal-400",
     bgColor: "bg-teal-900/20",
-    className: "lg:col-span-1"
-  },
-  {
-    icon: BarChart3,
-    title: "Study Analytics",
-    description: "Track your learning progress with detailed analytics and insights. Monitor your performance, identify knowledge gaps, and get personalized recommendations.",
-    color: "text-pink-400",
-    bgColor: "bg-pink-900/20",
-    className: "lg:col-span-3"
+    className: "lg:col-span-2"
   }
 ];
 

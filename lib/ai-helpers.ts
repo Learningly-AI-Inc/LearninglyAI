@@ -94,13 +94,20 @@ ${text}`;
       throw new Error('No response from OpenAI');
     }
 
-    // If the result is effectively identical to the input, try a Gemini fallback
+    // If the result is effectively identical to the input, try again with higher temperature
     if (normalize(result) === normalize(text)) {
-      const fallbackPrompt = `Rewrite and expand the following text in a ${tone} tone. Add more descriptive details and examples while keeping the same meaning and paragraph structure. Make it 20-30% longer than the original. Return plain text only.\n\n${text}`;
-      const geminiRes = await geminiModel.generateContent(fallbackPrompt);
-      const geminiText = (await geminiRes.response.text()).trim();
-      if (geminiText && normalize(geminiText) !== normalize(text)) {
-        return geminiText;
+      const retryCompletion = await openai.chat.completions.create({
+        model: DEFAULT_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Rewrite this text completely differently while keeping the same meaning:\n${text}` }
+        ],
+        max_completion_tokens: 3000,
+        temperature: 0.9
+      });
+      const retryResult = retryCompletion.choices[0]?.message?.content?.trim() || '';
+      if (retryResult && normalize(retryResult) !== normalize(text)) {
+        return retryResult;
       }
     }
 
@@ -175,17 +182,19 @@ TEXT TO CHECK:
 
 Return the JSON array with ALL errors found:`;
 
-    // Use Gemini Pro for better accuracy on grammar checking
-    const result = await geminiProModel.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.1, // Lower temperature for more consistent, focused results
-        maxOutputTokens: 8192, // Ensure we can return many errors
-      },
+    // Use OpenAI for grammar checking (Gemini API key suspended)
+    const openai = getOpenAIClient();
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are a professional grammar checker. Return only valid JSON arrays.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.1,
+      max_tokens: 4096,
     });
 
-    const response = await result.response;
-    let responseText = response.text().trim();
+    let responseText = completion.choices[0]?.message?.content?.trim() || '[]';
 
     console.log(`📊 Grammar check response length: ${responseText.length} characters`);
 
@@ -357,17 +366,22 @@ async function shortenText(text: string, percentage: number = 50): Promise<strin
     // Calculate target word count
     const wordCount = text.split(/\s+/).filter(Boolean).length;
     const targetWordCount = Math.ceil(wordCount * (1 - percentage / 100));
-    
+
     const prompt = `Summarize the following text to make it more concise while preserving the key information and meaning.
-    
+
     Original text (${wordCount} words):
     "${text}"
-    
+
     Shorter version (target: about ${targetWordCount} words):`;
 
-    const result = await geminiModel.generateContent(prompt);
-    const response = result.response;
-    return response.text().trim();
+    const openai = getOpenAIClient();
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.5,
+      max_tokens: 2048,
+    });
+    return completion.choices[0]?.message?.content?.trim() || text;
   } catch (error) {
     console.error('Error shortening text:', error);
     throw new Error('Failed to shorten text');
@@ -380,17 +394,22 @@ async function expandText(text: string, percentage: number = 50): Promise<string
     // Calculate target word count
     const wordCount = text.split(/\s+/).filter(Boolean).length;
     const targetWordCount = Math.ceil(wordCount * (1 + percentage / 100));
-    
+
     const prompt = `Expand the following text to provide more detail, examples, or context while maintaining the original meaning.
-    
+
     Original text (${wordCount} words):
     "${text}"
-    
+
     Expanded version (target: about ${targetWordCount} words):`;
 
-    const result = await geminiModel.generateContent(prompt);
-    const response = result.response;
-    return response.text().trim();
+    const openai = getOpenAIClient();
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      max_tokens: 4096,
+    });
+    return completion.choices[0]?.message?.content?.trim() || text;
   } catch (error) {
     console.error('Error expanding text:', error);
     throw new Error('Failed to expand text');

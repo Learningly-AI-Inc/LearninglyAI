@@ -2,18 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import OpenAI from 'openai';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize AI clients
+// Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
 });
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
-
 export async function POST(request: NextRequest) {
   // Build-time safety check - return early if we're in a build environment without API keys
-  if (process.env.NODE_ENV === 'production' && !process.env.NEXT_PUBLIC_OPENAI_API_KEY && !process.env.GOOGLE_AI_API_KEY) {
+  if (process.env.NODE_ENV === 'production' && !process.env.NEXT_PUBLIC_OPENAI_API_KEY) {
     return NextResponse.json(
       { error: 'AI API keys not configured' },
       { status: 500 }
@@ -21,7 +18,7 @@ export async function POST(request: NextRequest) {
   }
 
   // During build time, return a placeholder response to prevent build failures
-  if (process.env.NODE_ENV !== 'production' && (!process.env.NEXT_PUBLIC_OPENAI_API_KEY || !process.env.GOOGLE_AI_API_KEY)) {
+  if (process.env.NODE_ENV !== 'production' && !process.env.NEXT_PUBLIC_OPENAI_API_KEY) {
     return NextResponse.json(
       { error: 'API keys not available during build' },
       { status: 503 }
@@ -107,20 +104,17 @@ export async function POST(request: NextRequest) {
         cost = (tokensUsed / 1000) * costPer1kTokens;
 
       } else if (modelName.startsWith('gemini-')) {
-        // Use Google Gemini
-        const model = genAI.getGenerativeModel({ model: modelName });
-        
-        const prompt = conversationHistory
-          .map(msg => `${msg.role}: ${msg.content}`)
-          .join('\n') + '\nassistant:';
+        // Gemini API suspended - fall back to OpenAI
+        const fallbackModel = 'gpt-4o-mini';
+        const completion = await openai.chat.completions.create({
+          model: fallbackModel,
+          messages: conversationHistory,
+          max_tokens: 1000,
+          temperature: 0.7,
+        });
 
-        const result = await model.generateContent(prompt);
-        aiResponse = result.response.text();
-        
-        // Gemini doesn't provide token count in the same way
-        tokensUsed = Math.ceil(aiResponse.length / 4); // Rough estimate
-        
-        // Gemini pricing (approximate)
+        aiResponse = completion.choices[0]?.message?.content || 'No response generated';
+        tokensUsed = completion.usage?.total_tokens || 0;
         cost = (tokensUsed / 1000) * 0.0005;
 
       } else {

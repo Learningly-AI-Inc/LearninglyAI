@@ -67,31 +67,32 @@ export async function POST(request: NextRequest) {
       // Fallback: Calculate semester dates based on semester name
       const currentYear = new Date().getFullYear()
       
+      // Extract year from semester name (support 20xx format)
+      const yearMatch = semester_name.match(/\b(20\d{2})\b/)
+      const extractedYear = yearMatch ? parseInt(yearMatch[0]) : currentYear
+      
       if (semester_name.toLowerCase().includes('spring')) {
-        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
-        semesterStartDate = new Date(`${year}-01-15`)
-        semesterEndDate = new Date(`${year}-05-15`)
+        semesterStartDate = new Date(`${extractedYear}-01-15`)
+        semesterEndDate = new Date(`${extractedYear}-05-15`)
       } else if (semester_name.toLowerCase().includes('fall')) {
-        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
-        semesterStartDate = new Date(`${year}-08-26`)
-        semesterEndDate = new Date(`${year}-12-13`)
+        semesterStartDate = new Date(`${extractedYear}-08-26`)
+        semesterEndDate = new Date(`${extractedYear}-12-13`)
       } else if (semester_name.toLowerCase().includes('summer')) {
-        const year = semester_name.match(/202\d/) ? parseInt(semester_name.match(/202\d/)![0]) : currentYear
-        semesterStartDate = new Date(`${year}-05-15`)
-        semesterEndDate = new Date(`${year}-08-15`)
+        semesterStartDate = new Date(`${extractedYear}-05-15`)
+        semesterEndDate = new Date(`${extractedYear}-08-15`)
       } else {
-        // Default to current semester
+        // Default to current semester based on current date
         const now = new Date()
         const month = now.getMonth() + 1
         if (month >= 1 && month <= 5) {
-          semesterStartDate = new Date(`${currentYear}-01-15`)
-          semesterEndDate = new Date(`${currentYear}-05-15`)
+          semesterStartDate = new Date(`${extractedYear}-01-15`)
+          semesterEndDate = new Date(`${extractedYear}-05-15`)
         } else if (month >= 8 && month <= 12) {
-          semesterStartDate = new Date(`${currentYear}-08-26`)
-          semesterEndDate = new Date(`${currentYear}-12-13`)
+          semesterStartDate = new Date(`${extractedYear}-08-26`)
+          semesterEndDate = new Date(`${extractedYear}-12-13`)
         } else {
-          semesterStartDate = new Date(`${currentYear}-05-15`)
-          semesterEndDate = new Date(`${currentYear}-08-15`)
+          semesterStartDate = new Date(`${extractedYear}-05-15`)
+          semesterEndDate = new Date(`${extractedYear}-08-15`)
         }
       }
     }
@@ -129,6 +130,21 @@ export async function POST(request: NextRequest) {
         console.log(`Using specific sessions for ${course.code}:`, course.specific_sessions.length, 'sessions')
 
         course.specific_sessions.forEach((session) => {
+          // Skip only exams and assignments, include lectures and general events
+          const sessionType = session.type?.toLowerCase() || 'lecture'
+          if (sessionType === 'exam' || sessionType === 'final' || sessionType === 'assignment' || sessionType === 'quiz') {
+            console.log(`Skipping ${sessionType} session:`, session.title)
+            return // Skip exam/assignment sessions
+          }
+
+          // Validate required fields
+          if (!session.date || !session.start_time || !session.end_time) {
+            console.warn('Skipping session with missing required fields:', session)
+            return
+          }
+
+          console.log(`Including session: ${session.title} (type: ${sessionType})`)
+
           // Parse date correctly to avoid timezone issues
           // session.date is in format "YYYY-MM-DD"
           const [year, month, day] = session.date.split('-').map(Number)
@@ -160,6 +176,21 @@ export async function POST(request: NextRequest) {
       } else {
         // Fall back to recurring events if no specific sessions
         course.schedule.forEach((schedule) => {
+          // Include all class-related sessions (lectures, labs, tutorials), skip only exams/assignments
+          const scheduleType = schedule.type?.toLowerCase() || 'lecture'
+          if (scheduleType === 'exam' || scheduleType === 'final' || scheduleType === 'assignment' || scheduleType === 'quiz') {
+            console.log(`Skipping ${scheduleType} schedule`)
+            return // Skip exam/assignment schedules
+          }
+
+          // Validate required fields
+          if (!schedule.start_time || !schedule.end_time || schedule.day_of_week === undefined) {
+            console.warn('Skipping schedule with missing required fields:', schedule)
+            return
+          }
+
+          console.log(`Including recurring schedule: ${course.name} on day ${schedule.day_of_week} (type: ${scheduleType})`)
+
           const startDate = new Date(semesterStartDate)
           const endDate = new Date(semesterEndDate)
 
@@ -173,116 +204,38 @@ export async function POST(request: NextRequest) {
             return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
           }
 
-          // Generate recurring events for the semester
-          while (startDate <= endDate) {
-            const eventDate = new Date(startDate)
-            const startTime = new Date(eventDate)
-            const [hours, minutes] = schedule.start_time.split(':')
-            startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0)
+          // Create a single recurring event instead of multiple individual events
+          const eventDate = new Date(startDate)
+          const startTime = new Date(eventDate)
+          const [hours, minutes] = schedule.start_time.split(':')
+          startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0)
 
-            const endTime = new Date(eventDate)
-            const [endHours, endMinutes] = schedule.end_time.split(':')
-            endTime.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0)
+          const endTime = new Date(eventDate)
+          const [endHours, endMinutes] = schedule.end_time.split(':')
+          endTime.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0)
 
-            events.push({
-              title: course.name,
-              description: `${course.code} - ${schedule.type}`,
-              start_time: formatLocalISO(startTime),
-              end_time: formatLocalISO(endTime),
-              all_day: false,
-              color: getEventColor(schedule.type),
-              location: schedule.location,
-              event_type: schedule.type === 'lab' ? 'study' : 'class',
-              course_code: course.code,
-              recurring_pattern: {
-                type: 'weekly',
-                interval: 1,
-                days_of_week: [schedule.day_of_week],
-                end_date: semesterEndDate.toISOString()
-              }
-            })
-
-            // Move to next week
-            startDate.setDate(startDate.getDate() + 7)
-          }
+          events.push({
+            title: course.name,
+            description: `${course.code} - ${schedule.type}`,
+            start_time: formatLocalISO(startTime),
+            end_time: formatLocalISO(endTime),
+            all_day: false,
+            color: getEventColor(schedule.type),
+            location: schedule.location,
+            event_type: 'class',
+            course_code: course.code,
+            recurring_pattern: {
+              type: 'weekly',
+              interval: 1,
+              days_of_week: [schedule.day_of_week],
+              end_date: semesterEndDate.toISOString()
+            }
+          })
         })
       }
     })
 
-    // Helper function to format dates without timezone conversion
-    const formatLocalISO = (date: Date) => {
-      const pad = (n: number) => n.toString().padStart(2, '0')
-      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-    }
-
-    // Add exam periods (midterm and final)
-    const midtermWeek = new Date(semesterStartDate)
-    midtermWeek.setDate(midtermWeek.getDate() + 42) // ~6 weeks into semester
-
-    const finalWeek = new Date(semesterEndDate)
-    finalWeek.setDate(finalWeek.getDate() - 7) // Week before finals
-
-    courses.forEach((course: Course) => {
-      // Midterm exam
-      const midtermDate = new Date(midtermWeek)
-      midtermDate.setDate(midtermDate.getDate() + (course.schedule[0]?.day_of_week || 1))
-      midtermDate.setHours(9, 0, 0, 0) // 9 AM
-
-      const midtermEnd = new Date(midtermDate)
-      midtermEnd.setHours(11, 0, 0, 0) // 11 AM
-
-      events.push({
-        title: `${course.name} - Midterm Exam`,
-        description: `Midterm exam for ${course.code}`,
-        start_time: formatLocalISO(midtermDate),
-        end_time: formatLocalISO(midtermEnd),
-        all_day: false,
-        color: '#EF4444',
-        location: course.schedule[0]?.location || 'TBD',
-        event_type: 'exam',
-        course_code: course.code
-      })
-
-      // Final exam
-      const finalDate = new Date(finalWeek)
-      finalDate.setDate(finalDate.getDate() + (course.schedule[0]?.day_of_week || 1))
-      finalDate.setHours(9, 0, 0, 0) // 9 AM
-
-      const finalEnd = new Date(finalDate)
-      finalEnd.setHours(11, 0, 0, 0) // 11 AM
-
-      events.push({
-        title: `${course.name} - Final Exam`,
-        description: `Final exam for ${course.code}`,
-        start_time: formatLocalISO(finalDate),
-        end_time: formatLocalISO(finalEnd),
-        all_day: false,
-        color: '#EF4444',
-        location: course.schedule[0]?.location || 'TBD',
-        event_type: 'exam',
-        course_code: course.code
-      })
-    })
-
-    // Add assignment due dates (example)
-    courses.forEach((course: Course) => {
-      for (let i = 1; i <= 5; i++) {
-        const assignmentDate = new Date(semesterStartDate)
-        assignmentDate.setDate(assignmentDate.getDate() + (i * 14)) // Every 2 weeks
-        assignmentDate.setHours(23, 0, 0, 0) // 11 PM
-
-        events.push({
-          title: `${course.name} - Assignment ${i}`,
-          description: `Assignment ${i} due for ${course.code}`,
-          start_time: formatLocalISO(assignmentDate),
-          end_time: formatLocalISO(assignmentDate),
-          all_day: false,
-          color: '#F59E0B',
-          event_type: 'assignment',
-          course_code: course.code
-        })
-      }
-    })
+    // Only generate lecture events - no exams, assignments, or other non-lecture events
 
     const scheduleData = {
       courses,

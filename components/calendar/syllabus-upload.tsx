@@ -186,32 +186,93 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
         // Don't throw error, just continue
       }
       
-      setExtractedCourses(courses)
-      setConfiguredCourses(courses) // Initialize configured courses
-      setSemesterName(semester_name)
-      
-      // Calculate default semester dates based on semester name
-      const currentYear = new Date().getFullYear()
-      // Match any 4-digit year (more flexible than just 202x)
-      const yearMatch = semester_name.match(/\b(20\d{2}|19\d{2})\b/)
-      const extractedYear = yearMatch ? parseInt(yearMatch[0]) : currentYear
+      // Validate and fix course data - add default times if missing
+      const validatedCourses = courses.map((course: Course) => {
+        if (course.specific_sessions) {
+          course.specific_sessions = course.specific_sessions.map((session: any) => {
+            // Add default times if missing (10 AM - 12 PM)
+            if (!session.start_time) {
+              session.start_time = "10:00"
+              console.log(`Added default start_time for session: ${session.title}`)
+            }
+            if (!session.end_time) {
+              session.end_time = "12:00"
+              console.log(`Added default end_time for session: ${session.title}`)
+            }
+            return session
+          })
+        }
+        return course
+      })
 
-      if (semester_name.toLowerCase().includes('spring')) {
-        setSemesterStartDate(`${extractedYear}-01-15`)
-        setSemesterEndDate(`${extractedYear}-05-15`)
-      } else if (semester_name.toLowerCase().includes('fall')) {
-        setSemesterStartDate(`${extractedYear}-08-26`)
-        setSemesterEndDate(`${extractedYear}-12-13`)
-      } else if (semester_name.toLowerCase().includes('summer')) {
-        setSemesterStartDate(`${extractedYear}-05-15`)
-        setSemesterEndDate(`${extractedYear}-08-15`)
+      setExtractedCourses(validatedCourses)
+      setConfiguredCourses(validatedCourses) // Initialize configured courses
+      setSemesterName(semester_name)
+
+      // Calculate semester dates by analyzing actual dates in the course data
+      let earliestDate: Date | null = null
+      let latestDate: Date | null = null
+
+      // Look through all courses for specific session dates
+      validatedCourses.forEach((course: Course) => {
+        if (course.specific_sessions && course.specific_sessions.length > 0) {
+          course.specific_sessions.forEach((session: any) => {
+            if (session.date) {
+              const sessionDate = new Date(session.date)
+              if (!earliestDate || sessionDate < earliestDate) {
+                earliestDate = sessionDate
+              }
+              if (!latestDate || sessionDate > latestDate) {
+                latestDate = sessionDate
+              }
+            }
+          })
+        }
+      })
+
+      // If we found actual dates in the syllabus, use those with some padding
+      if (earliestDate && latestDate) {
+        // Add 1-2 weeks before the first class date for semester start
+        const semesterStart = new Date(earliestDate)
+        semesterStart.setDate(semesterStart.getDate() - 14)
+
+        // Add 1 week after the last class/exam date for semester end
+        const semesterEnd = new Date(latestDate)
+        semesterEnd.setDate(semesterEnd.getDate() + 7)
+
+        setSemesterStartDate(semesterStart.toISOString().split('T')[0])
+        setSemesterEndDate(semesterEnd.toISOString().split('T')[0])
       } else {
-        // Default to current date + 4 months
-        const start = new Date()
-        setSemesterStartDate(start.toISOString().split('T')[0])
-        const end = new Date(start)
-        end.setMonth(end.getMonth() + 4)
-        setSemesterEndDate(end.toISOString().split('T')[0])
+        // Fallback to calculating based on semester name
+        const currentYear = new Date().getFullYear()
+        // Match any 4-digit year (more flexible than just 202x)
+        const yearMatch = semester_name.match(/\b(20\d{2})\b/)
+        const extractedYear = yearMatch ? parseInt(yearMatch[0]) : currentYear
+
+        if (semester_name.toLowerCase().includes('spring')) {
+          setSemesterStartDate(`${extractedYear}-01-15`)
+          setSemesterEndDate(`${extractedYear}-06-15`)
+        } else if (semester_name.toLowerCase().includes('fall')) {
+          setSemesterStartDate(`${extractedYear}-08-26`)
+          setSemesterEndDate(`${extractedYear}-12-13`)
+        } else if (semester_name.toLowerCase().includes('summer')) {
+          setSemesterStartDate(`${extractedYear}-05-15`)
+          setSemesterEndDate(`${extractedYear}-08-15`)
+        } else {
+          // Default to current semester based on current date
+          const now = new Date()
+          const month = now.getMonth() + 1
+          if (month >= 1 && month <= 5) {
+            setSemesterStartDate(`${extractedYear}-01-15`)
+            setSemesterEndDate(`${extractedYear}-06-15`)
+          } else if (month >= 8 && month <= 12) {
+            setSemesterStartDate(`${extractedYear}-08-26`)
+            setSemesterEndDate(`${extractedYear}-12-13`)
+          } else {
+            setSemesterStartDate(`${extractedYear}-05-15`)
+            setSemesterEndDate(`${extractedYear}-08-15`)
+          }
+        }
       }
       
       setProcessingStatus('configuring')
@@ -222,7 +283,28 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
     } catch (error) {
       console.error('Error processing syllabus:', error)
       setProcessingStatus('error')
-      showError(error instanceof Error ? error.message : 'An unexpected error occurred')
+      
+      // Provide user-friendly error messages for common issues
+      let errorMessage = 'An unexpected error occurred'
+      if (error instanceof Error) {
+        if (error.message.includes('429 Request too large') || error.message.includes('token limit')) {
+          errorMessage = 'The syllabus file is too large to process. Please try uploading a smaller file or split it into multiple documents.'
+        } else if (error.message.includes('Failed to extract sufficient text')) {
+          errorMessage = 'Could not extract text from the document. The file may be an image-based PDF or corrupted. Please try a different file.'
+        } else if (error.message.includes('Could not find any course information')) {
+          errorMessage = 'No course information found in the document. Please ensure the file contains course details and schedules.'
+        } else if (error.message.includes('Failed to parse DOCX') || error.message.includes('Failed to parse DOC')) {
+          errorMessage = 'Could not read the Word document. Please try saving it as a PDF or ensure the file is not corrupted.'
+        } else if (error.message.includes('Authentication error')) {
+          errorMessage = 'Please log in again to upload syllabus files.'
+        } else if (error.message.includes('File too large')) {
+          errorMessage = 'File is too large. Please upload a file smaller than 10MB.'
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
+      showError(errorMessage)
     } finally {
       setIsUploading(false)
     }
@@ -262,7 +344,18 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
       }
 
       const scheduleData = await response.json()
-      
+
+      console.log('Schedule data received:', {
+        eventsCount: scheduleData.events?.length || 0,
+        hasEvents: !!scheduleData.events,
+        firstEvent: scheduleData.events?.[0]
+      })
+
+      // Check if we have any events to insert
+      if (!scheduleData.events || scheduleData.events.length === 0) {
+        throw new Error('No events were generated. Please ensure your syllabus contains class schedules with dates and times.')
+      }
+
       // Save calendar events to generated_content table
       const eventsToInsert = scheduleData.events.map((event: any) => ({
         user_id: user.id,
@@ -280,6 +373,18 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
           recurring_pattern: event.recurring_pattern
         }
       }))
+
+      // First, delete any existing calendar events for this user to prevent duplicates
+      const { error: deleteError } = await supabase
+        .from('generated_content')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('content_type', 'calendar_event')
+
+      if (deleteError) {
+        console.warn('Warning: Could not delete existing events:', deleteError.message)
+        // Continue anyway - we'll just insert new events
+      }
 
       const { data: events, error: eventsError } = await supabase
         .from('generated_content')
@@ -371,8 +476,11 @@ export function SyllabusUpload({ onScheduleGenerated }: SyllabusUploadProps) {
                 <p className="text-muted-foreground">
                   Upload a PDF or Word document to automatically generate your semester schedule
                 </p>
-                <div className="text-sm text-muted-foreground">
-                  Supported formats: PDF, DOC, DOCX (Max 10MB)
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <div>Supported formats: PDF, DOC, DOCX (Max 10MB)</div>
+                  <div className="text-xs">
+                    💡 For best results, use files under 5MB. Large files may take longer to process.
+                  </div>
                 </div>
               </div>
               

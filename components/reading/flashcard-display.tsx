@@ -11,9 +11,7 @@ import {
   EyeOff,
   Target,
   Brain,
-  Shuffle,
-  CheckCircle,
-  XCircle
+  Shuffle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -55,8 +53,7 @@ export function FlashcardDisplay({
 }: FlashcardDisplayProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [studyMode, setStudyMode] = useState<'study' | 'review'>('study');
-  const [answeredCards, setAnsweredCards] = useState<Set<number>>(new Set());
+  const [viewedCards, setViewedCards] = useState<Set<number>>(new Set());
 
   const currentCard = flashcards[currentIndex];
   const progress = ((currentIndex + 1) / flashcards.length) * 100;
@@ -78,14 +75,14 @@ export function FlashcardDisplay({
   const handleFlip = () => {
     setIsFlipped(!isFlipped);
     if (!isFlipped) {
-      setAnsweredCards(prev => new Set([...prev, currentIndex]));
+      setViewedCards(prev => new Set([...prev, currentIndex]));
     }
   };
 
   const handleReset = () => {
     setCurrentIndex(0);
     setIsFlipped(false);
-    setAnsweredCards(new Set());
+    setViewedCards(new Set());
   };
 
   const shuffleCards = () => {
@@ -122,9 +119,9 @@ export function FlashcardDisplay({
   }
 
   return (
-    <FadeContent className="h-full flex flex-col">
+    <FadeContent className="h-full flex flex-col overflow-hidden">
       {/* Enhanced Header */}
-      <div className="p-4 border-b border-border bg-gradient-to-r from-primary/5 to-primary/10">
+      <div className="p-4 border-b border-border bg-gradient-to-r from-primary/5 to-primary/10 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
@@ -141,9 +138,8 @@ export function FlashcardDisplay({
                     {currentCard.difficulty}
                   </Badge>
                 )}
-                {answeredCards.has(currentIndex) && (
-                  <Badge className="text-xs bg-green-100 text-green-700">
-                    <CheckCircle className="h-3 w-3 mr-1" />
+                {viewedCards.has(currentIndex) && (
+                  <Badge className="text-xs bg-blue-100 text-blue-700">
                     Viewed
                   </Badge>
                 )}
@@ -186,14 +182,14 @@ export function FlashcardDisplay({
         <div className="mt-4">
           <Progress value={progress} className="h-2" />
           <div className="flex justify-between text-xs text-gray-500 mt-1">
-            <span>{answeredCards.size} viewed</span>
-            <span>{flashcards.length - answeredCards.size} remaining</span>
+            <span>{viewedCards.size} viewed</span>
+            <span>{flashcards.length - viewedCards.size} remaining</span>
           </div>
         </div>
       </div>
 
       {/* Enhanced Flashcard */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-gradient-to-br from-muted/20 to-muted/40">
+      <div className="flex-1 flex items-center justify-center p-6 bg-gradient-to-br from-muted/20 to-muted/40 overflow-auto">
         <div className="w-full max-w-lg">
           <ClickSpark>
             <Card 
@@ -206,19 +202,19 @@ export function FlashcardDisplay({
                     <div className={`absolute inset-0 w-full h-full transition-all duration-700 ${
                       isFlipped ? 'opacity-0 rotate-y-180' : 'opacity-100 rotate-y-0'
                     }`}>
-                      <div className="w-full h-full bg-gradient-to-br from-primary via-primary/90 to-primary/70 p-6 flex flex-col text-primary-foreground">
+                      <div className="w-full h-full bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 p-6 flex flex-col">
                         <div className="flex items-center justify-center gap-2 mb-4 flex-shrink-0">
-                          <div className="w-8 h-8 bg-primary-foreground/20 rounded-full flex items-center justify-center">
-                            <BookOpen className="h-4 w-4" />
+                          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                            <BookOpen className="h-4 w-4 text-white" />
                           </div>
-                          <Badge className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30">
+                          <Badge className="bg-white/20 text-white border-white/30">
                             Question
                           </Badge>
                         </div>
                         
                         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-white/10 scrollbar-thumb-white/30 hover:scrollbar-thumb-white/50">
-                          <div className="text-lg leading-relaxed text-center px-2">
-                            <div className="text-primary-foreground [&>*]:text-primary-foreground [&>strong]:text-primary-foreground/80">
+                          <div className="text-base md:text-lg leading-relaxed text-center px-2">
+                            <div className="text-white font-medium [&>*]:text-white [&>strong]:text-white/90">
                               <Markdown>
                                 {currentCard.front}
                               </Markdown>
@@ -240,7 +236,7 @@ export function FlashcardDisplay({
                       <div className="w-full h-full bg-gradient-to-br from-green-500 via-green-600 to-emerald-700 p-6 flex flex-col text-white">
                         <div className="flex items-center justify-center gap-2 mb-4 flex-shrink-0">
                           <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                            <CheckCircle className="h-4 w-4" />
+                            <BookOpen className="h-4 w-4" />
                           </div>
                           <Badge className="bg-white/20 text-white border-white/30">
                             Answer
@@ -248,8 +244,8 @@ export function FlashcardDisplay({
                         </div>
                         
                         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-white/10 scrollbar-thumb-white/30 hover:scrollbar-thumb-white/50">
-                          <div className="text-lg leading-relaxed text-center px-2">
-                            <div className="text-white [&>*]:text-white [&>strong]:text-green-100">
+                          <div className="text-base md:text-lg leading-relaxed text-center px-2">
+                            <div className="text-white font-medium [&>*]:text-white [&>strong]:text-green-100">
                               <Markdown>
                                 {currentCard.back}
                               </Markdown>
@@ -271,29 +267,31 @@ export function FlashcardDisplay({
       </div>
 
       {/* Enhanced Controls */}
-      <div className="p-4 border-t border-border bg-background">
-        <div className="flex items-center justify-between mb-4">
+      <div className="p-4 border-t border-border bg-background flex-shrink-0">
+        <div className="flex items-center justify-between mb-4 gap-2">
           <ClickSpark>
             <Button
               onClick={handlePrevious}
               disabled={currentIndex === 0}
               variant="outline"
-              className="flex items-center gap-2"
+              size="sm"
+              className="flex items-center gap-1"
             >
               <ChevronLeft className="h-4 w-4" />
-              Previous
+              Prev
             </Button>
           </ClickSpark>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-1 justify-center">
             <ClickSpark>
               <Button
                 onClick={handleFlip}
                 variant={isFlipped ? "default" : "outline"}
-                className="flex items-center gap-2"
+                size="sm"
+                className="flex items-center gap-1"
               >
-                {isFlipped ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                {isFlipped ? 'Hide Answer' : 'Show Answer'}
+                {isFlipped ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                {isFlipped ? 'Hide' : 'Show'}
               </Button>
             </ClickSpark>
             
@@ -303,7 +301,7 @@ export function FlashcardDisplay({
                 variant="outline"
                 size="sm"
               >
-                <RotateCcw className="h-4 w-4" />
+                <RotateCcw className="h-3 w-3" />
               </Button>
             </ClickSpark>
           </div>
@@ -312,8 +310,9 @@ export function FlashcardDisplay({
             <Button
               onClick={handleNext}
               disabled={currentIndex === flashcards.length - 1}
-              variant="outline"
-              className="flex items-center gap-2"
+              variant="default"
+              size="sm"
+              className="flex items-center gap-1 bg-primary hover:bg-primary/90"
             >
               Next
               <ChevronRight className="h-4 w-4" />

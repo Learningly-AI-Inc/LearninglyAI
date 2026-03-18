@@ -9,7 +9,7 @@ export function useCalendar() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [view, setView] = useState<CalendarView>({ type: 'month', date: new Date() })
+  const [view, setView] = useState<CalendarView>({ type: 'week', date: new Date() })
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [isCreatingEvent, setIsCreatingEvent] = useState(false)
   
@@ -252,11 +252,41 @@ export function useCalendar() {
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
     const dateStr = `${year}-${month}-${day}`
+    const dayOfWeek = date.getDay()
 
     return events.filter(event => {
       // Extract date part from event.start_time (format: YYYY-MM-DDTHH:mm:ss or YYYY-MM-DDTHH:mm:ss.sssZ)
       const eventDateStr = event.start_time.split('T')[0]
-      return eventDateStr === dateStr
+      
+      // Check if this is an exact date match
+      if (eventDateStr === dateStr) {
+        return true
+      }
+      
+      // Check if this is a recurring event that should occur on this date
+      if (event.recurring_pattern) {
+        const pattern = event.recurring_pattern
+        
+        // Check if the event should recur on this day of the week
+        if (pattern.days_of_week && pattern.days_of_week.includes(dayOfWeek)) {
+          // Parse the original event date
+          const originalEventDate = new Date(event.start_time)
+          
+          // Check if the current date is within the recurring range
+          const endDate = pattern.end_date ? new Date(pattern.end_date) : new Date(originalEventDate.getTime() + (365 * 24 * 60 * 60 * 1000)) // Default to 1 year if no end date
+          if (date >= originalEventDate && date <= endDate) {
+            // For weekly recurring events, check if this date falls on the correct interval
+            if (pattern.type === 'weekly') {
+              const weeksDiff = Math.floor((date.getTime() - originalEventDate.getTime()) / (7 * 24 * 60 * 60 * 1000))
+              return weeksDiff % pattern.interval === 0
+            }
+            
+            return true
+          }
+        }
+      }
+      
+      return false
     })
   }, [events])
 

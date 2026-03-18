@@ -8,7 +8,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 
 export async function POST(request: NextRequest) {
   try {
-    const { plan, successUrl, cancelUrl } = await request.json()
+    const { plan, successUrl, cancelUrl, customerEmail } = await request.json()
 
     if (!plan || !successUrl || !cancelUrl) {
       return NextResponse.json(
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Stripe checkout session (subscription mode only)
-    const session = await stripe.checkout.sessions.create({
+    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [
@@ -122,7 +122,14 @@ export async function POST(request: NextRequest) {
       },
       // For subscription mode, customer is created automatically
       // No need for customer_creation parameter
-    })
+    }
+
+    // Pre-fill email if provided (for logged-in users)
+    if (customerEmail && typeof customerEmail === 'string' && customerEmail.trim()) {
+      sessionConfig.customer_email = customerEmail.trim()
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig)
 
     return NextResponse.json({ checkoutUrl: session.url })
   } catch (error) {

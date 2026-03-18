@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const openai = new OpenAI({
+  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -85,20 +87,24 @@ Please provide a thoughtful, accurate response based on the given text and your 
     }
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-      
-      const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
-      
-      const result = await model.generateContent(fullPrompt);
-      const response = result.response;
-      const text = response.text();
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        max_tokens: 2048,
+        temperature: 0.7,
+      });
+
+      const text = completion.choices[0]?.message?.content || '';
 
       // Log the interaction for analytics
       await supabase
         .from('ai_model_logs')
         .insert({
           user_id: user.id,
-          model_name: 'gemini-pro',
+          model_name: 'openai',
           request_payload: {
             action_type: actionType,
             text_length: selectedText.length,
@@ -111,9 +117,9 @@ Please provide a thoughtful, accurate response based on the given text and your 
           }
         });
 
-      console.log('✅ AI analysis completed:', { 
-        actionType, 
-        responseLength: text.length 
+      console.log('✅ AI analysis completed:', {
+        actionType,
+        responseLength: text.length
       });
 
       return NextResponse.json({
@@ -121,7 +127,7 @@ Please provide a thoughtful, accurate response based on the given text and your 
         response: text,
         actionType,
         metadata: {
-          model: 'gemini-pro',
+          model: 'gpt-4o-mini',
           timestamp: new Date().toISOString(),
           documentTitle,
           pageNumber
@@ -130,13 +136,13 @@ Please provide a thoughtful, accurate response based on the given text and your 
 
     } catch (aiError: any) {
       console.error('❌ AI generation error:', aiError);
-      
+
       // Log the error
       await supabase
         .from('ai_model_logs')
         .insert({
           user_id: user.id,
-          model_name: 'gemini-pro',
+          model_name: 'openai',
           request_payload: {
             action_type: actionType,
             text_length: selectedText.length,
@@ -149,9 +155,9 @@ Please provide a thoughtful, accurate response based on the given text and your 
         });
 
       return NextResponse.json(
-        { 
+        {
           error: 'Failed to generate AI response',
-          details: aiError.message 
+          details: aiError.message
         },
         { status: 500 }
       );

@@ -4,11 +4,26 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Sparkles, CheckCircle, X, RefreshCw, Eraser, Copy, AlertTriangle } from "lucide-react";
+import { Sparkles, CheckCircle, X, RefreshCw, Eraser, Copy, AlertTriangle, ShieldCheck, Scan, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import MarkdownRenderer from "@/components/ui/markdown-renderer";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+
+// AI Detection result interface
+interface AIDetectionResult {
+  score: number;
+  confidence: 'low' | 'medium' | 'high';
+  verdict: 'human' | 'likely_human' | 'mixed' | 'likely_ai' | 'ai';
+  analysis: {
+    patterns: string;
+    vocabulary: string;
+    structure: string;
+    naturalness: string;
+  };
+  suggestions: string[];
+}
 
 interface AISuggestionsPanelProps {
   selectedText: string;
@@ -25,6 +40,13 @@ interface AISuggestionsPanelProps {
   onRevealIssue?: (issue: GrammarIssue) => void;
   currentIssueIndex?: number;
   onNavigateIssue?: (direction: 'next' | 'prev') => void;
+  // New props for AI detection and humanizing
+  onAIDetect?: () => void;
+  onHumanize?: (style?: string) => void;
+  aiDetectionResult?: AIDetectionResult | null;
+  humanizedText?: string;
+  isDetecting?: boolean;
+  isHumanizing?: boolean;
 }
 
 interface GrammarIssue {
@@ -49,7 +71,13 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
   onTabChange,
   onRevealIssue,
   currentIssueIndex = -1,
-  onNavigateIssue
+  onNavigateIssue,
+  onAIDetect,
+  onHumanize,
+  aiDetectionResult,
+  humanizedText,
+  isDetecting = false,
+  isHumanizing = false
 }) => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [expandedIssueIds, setExpandedIssueIds] = useState<Record<string, boolean>>({});
@@ -160,7 +188,28 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
               ) : suggestedText ? (
                 <div className="flex flex-col gap-4">
                   <div className="bg-muted rounded-lg p-4 shadow-sm border">
-                    <h4 className="text-sm font-semibold text-foreground mb-2">Suggestion</h4>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-foreground">Suggestion</h4>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onTryAgain?.()}
+                              disabled={isProcessing}
+                              className="h-7 px-2 text-xs"
+                            >
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Re-paraphrase
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Generate a new paraphrase</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                     <div className="max-h-[500px] overflow-y-auto">
                       <div className="prose prose-sm max-w-none text-foreground">
                         {suggestedText.split(/\n\s*\n/).map((paragraph, index) => (
@@ -183,7 +232,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                             disabled={isProcessing}
                           >
                             <RefreshCw className="h-4 w-4 mr-2" /> 
-                            {isProcessing ? 'Reparaphrasing...' : 'Reparaphrase'}
+                            {isProcessing ? 'Reparaphrasing...' : 'Re-paraphrase'}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -207,7 +256,7 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Quick reparaphrase</p>
+                          <p>Quick re-paraphrase</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -371,30 +420,223 @@ const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
               </div>
             </TabsContent>
 
-            {/* Placeholder content for AI Detector */}
-            <TabsContent value="detector" className="h-full m-0 px-4 pb-4 overflow-auto">
-              <div className="flex items-center justify-center h-full border-2 border-dashed border-border rounded-lg bg-muted/30">
-                <div className="text-center">
-                  <div className="p-4 bg-yellow-100 dark:bg-yellow-900/20 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                    <Sparkles className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
+            {/* Humanizer Tab */}
+            <TabsContent value="detector" className="h-full m-0 px-4 pb-4 pt-4 overflow-auto">
+              {isHumanizing ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Humanizing your text...</span>
                   </div>
-                  <h3 className="text-lg font-semibold text-yellow-700 dark:text-yellow-400 mb-2">AI Detector</h3>
-                  <p className="text-yellow-700 dark:text-yellow-400/80">Coming soon</p>
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
                 </div>
-              </div>
+              ) : humanizedText ? (
+                <div className="flex flex-col gap-4">
+                  <div className="bg-muted rounded-lg p-4 shadow-sm border">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Scan className="h-4 w-4 text-green-600" />
+                        Humanized Text
+                      </h4>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onHumanize?.()}
+                              disabled={isHumanizing}
+                              className="h-7 px-2 text-xs"
+                            >
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Re-humanize
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Generate a new humanized version</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <div className="max-h-[400px] overflow-y-auto">
+                      <div className="prose prose-sm max-w-none text-foreground">
+                        {humanizedText.split(/\n\s*\n/).map((paragraph, index) => (
+                          <p key={index} className="mb-4 leading-relaxed last:mb-0">
+                            {paragraph.trim()}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => onAccept(humanizedText)}
+                      className="flex-1"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Apply to Editor
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(humanizedText);
+                        setCopySuccess(true);
+                        setTimeout(() => setCopySuccess(false), 2000);
+                      }}
+                    >
+                      <Copy className="h-4 w-4 mr-1" />
+                      {copySuccess ? "Copied!" : "Copy"}
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <span className="text-xs text-muted-foreground self-center">Try different style:</span>
+                    <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => onHumanize?.('natural')}>Natural</Button>
+                    <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => onHumanize?.('casual')}>Casual</Button>
+                    <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => onHumanize?.('professional')}>Professional</Button>
+                    <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => onHumanize?.('academic')}>Academic</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full border-2 border-dashed border-border rounded-lg bg-muted/30">
+                  <div className="text-center">
+                    <div className="p-4 bg-green-100 dark:bg-green-900/20 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                      <Scan className="h-8 w-8 text-green-600 dark:text-green-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Humanizer</h3>
+                    <p className="text-muted-foreground mb-2">Click the "Humanizer" button in the toolbar to humanize your text</p>
+                    <p className="text-xs text-muted-foreground">Makes AI-generated text sound more natural and human-written</p>
+                  </div>
+                </div>
+              )}
             </TabsContent>
 
-            {/* Placeholder content for AI Checker */}
-            <TabsContent value="checker" className="h-full m-0 px-4 pb-4 overflow-auto">
-              <div className="flex items-center justify-center h-full border-2 border-dashed border-border rounded-lg bg-card/50">
-                <div className="text-center">
-                  <div className="p-4 bg-primary/10 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                    <CheckCircle className="h-8 w-8 text-primary" />
+            {/* AI Checker Tab */}
+            <TabsContent value="checker" className="h-full m-0 px-4 pb-4 pt-4 overflow-auto">
+              {isDetecting ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Analyzing text for AI patterns...</span>
                   </div>
-                  <h3 className="text-lg font-semibold text-primary mb-2">AI Checker</h3>
-                  <p className="text-primary/80">Coming soon</p>
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-4/5" />
                 </div>
-              </div>
+              ) : aiDetectionResult ? (
+                <div className="flex flex-col gap-4">
+                  {/* Score Display */}
+                  <div className="bg-muted rounded-lg p-4 shadow-sm border">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <ShieldCheck className="h-4 w-4" />
+                        AI Detection Result
+                      </h4>
+                      <Badge variant={
+                        aiDetectionResult.verdict === 'human' || aiDetectionResult.verdict === 'likely_human' ? 'default' :
+                        aiDetectionResult.verdict === 'mixed' ? 'secondary' : 'destructive'
+                      }>
+                        {aiDetectionResult.verdict.replace('_', ' ').toUpperCase()}
+                      </Badge>
+                    </div>
+
+                    {/* Score Bar */}
+                    <div className="mb-4">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-green-600">Human</span>
+                        <span className="font-medium">{aiDetectionResult.score}% AI Likelihood</span>
+                        <span className="text-red-600">AI</span>
+                      </div>
+                      <Progress
+                        value={aiDetectionResult.score}
+                        className="h-3"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Confidence: {aiDetectionResult.confidence}
+                      </p>
+                    </div>
+
+                    {/* Analysis Details */}
+                    <div className="space-y-2 text-sm">
+                      <div className="flex gap-2">
+                        <Badge variant="outline" className="shrink-0">Patterns</Badge>
+                        <span className="text-muted-foreground">{aiDetectionResult.analysis.patterns}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge variant="outline" className="shrink-0">Vocabulary</Badge>
+                        <span className="text-muted-foreground">{aiDetectionResult.analysis.vocabulary}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge variant="outline" className="shrink-0">Structure</Badge>
+                        <span className="text-muted-foreground">{aiDetectionResult.analysis.structure}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge variant="outline" className="shrink-0">Naturalness</Badge>
+                        <span className="text-muted-foreground">{aiDetectionResult.analysis.naturalness}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Suggestions */}
+                  {aiDetectionResult.suggestions && aiDetectionResult.suggestions.length > 0 && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                      <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-400 mb-2">
+                        💡 Suggestions to Make it More Human
+                      </h4>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-blue-700 dark:text-blue-300">
+                        {aiDetectionResult.suggestions.map((suggestion, index) => (
+                          <li key={index}>{suggestion}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => onAIDetect?.()}
+                      className="flex-1"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Re-analyze
+                    </Button>
+                    {aiDetectionResult.score > 30 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          onTabChange('detector');
+                          onHumanize?.();
+                        }}
+                        className="flex-1"
+                      >
+                        <Scan className="h-4 w-4 mr-2" />
+                        Humanize Text
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full border-2 border-dashed border-border rounded-lg bg-muted/30">
+                  <div className="text-center">
+                    <div className="p-4 bg-blue-100 dark:bg-blue-900/20 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                      <ShieldCheck className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">AI Content Checker</h3>
+                    <p className="text-muted-foreground mb-2">Click the "AI Checker" button in the toolbar to analyze your text</p>
+                    <p className="text-xs text-muted-foreground">Detects if text appears to be AI-generated</p>
+                  </div>
+                </div>
+              )}
             </TabsContent>
 
         </Tabs>

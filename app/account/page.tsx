@@ -7,7 +7,7 @@ import { Toaster } from 'sonner'
 import { FadeContent } from '@/components/react-bits/fade-content'
 import { SlideIn } from '@/components/react-bits/slide-in'
 import ShinyText from '@/components/react-bits/shiny-text'
-import { BookOpen, Brain, Sparkles } from 'lucide-react'
+import { BookOpen, Target, Search } from 'lucide-react'
 import { UnifiedAuthCard } from '@/components/auth'
 
 function AccountContent() {
@@ -68,19 +68,19 @@ function AccountContent() {
 
   const features = [
     {
-      icon: Brain,
-      title: "AI-Powered Learning",
-      description: "Transform any content into interactive study materials with advanced AI"
-    },
-    {
       icon: BookOpen,
-      title: "Smart Document Analysis",
-      description: "Upload PDFs, videos, and get instant summaries and insights"
+      title: "📚 Smart Reading & Writing Hub",
+      description: "Upload textbooks and notes for instant summaries, flashcards, quizzes, mind maps, and memes. Refine your writing with grammar checking, paraphrasing, AI detection, and humanizing tools."
     },
     {
-      icon: Sparkles,
-      title: "Personalized Experience",
-      description: "Adaptive learning paths tailored specifically to your needs"
+      icon: Target,
+      title: "🎯 Exam Prep & Auto-Calendar",
+      description: "Adaptive quizzes mirror your professor's style. Upload your syllabus—Auto-Calendar generates study schedules and deadlines. Track mastery levels over time."
+    },
+    {
+      icon: Search,
+      title: "🔍 Multi-LLM AI Search",
+      description: "Research-grade AI search with GPT, Claude, Gemini, DeepSeek, Llama, or Grok. Fast, accurate, multi-perspective insights for every query."
     }
   ]
 
@@ -109,15 +109,15 @@ function AccountContent() {
                 
                 <div className="space-y-3 lg:space-y-4">
                   <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-900 leading-tight">
-                    Transform Your Learning
-                    <br />
                     <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                      with AI
+                      Your Complete AI
                     </span>
+                    <br />
+                    Study Companion
                   </h1>
-                  
+
                   <p className="text-base sm:text-lg lg:text-xl text-gray-600 leading-relaxed max-w-none lg:max-w-lg">
-                    Sign up or sign in to access thousands of AI-powered learning tools and transform your education.
+                    Sign up or sign in to get instant help with reading, writing, exam prep, and auto-calendar —everything you need to ace your studies!
                   </p>
                 </div>
               </div>
