@@ -9,6 +9,7 @@ import { Rocket, Brain, ArrowRight } from 'lucide-react';
 import { NavigationHeader } from './navigation-header';
 
 export const HeroSection: React.FC = () => {
+  //fdasgsg
   const router = useRouter();
   const { scrollY } = useScroll();
   const opacity = useTransform(scrollY, [0, 300], [1, 0]);
